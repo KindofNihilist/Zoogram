@@ -10,9 +10,8 @@ import Foundation
 public class StorageManager {
     
     static let shared = StorageManager()
-    
-    private let storage = Storage.storage(url: "gs://Zoogram-58487.appspot.com/").reference()
-    
+
+    private let storage = Storage.storage(url: "gs://catogram-58487.appspot.com/").reference()
     public enum StorageManagerError: Error {
         case failedToDownload
         case failedToUpload

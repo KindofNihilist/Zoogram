@@ -12,7 +12,7 @@ final public class DatabaseManager {
     
     static let shared = DatabaseManager()
     
-    private let database = Database.database(url: "https://Zoogram-58487-default-rtdb.europe-west1.firebasedatabase.app").reference()
+    private let database = Database.database(url: "https://catogram-58487-default-rtdb.europe-west1.firebasedatabase.app").reference()
     
     // Check if email and username is available
     public func checkIfUsernameIsTaken(with email: String, username: String, usernameTaken: @escaping (Bool) -> Void) {
