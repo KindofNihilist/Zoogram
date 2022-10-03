@@ -7,16 +7,16 @@
 
 import UIKit
 
-protocol ProfileTabsCollectionReusableViewDelegate: AnyObject {
+protocol ProfileTabsCollectionViewDelegate: AnyObject {
     func didTapGridTabButton()
     func didTapTaggedTabButton()
 }
 
-class ProfileTabsCollectionReusableView: UICollectionReusableView {
+class ProfileTabsReusableView: UICollectionReusableView {
     
     static let identifier = "ProfileTabsCollectionReusableView"
     
-    public weak var delegate: ProfileTabsCollectionReusableViewDelegate?
+    public weak var delegate: ProfileTabsCollectionViewDelegate?
     
     private let personalFeedButton: UIButton = {
        let button = UIButton()

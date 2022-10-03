@@ -9,41 +9,19 @@ import FirebaseAuth
 import UIKit
 
 class TabBarController: UITabBarController {
+    
     var tabBarHeight: CGFloat = 55
     
-    private var userData: User
-    
     override func viewWillAppear(_ animated: Bool) {
-        loadTabBar(with: userData)
+        loadTabBar()
     }
-    
-    init(userData: User) {
-        self.userData = userData
-        super.init(nibName: nil, bundle: nil)
-    }
-    
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-    
 
     override func viewDidLoad() {
         delegate = self
-//        self.navigationController?.navigationBar.prefersLargeTitles = false
     }
-    
-//    private func handleNotAuthenticated() {
-//        //Check authentication status
-//        if Auth.auth().currentUser == nil {
-//            //Show log in
-//            print("not authenticated")
-//            let loginViewController = LoginViewController()
-//            loginViewController.modalPresentationStyle = .fullScreen
-//        }
-//    }
 
-    func loadTabBar(with data: User) {
-        let tabItems: [UIViewController] = [HomeViewController(), DiscoverViewController(), NewPostViewController(), ActivityViewController(), ProfileViewController(user: data)]
+    func loadTabBar() {
+        let tabItems: [UIViewController] = [HomeViewController(), DiscoverViewController(), NewPostViewController(), ActivityViewController(), UserProfileViewController(for: AuthenticationManager.shared.getCurrentUserUID())]
         let tabIcons: [TabItem] = [.home, .discover, .makeAPost, .activity, .myProfile]
         self.setupTabBar(tabItems) { (controllers) in
             self.view.layoutIfNeeded()

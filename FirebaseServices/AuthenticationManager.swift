@@ -38,7 +38,11 @@ public class AuthenticationManager {
         
     }
     
-    public func loginUser(username: String?, email: String?, password: String, completion: @escaping (Result<User, Error>) -> Void) {
+    public func getCurrentUserUID() -> String {
+        return Auth.auth().currentUser!.uid
+    }
+    
+    public func loginUser(username: String?, email: String?, password: String, completion: @escaping (Result<ZoogramUser, Error>) -> Void) {
         if let email = email {
             //email log in
             Auth.auth().signIn(withEmail: email, password: password) { authResult, error in
@@ -46,17 +50,7 @@ public class AuthenticationManager {
                     completion(.failure(error!))
                     return
                 }
-                DatabaseManager.shared.getUser(for: authResult!.user.uid) { result in
-                    switch result {
-                    case .success(let userData):
-                        completion(.success(userData))
-                    case .failure(let error):
-                        print(error)
-                    }
-                }
             }
-        } else if let username = username {
-            //username log in
         }
     }
     

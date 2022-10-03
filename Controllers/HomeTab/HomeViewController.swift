@@ -50,9 +50,9 @@ class HomeViewController: UIViewController {
     }
     
     private func loadMockData() {
-        let user = User(
+        let user = ZoogramUser(
             profilePhotoURL: "https://i.pinimg.com/originals/59/54/b4/5954b408c66525ad932faa693a647e3f.jpg",
-            emailAdress: "",
+            email: "",
             phoneNumber: "",
             username: "funnyCat",
             name: "Robert The Cat",
@@ -93,7 +93,6 @@ class HomeViewController: UIViewController {
             viewModel.append(PostSubviewType.actions(provider: ""))
             viewModel.append(PostSubviewType.footer(provied: post))
             postViewModels.append(PostViewModel(subviews: viewModel))
-            print(post)
         }
         print(postModels.count)
     }

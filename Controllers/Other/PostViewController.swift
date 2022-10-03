@@ -8,7 +8,7 @@ import SDWebImage
 import UIKit
 
 enum PostSubviewType {
-    case header(provider: User)
+    case header(provider: ZoogramUser)
     case postContent(provider: UserPost)
     case actions(provider: String)
     case comment(comment: PostComment)

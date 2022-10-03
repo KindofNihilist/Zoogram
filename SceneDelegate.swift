@@ -22,14 +22,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         if Auth.auth().currentUser == nil {
             window?.rootViewController = LoginViewController()
         } else {
-            DatabaseManager.shared.getUser(for: Auth.auth().currentUser!.uid) { [weak self] result in
-                switch result {
-                case.success(let userData):
-                    self?.window?.rootViewController = TabBarController(userData: userData)
-                case.failure(let error):
-                    print(error)
-                }
-            }
+            self.window?.rootViewController = TabBarController()
         }
         window?.makeKeyAndVisible()
         window?.windowScene = windowScene

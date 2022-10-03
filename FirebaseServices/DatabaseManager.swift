@@ -19,7 +19,7 @@ final public class DatabaseManager {
         usernameTaken(false)
     }
     
-    public func insertNewUser(with user: User, completion: @escaping (Bool) -> Void) {
+   public func insertNewUser(with user: ZoogramUser, completion: @escaping (Bool) -> Void) {
         guard let userID = AuthenticationManager.currentUserUID else {
             return
         }
@@ -27,7 +27,7 @@ final public class DatabaseManager {
         print(databaseKey)
         database.child(databaseKey).setValue([
             "profilePhotoURL": user.profilePhotoURL,
-            "email": user.emailAdress,
+            "email": user.email,
             "phoneNumber": user.phoneNumber,
             "username": user.username,
             "name": user.name ?? "",
@@ -53,56 +53,46 @@ final public class DatabaseManager {
         }
     }
     
-    public func getUser(for userID: String, completion: @escaping (Result<User, Error>) -> Void) {
+    
+   public func getUser(for userID: String, completion: @escaping (ZoogramUser?) -> Void) {
+       
         let path = storageKeys.users.rawValue + userID
-        database.child(path).observe(.value) { snapshot in
+    
+        self.database.child(path).observe(.value) { snapshot in
+    
             guard let value = snapshot.value as? [String: Any] else {
-                completion(.failure(storageError.errorObtainingSnapshot))
                 return
             }
-            print(value)
-            guard let profilePhotoURL = value["profilePhotoURL"] as? String,
-                  let email = value["email"] as? String,
-                  let phoneNumber = value["phoneNumber"] as? String,
-                  let username = value["username"] as? String,
-                  let name = value["name"] as? String,
-                  let bio = value["bio"] as? String,
-                  let birthday = value["birthday"] as? String,
-                  let gender = value["gender"] as? String,
-                  let following = value["following"] as? Int,
-                  let followers = value["followers"] as? Int,
-                  let posts = value["posts"] as? Int,
-                  let joinDate = value["joinDate"] as? Double else {
-                      completion(.failure(storageError.couldNotMapSnapshotValue))
-                      return
-                  }
-            let user = User(profilePhotoURL: profilePhotoURL,
-                            emailAdress: email,
-                            phoneNumber: phoneNumber,
-                            username: username,
-                            name: name,
-                            bio: bio,
-                            birthday: birthday,
-                            gender: gender,
-                            following: following,
-                            followers: followers,
-                            posts: posts,
-                            joinDate: joinDate)
-            print("Succesfully obtained user data")
-            completion(.success(user))
+            
+            do {
+                let json = try JSONSerialization.data(withJSONObject: value as Any)
+                let decodedUser = try JSONDecoder().decode(ZoogramUser.self, from: json)
+                completion(decodedUser)
+                
+            } catch {
+                print(error)
+            }
         }
     }
     
-    public func updateUserProfile(for userID: String, with values: [String: Any], profilePic: UIImage?) {
+    
+    public func updateUserProfile(for userID: String, with values: [String: Any], profilePic: UIImage?, completion: @escaping () -> Void) {
+        
         if !values.isEmpty {
             database.child("Users/\(userID)").updateChildValues(values)
         }
+        
         if let image = profilePic, profilePic != nil {
+            
             StorageManager.shared.uploadUserProfilePhoto(for: userID, with: image, fileName: "\(AuthenticationManager.currentUserEmail!)_ProfilePicture.png") { [weak self] result in
+                
                 switch result {
+                    
                 case .success(let pictureURL):
                     self?.database.child("Users/\(userID)").updateChildValues(["profilePhotoURL" : pictureURL])
+                    completion()
                     return
+                    
                 case .failure(let error):
                     print(error)
                 }

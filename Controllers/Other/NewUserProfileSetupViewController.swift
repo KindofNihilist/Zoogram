@@ -15,11 +15,12 @@ class NewUserProfileSetupViewController: UIViewController {
     let email = UserDefaults.standard.value(forKey: "email") as! String
     let username = UserDefaults.standard.value(forKey: "username") as! String
     
-    private let profileHeader: ProfileEditTableViewHeader = {
-        let header = ProfileEditTableViewHeader()
+    var imagePicker = UIImagePickerController()
+    
+    var profileEdditingHeader: ProfileEdittingTableViewHeader = {
+        let header = ProfileEdittingTableViewHeader()
         header.backgroundColor = .systemBackground
         header.translatesAutoresizingMaskIntoConstraints = false
-        header.changeProfilePicButton.addTarget(self, action: #selector(didTapChangeProfilePic), for: .touchUpInside)
         return header
     }()
     
@@ -133,19 +134,11 @@ class NewUserProfileSetupViewController: UIViewController {
         return picker
     }()
     
-    //    init(email: String, username: String) {
-    //        self.email = email
-    //        self.username = username
-    //    }
-    //
-    //    required init?(coder: NSCoder) {
-    //        fatalError("init(coder:) has not been implemented")
-    //    }
-    
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
         genderField.inputView = pickerView
+        profileEdditingHeader.delegate = self
         ageField.inputView = datePicker
         pickerView.delegate = self
         pickerView.dataSource = self
@@ -163,7 +156,7 @@ class NewUserProfileSetupViewController: UIViewController {
     
     
     @objc func didTapSave() {
-        let image = self.profileHeader.getChosenProfilePic()
+        let image = self.profileEdditingHeader.getChosenProfilePic()
         guard let userID = AuthenticationManager.currentUserUID else {
             return
         }
@@ -173,22 +166,22 @@ class NewUserProfileSetupViewController: UIViewController {
                 
             case .success(let downloadUrl):
                 UserDefaults.standard.set(downloadUrl, forKey: "profile_picture_url")
-                let newuser = User(profilePhotoURL: downloadUrl,
-                                   emailAdress: self?.email ?? "",
+                let newuser = ZoogramUser(profilePhotoURL: downloadUrl,
+                                   email: self?.email ?? "",
                                    phoneNumber: self?.phoneNumberField.text,
                                    username: self?.username ?? "",
-                                   name: self?.nameTextField.text,
+                                   name: self?.nameTextField.text ?? "",
                                    bio: self?.bioTextView.text,
-                                   birthday: self?.ageField.text,
-                                   gender: self?.genderField.text,
+                                   birthday: (self?.ageField.text)!,
+                                   gender: (self?.genderField.text)!,
                                    following: 0,
                                    followers: 0,
                                    posts: 0,
                                    joinDate: Date().timeIntervalSince1970)
                 DatabaseManager.shared.insertNewUser(with: newuser) { success in
                     if success {
-                        print("Succesfully created new user for \(newuser.emailAdress) with username: \(newuser.username)")
-                        self?.view.window?.rootViewController = TabBarController(userData: newuser)
+                        print("Succesfully created new user for \(newuser.email) with username: \(newuser.username)")
+                        self?.view.window?.rootViewController = TabBarController()
                     } else {
                        print("There was a problem creating your account")
                     }
@@ -216,33 +209,17 @@ class NewUserProfileSetupViewController: UIViewController {
         ageField.text = selectedDate
     }
     
-    @objc func didTapChangeProfilePic() {
-        let actionSheet = UIAlertController(title: "Profile Picture", message: "Change profile picture", preferredStyle: .actionSheet)
-        
-        actionSheet.addAction(UIAlertAction(title: "Take Photo", style: .default, handler: { [weak self] _ in
-            self?.presentCameraView()
-        }))
-        
-        actionSheet.addAction(UIAlertAction(title: "Choose from Library", style: .default, handler: { [weak self] _ in
-            self?.presentPhotoLibraryView()
-        }))
-        
-        actionSheet.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
-        
-        present(actionSheet, animated: true)
-    }
-    
     private func setupViewsAndConstraint() {
-        view.addSubviews(profileHeader, backgroundView)
+        view.addSubviews(profileEdditingHeader, backgroundView)
         backgroundView.addSubviews(nameTextField, bioTextView, privacyDescriptionLabel, phoneNumberField, genderField, ageField)
         
         NSLayoutConstraint.activate([
-            profileHeader.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
-            profileHeader.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            profileHeader.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            profileHeader.heightAnchor.constraint(equalToConstant: 160),
+            profileEdditingHeader.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+            profileEdditingHeader.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            profileEdditingHeader.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            profileEdditingHeader.heightAnchor.constraint(equalToConstant: 160),
             
-            backgroundView.topAnchor.constraint(equalTo: profileHeader.bottomAnchor),
+            backgroundView.topAnchor.constraint(equalTo: profileEdditingHeader.bottomAnchor),
             backgroundView.widthAnchor.constraint(equalTo: view.widthAnchor),
             backgroundView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             
@@ -328,47 +305,19 @@ extension NewUserProfileSetupViewController: UIPickerViewDelegate, UIPickerViewD
     }
 }
 
-extension NewUserProfileSetupViewController: UIImagePickerControllerDelegate, UINavigationControllerDelegate {
-    
-    func presentCameraView() {
-        let imagePicker = UIImagePickerController()
-        imagePicker.sourceType = .camera
-        imagePicker.delegate = self
-        imagePicker.cameraCaptureMode = .photo
-        imagePicker.allowsEditing = true
-        present(imagePicker, animated: true)
-    }
-    
-    private func presentPhotoLibraryView() {
-        let imagePicker = UIImagePickerController()
-        imagePicker.sourceType = .photoLibrary
-        imagePicker.delegate = self
-        imagePicker.mediaTypes = ["public.image"]
-        imagePicker.allowsEditing = true
-        print(Thread.current)
-        present(imagePicker, animated: true)
-    }
+extension NewUserProfileSetupViewController: ProfileEdditingHeaderProtocol {
     
     
     func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
         picker.dismiss(animated: true, completion: nil)
-        let selectedImage = info[UIImagePickerController.InfoKey.editedImage] as? UIImage
-        self.profileHeader.configure(with: selectedImage)
+        if let selectedImage = info[UIImagePickerController.InfoKey.editedImage] as? UIImage {
+            self.profileEdditingHeader.configure(with: selectedImage)
+        }
     }
     
     func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
         picker.dismiss(animated: true, completion: nil)
     }
-}
-
-import SwiftUI
-
-struct NewUserProfileSetupPreview: PreviewProvider {
-    
-    static var previews: some View {
-        NewUserProfileSetupViewController().toPreview().previewInterfaceOrientation(.portrait)
-    }
-    
 }
 
 

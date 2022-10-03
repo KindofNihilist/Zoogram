@@ -18,7 +18,6 @@ final class SettingsViewController: UIViewController {
     
     private var data = [[SettingsCellModel]]()
     
-    private var userData: User
     
     private let tableView: UITableView = {
         let tableView = UITableView(frame: .zero, style: .insetGrouped)
@@ -33,15 +32,6 @@ final class SettingsViewController: UIViewController {
         tableView.delegate = self
         tableView.dataSource = self
         view = tableView
-    }
-    
-    init(userData: User) {
-        self.userData = userData
-        super.init(nibName: nil, bundle: nil)
-    }
-    
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
     }
     
     private func configureModels() {
@@ -77,7 +67,7 @@ final class SettingsViewController: UIViewController {
     }
     
     private func didTapEditProfile() {
-        let navVC = UINavigationController(rootViewController: EditProfileViewController(userData: userData))
+        let navVC = UINavigationController(rootViewController: ProfileEdditingViewController())
         navVC.modalPresentationStyle = .fullScreen
         present(navVC, animated: true)
     }

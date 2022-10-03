@@ -7,7 +7,7 @@
 
 import UIKit
 
-class EditProfileSectionHeader: UITableViewHeaderFooterView {
+class ProfileEdditingSectionHeader: UITableViewHeaderFooterView {
     static let identifier = "EditProfileSectionHeader"
 
     let title = UILabel()

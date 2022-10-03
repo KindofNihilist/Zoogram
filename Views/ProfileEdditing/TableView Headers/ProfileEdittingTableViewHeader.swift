@@ -7,13 +7,24 @@
 
 import UIKit
 
-class ProfileEditTableViewHeader: UIView {
+protocol ProfileEdditingHeaderProtocol: UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+    var imagePicker: UIImagePickerController { get set }
+    var profileEdditingHeader: ProfileEdittingTableViewHeader { get set }
+    func didTapChangeProfilePic()
+    func presentCameraView()
+    func presentPhotoLibraryView()
+}
+
+class ProfileEdittingTableViewHeader: UIView {
     
     override init(frame: CGRect) {
         super.init(frame: frame)
         self.addSubviews(imageView, changeProfilePicButton)
         setupSubviews()
     }
+    
+
+    var delegate: ProfileEdditingHeaderProtocol?
     
     private let imageWidthHeight: CGFloat = 115
     
@@ -37,13 +48,15 @@ class ProfileEditTableViewHeader: UIView {
         button.setTitleColor(.link, for: .normal)
         button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 15)
         button.translatesAutoresizingMaskIntoConstraints = false
+        button.addTarget(self, action: #selector(changeProfilePic), for: .touchUpInside)
         return button
     }()
     
-    public func configure(with image: UIImage?) {
-        guard let image = image else {
-           return
-        }
+    @objc func changeProfilePic() {
+        delegate?.didTapChangeProfilePic()
+    }
+    
+    public func configure(with image: UIImage) {
         imageView.image = image
     }
     
@@ -64,5 +77,44 @@ class ProfileEditTableViewHeader: UIView {
             changeProfilePicButton.widthAnchor.constraint(equalTo: self.widthAnchor, constant: -20)
         ])
         imageView.layer.cornerRadius = imageWidthHeight / 2
+    }
+}
+
+extension ProfileEdditingHeaderProtocol where Self: UIViewController {
+    
+    func presentCameraView() {
+        imagePicker.sourceType = .camera
+        imagePicker.delegate = self
+        imagePicker.cameraCaptureMode = .photo
+        imagePicker.allowsEditing = true
+        print(Thread.current)
+        present(imagePicker, animated: true)
+    }
+    func presentPhotoLibraryView() {
+        imagePicker.sourceType = .photoLibrary
+        imagePicker.delegate = self
+        imagePicker.mediaTypes = ["public.image"]
+        imagePicker.allowsEditing = true
+        print(Thread.current)
+        present(imagePicker, animated: true)
+    }
+    
+   func didTapChangeProfilePic() {
+        let actionSheet = UIAlertController(title: "Profile Picture", message: "Change profile picture", preferredStyle: .actionSheet)
+        
+        actionSheet.addAction(UIAlertAction(title: "Take Photo", style: .default, handler: { [weak self] _ in
+            self?.presentCameraView()
+        }))
+        
+        actionSheet.addAction(UIAlertAction(title: "Choose from Library", style: .default, handler: { [weak self] _ in
+            self?.presentPhotoLibraryView()
+        }))
+        
+        actionSheet.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
+        present(actionSheet, animated: true)
+    }
+    
+    func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+        picker.dismiss(animated: true, completion: nil)
     }
 }

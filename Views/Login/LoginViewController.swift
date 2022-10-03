@@ -10,6 +10,8 @@ import SwiftUI
 
 class LoginViewController: UIViewController {
     
+    let viewModel = LoginViewModel()
+    
     private let headerView: UIView = {
         let header = UIView()
         header.clipsToBounds = true
@@ -169,46 +171,24 @@ class LoginViewController: UIViewController {
         passwordField.resignFirstResponder()
         usernameEmailField.resignFirstResponder()
         
-        guard let usernameEmail = usernameEmailField.text, !usernameEmail.isEmpty, let password = passwordField.text, !password.isEmpty, password.count >= 8
-        else {
-            var alertMessage = ""
-            if let username = usernameEmailField.text, let password = passwordField.text {
-                if username.isEmpty && password.isEmpty {
-                    alertMessage = "Username and password fields cannot be empty"
-                } else if username.isEmpty {
-                    alertMessage = "You need to enter your username or email"
-                } else if password.isEmpty {
-                    alertMessage = "You need to enter your account password"
-                }
-            }
-            showAlert(with: alertMessage)
+        guard let usernameEmail = usernameEmailField.text, !usernameEmail.isEmpty, let password = passwordField.text, !password.isEmpty, password.count >= 8 else {
+            
             return
         }
-        
-        var username: String?
-        var email: String?
-        
-        if usernameEmail.contains("@"), usernameEmail.contains(".") {
-            email = usernameEmail
-        } else {
-            username = usernameEmail
-        }
-        
-        AuthenticationManager.shared.loginUser(username: username, email: email, password: password) { result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success(let userData):
-                    self.view.window?.rootViewController = TabBarController(userData: userData)
-                    print("succesfullyLoggedIn")
-                    UserDefaults.standard.set(email, forKey: "email")
-                    UserDefaults.standard.set(username, forKey: "username")
-                case .failure(let error):
-                    print(error)
-                    let message = "Could not log you in"
-                    self.showAlert(with: message)
-                }
+    
+        viewModel.loginUser(with: usernameEmail, password: password) { success in
+            
+            switch success {
+                
+            case true:
+            self.view.window?.rootViewController = TabBarController()
+                
+            case false:
+                print("Couldn't log in user")
+                
             }
         }
+        
     }
     
     private func showAlert(with message: String) {

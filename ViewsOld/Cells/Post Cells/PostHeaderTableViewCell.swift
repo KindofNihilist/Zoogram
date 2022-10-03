@@ -44,7 +44,7 @@ class PostHeaderTableViewCell: UITableViewCell {
         setupViewsAndConstraints()
     }
     
-    public func configure(with userModel: User) {
+    public func configure(with userModel: ZoogramUser) {
         profilePhotoImageView.sd_setImage(with: URL(string: userModel.profilePhotoURL), completed: nil)
         usernameLabel.text = userModel.username
     }

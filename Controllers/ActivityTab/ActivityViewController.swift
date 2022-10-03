@@ -16,7 +16,7 @@ enum UserActivityType {
 struct UserActivity {
     let type: UserActivityType
     let text: String
-    let user: User
+    let user: ZoogramUser
 }
 
 class ActivityViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {

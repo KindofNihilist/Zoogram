@@ -8,17 +8,17 @@
 import SDWebImage
 import UIKit
 
-protocol ProfileHeaderCollectionReusableViewDelegate: AnyObject {
-    func profileHeaderDidTapPostsButton(_ header: ProfileHeaderCollectionReusableView)
-    func profileHeaderDidTapFollowingButton(_ header: ProfileHeaderCollectionReusableView)
-    func profileHeaderDidTapFollowersButton(_ header: ProfileHeaderCollectionReusableView)
-    func profileHeaderDidTapEditProfileButton(_ header: ProfileHeaderCollectionReusableView)
+protocol ProfileHeaderDelegate: AnyObject {
+    func profileHeaderDidTapPostsButton(_ header: ProfileHeaderReusableView)
+    func profileHeaderDidTapFollowingButton(_ header: ProfileHeaderReusableView)
+    func profileHeaderDidTapFollowersButton(_ header: ProfileHeaderReusableView)
+    func profileHeaderDidTapEditProfileButton(_ header: ProfileHeaderReusableView)
 }
 
-final class ProfileHeaderCollectionReusableView: UICollectionReusableView {
+final class ProfileHeaderReusableView: UICollectionReusableView {
     static let identifier = "ProfileHeaderCollectionReusableView"
     
-    public weak var delegate: ProfileHeaderCollectionReusableViewDelegate?
+    public weak var delegate: ProfileHeaderDelegate?
     
     private let profilePhotoWidthHeight: CGFloat = 90
     
@@ -96,13 +96,13 @@ final class ProfileHeaderCollectionReusableView: UICollectionReusableView {
         editProfileButton.addTarget(self, action: #selector(didTapEditProfileButton), for: .touchUpInside)
     }
     
-    public func configure(with user: User) {
-        profilePhotoImageView.sd_setImage(with: URL(string: user.profilePhotoURL))
-        nameLabel.text = user.name
-        bioLabel.text = user.bio
-        postsButton.configureWith(labelText: "Posts", number: user.posts)
-        followersButton.configureWith(labelText: "Followers", number: user.followers)
-        followingButton.configureWith(labelText: "Following", number: user.following)
+    public func configure(name: String, bio: String, profilePhotoURL: String, postsCount: Int, followersCount: Int, followingCount: Int) {
+        profilePhotoImageView.sd_setImage(with: URL(string: profilePhotoURL))
+        nameLabel.text = name
+        bioLabel.text = bio
+        postsButton.configureWith(labelText: "Posts", number: postsCount)
+        followersButton.configureWith(labelText: "Followers", number: followersCount)
+        followingButton.configureWith(labelText: "Following", number: followingCount)
     }
     
     private func setupConstraints() {

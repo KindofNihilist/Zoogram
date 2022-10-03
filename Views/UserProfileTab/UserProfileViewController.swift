@@ -11,20 +11,40 @@ import AVFoundation
 
 
 
-final class ProfileViewController: UIViewController {
+final class UserProfileViewController: UIViewController {
     
     private var collectionView: UICollectionView?
 
-    private var userData: User
+    private var viewModel = UserProfileViewModel()
+    
+    let settingsButton: UIBarButtonItem = {
+        let barButtonItem = UIBarButtonItem(image: UIImage(systemName: "gearshape"),
+                                            style: .done,
+                                            target: UserProfileViewController.self,
+                                            action: #selector(didTapSettingsButton))
+        barButtonItem.tintColor = .label
+        return barButtonItem
+    }()
+    
+    let userNicknameLabel: UILabel = {
+        let label = UILabel()
+        label.font = UIFont.boldSystemFont(ofSize: 19)
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
     
     override func viewDidLoad() {
-        setupConstraints()
         configureNavigationBar()
         setupCollectionView()
     }
     
-    init(user: User) {
-        self.userData = user
+//    override func viewWillAppear(_ animated: Bool) {
+//        collectionView?.reloadData()
+//    }
+    
+    init(for userID: String) {
+        viewModel.getUserData(for: userID)
+        print(viewModel.username)
         super.init(nibName: nil, bundle: nil)
     }
     
@@ -33,29 +53,18 @@ final class ProfileViewController: UIViewController {
     }
     
     private func configureNavigationBar() {
-        let settingsButton = UIBarButtonItem(image: UIImage(systemName: "gearshape"), style: .done, target: self, action: #selector(didTapSettingsButton))
-        settingsButton.tintColor = .label
+        settingsButton.target = self
+        settingsButton.action = #selector(didTapSettingsButton)
+        setUserNickname()
         navigationItem.rightBarButtonItem = settingsButton
-        
-        let label: UILabel = {
-            let label = UILabel()
-            label.text = userData.username
-            label.font = UIFont.boldSystemFont(ofSize: 19)
-            label.translatesAutoresizingMaskIntoConstraints = false
-            return label
-        }()
-        navigationItem.leftBarButtonItem = UIBarButtonItem(customView: label)
+        navigationItem.leftBarButtonItem = UIBarButtonItem(customView: userNicknameLabel)
     }
     
-    private func setupCollectionHeaders() {
-        //Cell
-        
+    private func setUserNickname() {
+        userNicknameLabel.text = viewModel.username
     }
     
     private func setupCollectionView() {
-        
-//        let sectionsInsets = UIEdgeInsets(top: 0, left: 1, bottom: 0, right: 0)
-//        let paddingSpace = sectionsInsets.left * 4
         let availableWidth = view.frame.width - 3
         let cellWidth = availableWidth / 3
         
@@ -63,7 +72,6 @@ final class ProfileViewController: UIViewController {
         layout.scrollDirection = .vertical
         layout.minimumLineSpacing = 1
         layout.minimumInteritemSpacing = 1
-//        layout.sectionInset = sectionsInsets
         layout.sectionInsetReference = .fromSafeArea
         layout.itemSize = CGSize(width: cellWidth, height: cellWidth)
         
@@ -75,9 +83,9 @@ final class ProfileViewController: UIViewController {
         collectionView?.register(PhotoCollectionViewCell.self, forCellWithReuseIdentifier: PhotoCollectionViewCell.identifier)
         
         //Register Headers
-        collectionView?.register(ProfileHeaderCollectionReusableView.self, forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader, withReuseIdentifier: ProfileHeaderCollectionReusableView.identifier)
+        collectionView?.register(ProfileHeaderReusableView.self, forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader, withReuseIdentifier: ProfileHeaderReusableView.identifier)
 
-        collectionView?.register(ProfileTabsCollectionReusableView.self, forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader, withReuseIdentifier: ProfileTabsCollectionReusableView.identifier)
+        collectionView?.register(ProfileTabsReusableView.self, forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader, withReuseIdentifier: ProfileTabsReusableView.identifier)
         
         
         guard let collectionView = collectionView else {
@@ -97,18 +105,15 @@ final class ProfileViewController: UIViewController {
     }
     
     @objc func didTapSettingsButton() {
-        let vc = SettingsViewController(userData: userData)
+        print("Tapped settings button")
+        let vc = SettingsViewController()
         vc.title = "Settings"
         self.navigationController?.pushViewController(vc, animated: true)
-    }
-    
-    private func setupConstraints() {
-        
     }
 }
 
 
-extension ProfileViewController: UICollectionViewDelegate, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
+extension UserProfileViewController: UICollectionViewDelegate, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
     
     func numberOfSections(in collectionView: UICollectionView) -> Int {
         return 2
@@ -123,6 +128,7 @@ extension ProfileViewController: UICollectionViewDelegate, UICollectionViewDataS
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: PhotoCollectionViewCell.identifier, for: indexPath) as! PhotoCollectionViewCell
+        
         cell.photoImageView.sd_setImage(with: URL(string: "https://images.pexels.com/photos/674010/pexels-photo-674010.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500"), completed: nil)
         return cell
     }
@@ -144,16 +150,27 @@ extension ProfileViewController: UICollectionViewDelegate, UICollectionViewDataS
         }
         
         if indexPath.section == 1 {
-            let tabsHeader = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: ProfileTabsCollectionReusableView.identifier, for: indexPath) as! ProfileTabsCollectionReusableView
+            let tabsHeader = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: ProfileTabsReusableView.identifier, for: indexPath) as! ProfileTabsReusableView
+            
             tabsHeader.delegate = self
             return tabsHeader
         }
         
-        let profileHeader = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: ProfileHeaderCollectionReusableView.identifier, for: indexPath) as! ProfileHeaderCollectionReusableView
+        let profileHeader = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: ProfileHeaderReusableView.identifier, for: indexPath) as! ProfileHeaderReusableView
+        
         profileHeader.delegate = self
-        profileHeader.configure(with: userData)
+        profileHeader.configure(name: viewModel.name,
+                                bio: viewModel.bio,
+                                profilePhotoURL: viewModel.profilePhotoURL,
+                                postsCount: viewModel.postsCount,
+                                followersCount: viewModel.followersCount,
+                                followingCount: viewModel.followingCount)
         return profileHeader
     }
+    
+//    func reloadHeader() {
+//        collectionView?.reloadData()
+//    }
     
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, referenceSizeForHeaderInSection section: Int) -> CGSize {
         guard section == 0 else {
@@ -165,13 +182,15 @@ extension ProfileViewController: UICollectionViewDelegate, UICollectionViewDataS
     
 }
 
-extension ProfileViewController: ProfileHeaderCollectionReusableViewDelegate {
-    func profileHeaderDidTapPostsButton(_ header: ProfileHeaderCollectionReusableView) {
+extension UserProfileViewController: ProfileHeaderDelegate {
+    
+    
+    func profileHeaderDidTapPostsButton(_ header: ProfileHeaderReusableView) {
         // center view on the posts section
         collectionView?.scrollToItem(at: IndexPath(row: 0, section: 1), at: .top, animated: true)
     }
     
-    func profileHeaderDidTapFollowingButton(_ header: ProfileHeaderCollectionReusableView) {
+    func profileHeaderDidTapFollowingButton(_ header: ProfileHeaderReusableView) {
         // open viewcontroller with tableview of people user follows
         var testingData = [UserRelationship]()
         for i in 0...10 {
@@ -183,7 +202,7 @@ extension ProfileViewController: ProfileHeaderCollectionReusableViewDelegate {
         navigationController?.pushViewController(vc, animated: true)
     }
     
-    func profileHeaderDidTapFollowersButton(_ header: ProfileHeaderCollectionReusableView) {
+    func profileHeaderDidTapFollowersButton(_ header: ProfileHeaderReusableView) {
         // open viewcontroller with tableview of people following user
         var testingData = [UserRelationship]()
         for i in 0...10 {
@@ -194,14 +213,15 @@ extension ProfileViewController: ProfileHeaderCollectionReusableViewDelegate {
         navigationController?.pushViewController(vc, animated: true)
     }
     
-    func profileHeaderDidTapEditProfileButton(_ header: ProfileHeaderCollectionReusableView) {
-        // navigate to EditProfileViewController
-        let vc = EditProfileViewController(userData: userData)
+    func profileHeaderDidTapEditProfileButton(_ header: ProfileHeaderReusableView) {
+        // navigate to ProfileEdditingViewController
+        let vc = ProfileEdditingViewController()
+        vc.delegate = self
         present(UINavigationController(rootViewController: vc), animated: true)
     }
 }
 
-extension ProfileViewController: ProfileTabsCollectionReusableViewDelegate {
+extension UserProfileViewController: ProfileTabsCollectionViewDelegate {
     func didTapGridTabButton() {
     
     }
@@ -211,4 +231,14 @@ extension ProfileViewController: ProfileTabsCollectionReusableViewDelegate {
     }
     
     
+}
+
+extension UserProfileViewController: ProfileEdditingProtocol {
+    func reloadChangedData() {
+        print("RELOADING DATA")
+        DispatchQueue.main.async {
+            self.setUserNickname()
+            self.collectionView?.reloadData()
+        }
+    }
 }
