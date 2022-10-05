@@ -96,7 +96,7 @@ final class SettingsViewController: UIViewController {
         let logoutAlert = UIAlertController(title: "Log Out", message: "Are you sure you want to log out?", preferredStyle: .alert)
         let cancelAction = UIAlertAction(title: "Cancel", style: .cancel)
         let logOutAction = UIAlertAction(title: "Log Out", style: .destructive) { _ in
-            AuthenticationManager.shared.logOut { success in
+            AuthenticationManager.shared.signOut { success in
                 if success {
                     // Present log in controller
                     let loginVC = LoginViewController()

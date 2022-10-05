@@ -18,8 +18,8 @@ class ProfileEdditingViewController: UIViewController, UITableViewDataSource, UI
     
     var imagePicker = UIImagePickerController()
     
-    var profileEdditingHeader: ProfileEdittingTableViewHeader = {
-        let header = ProfileEdittingTableViewHeader()
+    var profileEdditingHeader: ProfilePictureHeader = {
+        let header = ProfilePictureHeader()
         header.backgroundColor = .systemBackground
         return header
     }()

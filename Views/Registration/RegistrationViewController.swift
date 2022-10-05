@@ -174,17 +174,14 @@ class RegistrationViewController: UIViewController {
               let confirmedPass = confirmPasswordField.text, !confirmedPass.isEmpty else {
                   return
               }
-        AuthenticationManager.shared.registerNewUser(username: username, email: email, password: password) { registered, message in
-            DispatchQueue.main.async {
-                if registered {
-                    print(message)
-                    UserDefaults.standard.set(email, forKey: "email")
-                    UserDefaults.standard.set(username, forKey: "username")
-                    let vc = NewUserProfileSetupViewController()
-                    self.navigationController?.setViewControllers([vc], animated: true)
-                } else {
-                    print(message)
-                }
+        AuthenticationManager.shared.createNewUser(email: email, password: password) { isSuccessfull, errorDescription in
+            if isSuccessfull {
+                UserDefaults.standard.set(email, forKey: "email")
+                UserDefaults.standard.set(username, forKey: "username")
+                let vc = NewUserProfileSetupViewController()
+                self.navigationController?.setViewControllers([vc], animated: true)
+            } else {
+                print(errorDescription)
             }
         }
     }

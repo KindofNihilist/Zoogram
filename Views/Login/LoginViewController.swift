@@ -38,7 +38,7 @@ class LoginViewController: UIViewController {
     
     private let usernameEmailField: UITextField = {
         let field = UITextField()
-        field.placeholder = "Username or Email"
+        field.placeholder = "Email"
         field.returnKeyType = .next
         field.leftViewMode = .always
         field.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 10, height: 0))
@@ -65,6 +65,16 @@ class LoginViewController: UIViewController {
         field.backgroundColor = .secondarySystemBackground
         field.translatesAutoresizingMaskIntoConstraints = false
         return field
+    }()
+    
+    private let forgottenPasswordButton: UIButton = {
+        let button = UIButton()
+        button.setTitle("Forgot password?", for: .normal)
+        button.setTitleColor(.systemGray, for: .normal)
+        button.titleLabel?.font = UIFont.systemFont(ofSize: 16)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.sizeToFit()
+        return button
     }()
     
     private let loginButton: UIButton = {
@@ -111,7 +121,7 @@ class LoginViewController: UIViewController {
         usernameEmailField.delegate = self
         passwordField.delegate = self
         view.backgroundColor = .systemBackground
-        view.addSubviews(headerView, usernameEmailField, passwordField, loginButton, createAccountButton, termsButton, privacyButton)
+        view.addSubviews(headerView, usernameEmailField, passwordField, forgottenPasswordButton, loginButton, createAccountButton, termsButton, privacyButton)
         headerView.addSubviews(logo, logoImage)
         setupConstraints()
     }
@@ -144,7 +154,11 @@ class LoginViewController: UIViewController {
             passwordField.heightAnchor.constraint(equalTo: usernameEmailField.heightAnchor),
             passwordField.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             
-            loginButton.topAnchor.constraint(equalTo: passwordField.bottomAnchor, constant: 20),
+            forgottenPasswordButton.topAnchor.constraint(equalTo: passwordField.bottomAnchor, constant: 5),
+            forgottenPasswordButton.trailingAnchor.constraint(equalTo: passwordField.trailingAnchor),
+            
+            
+            loginButton.topAnchor.constraint(equalTo: forgottenPasswordButton.bottomAnchor, constant: 20),
             loginButton.widthAnchor.constraint(equalTo: view.widthAnchor, constant: -40),
             loginButton.heightAnchor.constraint(equalToConstant: 50),
             loginButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
@@ -159,7 +173,7 @@ class LoginViewController: UIViewController {
             privacyButton.heightAnchor.constraint(equalToConstant: 20),
             privacyButton.widthAnchor.constraint(equalToConstant: 150),
             
-            termsButton.bottomAnchor.constraint(equalTo: privacyButton.topAnchor, constant: -20),
+            termsButton.bottomAnchor.constraint(equalTo: privacyButton.topAnchor, constant: -15),
             termsButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             termsButton.heightAnchor.constraint(equalToConstant: 20),
             termsButton.widthAnchor.constraint(equalToConstant: 150),
@@ -176,15 +190,13 @@ class LoginViewController: UIViewController {
             return
         }
     
-        viewModel.loginUser(with: usernameEmail, password: password) { success in
+        viewModel.loginUser(with: usernameEmail, password: password) { isSuccessfull, description in
             
-            switch success {
+            switch isSuccessfull {
                 
-            case true:
-            self.view.window?.rootViewController = TabBarController()
+            case true: self.view.window?.rootViewController = TabBarController()
                 
-            case false:
-                print("Couldn't log in user")
+            case false: self.showAlert(with: description)
                 
             }
         }
@@ -192,15 +204,19 @@ class LoginViewController: UIViewController {
     }
     
     private func showAlert(with message: String) {
-        let alert = UIAlertController(title: "Log in error", message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "Dismiss", style: .cancel))
+        let alert = UIAlertController(title: "Could not log you in", message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "Try again", style: .cancel))
+        alert.view.backgroundColor = .secondarySystemBackground
+        alert.view.layer.cornerRadius = 10
         self.present(alert, animated: true)
     }
     
     @objc func didTapCreateAccountButton() {
-        let vc = UINavigationController(rootViewController: RegistrationViewController())
-        vc.modalPresentationStyle = .fullScreen
-        present(vc, animated: true)
+        let vc = RegistrationVC()
+        navigationController?.pushViewController(vc, animated: true)
+//        let vc = UINavigationController(rootViewController: RegistrationViewController())
+//        vc.modalPresentationStyle = .fullScreen
+//        present(vc, animated: true)
     }
     
     @objc func didTapTermsButton() {

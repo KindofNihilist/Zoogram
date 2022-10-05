@@ -17,8 +17,8 @@ class NewUserProfileSetupViewController: UIViewController {
     
     var imagePicker = UIImagePickerController()
     
-    var profileEdditingHeader: ProfileEdittingTableViewHeader = {
-        let header = ProfileEdittingTableViewHeader()
+    var profileEdditingHeader: ProfilePictureHeader = {
+        let header = ProfilePictureHeader()
         header.backgroundColor = .systemBackground
         header.translatesAutoresizingMaskIntoConstraints = false
         return header

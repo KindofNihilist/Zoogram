@@ -9,13 +9,13 @@ import UIKit
 
 protocol ProfileEdditingHeaderProtocol: UIImagePickerControllerDelegate, UINavigationControllerDelegate {
     var imagePicker: UIImagePickerController { get set }
-    var profileEdditingHeader: ProfileEdittingTableViewHeader { get set }
+    var profileEdditingHeader: ProfilePictureHeader { get set }
     func didTapChangeProfilePic()
     func presentCameraView()
     func presentPhotoLibraryView()
 }
 
-class ProfileEdittingTableViewHeader: UIView {
+class ProfilePictureHeader: UIView {
     
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -46,7 +46,7 @@ class ProfileEdittingTableViewHeader: UIView {
         let button = UIButton()
         button.setTitle("Choose profile photo", for: .normal)
         button.setTitleColor(.link, for: .normal)
-        button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 15)
+        button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 16)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.addTarget(self, action: #selector(changeProfilePic), for: .touchUpInside)
         return button
