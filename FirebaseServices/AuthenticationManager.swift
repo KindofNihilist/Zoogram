@@ -10,26 +10,23 @@ public class AuthenticationManager {
     
     static let shared = AuthenticationManager()
     
-    static let currentUserUID = Auth.auth().currentUser?.uid
-    static let currentUserEmail = Auth.auth().currentUser?.email
-    
-    public func createNewUser(email: String, password: String, completion: @escaping (Bool, String) -> Void) {
+    public func createNewUser(email: String, password: String, completion: @escaping (Bool, String, String) -> Void) {
         Auth.auth().createUser(withEmail: email, password: password) { authResult, error in
             if let error = error as? NSError {
                 switch AuthErrorCode.Code(rawValue: error.code) {
                 case .operationNotAllowed:
-                    completion(false, "Registration is disabled by administrator")
+                    completion(false, "", "Registration is disabled by administrator")
                 case .emailAlreadyInUse:
-                    completion(false, "Email is already in use")
+                    completion(false, "", "Email is already in use")
                 case .invalidEmail:
-                    completion(false, "Invalid email format")
+                    completion(false, "", "Invalid email format")
                 case .weakPassword:
-                    completion(false, "Weak password")
+                    completion(false, "", "Weak password")
                 default:
                     print("Error: \(error.localizedDescription)")
                 }
             } else {
-                completion(true, "User signed up successfully")
+                completion(true, self.getCurrentUserUID(), "User signed up successfully")
             }
         }
     }
@@ -58,46 +55,21 @@ public class AuthenticationManager {
         }
     }
     
-    //    public func registerNewUser(username: String, email: String, password: String, completion: @escaping (Bool, String) -> Void) {
-    //        Auth.auth().fetchSignInMethods(forEmail: email) { providers, error in
-    //
-    //            guard providers != nil else {
-    //                DatabaseManager.shared.checkIfUsernameIsTaken(with: email, username: username) { usernameTaken in
-    //                    if usernameTaken {
-    //                        completion(false, "Username is already taken")
-    //                    } else {
-    //
-    //                        Auth.auth().createUser(withEmail: email, password: password) { result, error in
-    //                            guard error == nil, result != nil else {
-    //                                completion(false, "Firebase authentication error")
-    //                                return
-    //                            }
-    //                            completion(true, "Account registered succesfully")
-    //                        }
-    //                    }
-    //                }
-    //                return
-    //            }
-    //            completion(false, "User with this email already exists")
-    //        }
-    //
-    //    }
+    public func checkIfEmailIsAvailable(email: String, completion: @escaping (Bool, String) -> Void) {
+        Auth.auth().fetchSignInMethods(forEmail: email) { signInMethods, error in
+            if signInMethods == nil {
+                completion(true, "Email is available")
+            } else {
+                completion(false, "User with this email is already registered")
+            }
+        }
+    }
+    
     
     public func getCurrentUserUID() -> String {
         return Auth.auth().currentUser!.uid
     }
     
-//    public func loginUser(username: String?, email: String?, password: String, completion: @escaping (Result<Error>) -> Void) {
-//        if let email = email {
-//            //email log in
-//            Auth.auth().signIn(withEmail: email, password: password) { authResult, error in
-//                guard authResult != nil, error == nil else {
-//                    completion(.failure(error!))
-//                    return
-//                }
-//            }
-//        }
-//    }
     
     public func signOut(completion: (Bool) -> Void) {
         do {

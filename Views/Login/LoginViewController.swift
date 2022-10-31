@@ -77,8 +77,8 @@ class LoginViewController: UIViewController {
         return button
     }()
     
-    private let loginButton: UIButton = {
-        let button = UIButton()
+    private let loginButton: CustomButton = {
+        let button = CustomButton()
         button.setTitle("Log In", for: .normal)
         button.layer.masksToBounds = true
         button.layer.cornerRadius = 11

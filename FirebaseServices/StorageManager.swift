@@ -24,6 +24,7 @@ public class StorageManager {
         }
         let storagePath = "ProfilePictures/\(userID)/\(fileName)"
         print(storagePath)
+        
         storage.child(storagePath).putData(data, metadata: nil) { metadata, error in
             guard error == nil else {
                 print("Failed to upload data to Firebase storage")
@@ -44,8 +45,33 @@ public class StorageManager {
     }
     
     
-    public func uploadUserPhotoPost(model: UserPost, completion: @escaping (Result<URL, Error>) -> Void) {
-         
+    public func uploadPostPhoto(photo: UIImage, fileName: String, completion: @escaping (Result<String, Error>) -> Void) {
+        guard let imageData = photo.pngData() else {
+            return
+        }
+        let userID = AuthenticationManager.shared.getCurrentUserUID()
+        let storagePath = "UserPhotoPosts/\(userID)/\(fileName)"
+        
+        storage.child(storagePath).putData(imageData) { metadata, error in
+            guard error == nil else {
+                print("Failed to upload data to Firebase storage")
+                completion(.failure(error!))
+                return
+            }
+            
+            self.storage.child(storagePath).downloadURL { result in
+                switch result {
+                    
+                case .failure(let error):
+                    print("Could not retrieve download url")
+                    completion(.failure(error))
+                    
+                case .success(let url):
+                    let urlString = url.absoluteString
+                    completion(.success(urlString))
+                }
+            }
+        }
     }
     
     public func downloadURL(for path: String, completion: @escaping (Result<URL, StorageManagerError>) -> Void) {

@@ -8,6 +8,13 @@
 import UIKit
 import SwiftUI
 
+extension Encodable {
+    var dictionary: [String : Any]? {
+        guard let data = try? JSONEncoder().encode(self) else { return nil }
+        return (try? JSONSerialization.jsonObject(with: data, options: .fragmentsAllowed)).flatMap { $0 as? [String: Any]}
+    }
+}
+
 extension UIFont {
     class func rounded(ofSize size: CGFloat, weight: UIFont.Weight) -> UIFont {
         let systemFont = UIFont.systemFont(ofSize: size, weight: weight)
@@ -102,6 +109,15 @@ extension UIImage {
         let imageRef = self.cgImage!.cropping(to: rect.applying(rectTransform))
         let result = UIImage(cgImage: imageRef!, scale: self.scale, orientation: self.imageOrientation)
         return result
+    }
+    
+    func compressed() -> UIImage? {
+        let originalImageSize = NSData(data: self.jpegData(compressionQuality: 1)!).count
+        print("Original image size in KB: %f", Double(originalImageSize).rounded())
+        let jpegData = self.jpegData(compressionQuality: 1)
+        print("Compressed image size in KB: %f", Double(jpegData!.count).rounded())
+        let compressedImage = UIImage(data: jpegData!)
+        return compressedImage
     }
 }
 

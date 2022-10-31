@@ -9,7 +9,7 @@ import UIKit
 
 class RegistrationForm: UIView {
 
-    let descriptionLabel: UILabel = {
+    private let descriptionLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
         label.textColor = .label
@@ -33,7 +33,14 @@ class RegistrationForm: UIView {
         return field
     }()
     
-    
+    private let errorNotificationView: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.textColor = .systemRed
+        label.font = UIFont.boldSystemFont(ofSize: 14)
+        label.sizeToFit()
+        return label
+    }()
 
     init(descriptionText: String, textFieldPlaceholder: String, isPasswordForm: Bool = false) {
         super.init(frame: CGRect())
@@ -57,11 +64,24 @@ class RegistrationForm: UIView {
             descriptionLabel.leadingAnchor.constraint(lessThanOrEqualTo: self.leadingAnchor, constant: 10),
             descriptionLabel.trailingAnchor.constraint(lessThanOrEqualTo: self.trailingAnchor, constant: 10),
             
-            textField.topAnchor.constraint(equalTo: descriptionLabel.bottomAnchor, constant: 30),
+            textField.topAnchor.constraint(equalTo: descriptionLabel.bottomAnchor, constant: 45),
             textField.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: 20),
             textField.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -20),
             textField.heightAnchor.constraint(equalToConstant: 50),
         ])
     }
     
+    func getTextFieldData() -> String {
+        return textField.text!
+    }
+    
+    func showErrorNotification(error: String) {
+        errorNotificationView.text = error
+        self.addSubview(errorNotificationView)
+        
+        NSLayoutConstraint.activate([
+            errorNotificationView.topAnchor.constraint(equalTo: textField.bottomAnchor, constant: 10),
+            errorNotificationView.leadingAnchor.constraint(equalTo: textField.leadingAnchor, constant: 10),
+        ])
+    }
 }

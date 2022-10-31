@@ -17,7 +17,7 @@ class NewUserProfileSetupViewController: UIViewController {
     
     var imagePicker = UIImagePickerController()
     
-    var profileEdditingHeader: ProfilePictureHeader = {
+    var profilePictureHeaderView: ProfilePictureHeader = {
         let header = ProfilePictureHeader()
         header.backgroundColor = .systemBackground
         header.translatesAutoresizingMaskIntoConstraints = false
@@ -138,7 +138,7 @@ class NewUserProfileSetupViewController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
         genderField.inputView = pickerView
-        profileEdditingHeader.delegate = self
+        profilePictureHeaderView.delegate = self
         ageField.inputView = datePicker
         pickerView.delegate = self
         pickerView.dataSource = self
@@ -156,7 +156,7 @@ class NewUserProfileSetupViewController: UIViewController {
     
     
     @objc func didTapSave() {
-        let image = self.profileEdditingHeader.getChosenProfilePic()
+        let image = self.profilePictureHeaderView.getChosenProfilePic()
         guard let userID = AuthenticationManager.currentUserUID else {
             return
         }
@@ -177,7 +177,7 @@ class NewUserProfileSetupViewController: UIViewController {
                                    following: 0,
                                    followers: 0,
                                    posts: 0,
-                                   joinDate: Date().timeIntervalSince1970)
+                                          joinDate: Date().timeIntervalSince1970)
                 DatabaseManager.shared.insertNewUser(with: newuser) { success in
                     if success {
                         print("Succesfully created new user for \(newuser.email) with username: \(newuser.username)")
@@ -210,16 +210,16 @@ class NewUserProfileSetupViewController: UIViewController {
     }
     
     private func setupViewsAndConstraint() {
-        view.addSubviews(profileEdditingHeader, backgroundView)
+        view.addSubviews(profilePictureHeaderView, backgroundView)
         backgroundView.addSubviews(nameTextField, bioTextView, privacyDescriptionLabel, phoneNumberField, genderField, ageField)
         
         NSLayoutConstraint.activate([
-            profileEdditingHeader.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
-            profileEdditingHeader.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            profileEdditingHeader.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            profileEdditingHeader.heightAnchor.constraint(equalToConstant: 160),
+            profilePictureHeaderView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+            profilePictureHeaderView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            profilePictureHeaderView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            profilePictureHeaderView.heightAnchor.constraint(equalToConstant: 160),
             
-            backgroundView.topAnchor.constraint(equalTo: profileEdditingHeader.bottomAnchor),
+            backgroundView.topAnchor.constraint(equalTo: profilePictureHeaderView.bottomAnchor),
             backgroundView.widthAnchor.constraint(equalTo: view.widthAnchor),
             backgroundView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             
@@ -305,13 +305,13 @@ extension NewUserProfileSetupViewController: UIPickerViewDelegate, UIPickerViewD
     }
 }
 
-extension NewUserProfileSetupViewController: ProfileEdditingHeaderProtocol {
+extension NewUserProfileSetupViewController: ProfilePictureHeaderProtocol {
     
     
     func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
         picker.dismiss(animated: true, completion: nil)
         if let selectedImage = info[UIImagePickerController.InfoKey.editedImage] as? UIImage {
-            self.profileEdditingHeader.configure(with: selectedImage)
+            self.profilePictureHeaderView.configure(with: selectedImage)
         }
     }
     

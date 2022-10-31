@@ -8,6 +8,7 @@
 import Foundation
 
 public struct ZoogramUser: Codable {
+    var userID: String
     var profilePhotoURL: String
     var email: String
     var phoneNumber: String?
@@ -20,6 +21,11 @@ public struct ZoogramUser: Codable {
     var followers: Int
     var posts: Int
     var joinDate: Double //TimeInterval
+    
+    func createDictionary() -> [String: Any]? {
+        guard let dictionary = self.dictionary else { return nil }
+        return dictionary
+    }
     
 }
 
