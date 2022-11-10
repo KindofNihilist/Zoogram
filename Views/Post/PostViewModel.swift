@@ -33,9 +33,7 @@ class PostViewModel {
     func getUserInfo(for userUID: String, completion: @escaping (String, String) -> Void) {
         
         DatabaseManager.shared.getUser(for: userUID) { user in
-            if let user = user {
-                completion(user.username, user.profilePhotoURL)
-            }
+            completion(user.username, user.profilePhotoURL)
         }
     }
     
@@ -54,5 +52,50 @@ class PostViewModel {
             }
         }
         completion() 
+    }
+    
+    func deletePost(id: String, at sectionIndex: Int, completion: @escaping () -> Void) {
+        DatabaseManager.shared.deletePost(id: id) {
+            self.userPosts.remove(at: sectionIndex)
+            self.postsModels.remove(at: sectionIndex)
+            NotificationCenter.default.post(name: Notification.Name("PostDeleted"), object: sectionIndex)
+            completion()
+        }
+    }
+    
+    func likePost(postID: String, completion: @escaping (PostLikeState) -> Void) {
+        DatabaseManager.shared.checkIfPostIsLiked(postID: postID) { likeState in
+            
+            switch likeState {
+            case .liked:
+                DatabaseManager.shared.removePostLike(postID: postID) { result in
+                    switch result {
+                    case .success(let description):
+                        print(description)
+                        completion(.notLiked)
+                    case .failure(let error):
+                        print(error)
+                        completion(.liked)
+                    }
+                }
+            case .notLiked:
+                DatabaseManager.shared.likePost(postID: postID) { result in
+                    switch result {
+                    case .success(let description):
+                        print(description)
+                        completion(.liked)
+                    case .failure(let error):
+                        print(error)
+                        completion(.notLiked)
+                    }
+                }
+            }
+        }
+    }
+    
+    func getLikesForPost(id: String, completion: @escaping (Int) -> Void) {
+        DatabaseManager.shared.getLikesCountForPost(id: id) { count in
+            completion(count)
+        }
     }
 }

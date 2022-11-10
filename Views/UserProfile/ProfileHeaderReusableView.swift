@@ -9,14 +9,18 @@ import SDWebImage
 import UIKit
 
 protocol ProfileHeaderDelegate: AnyObject {
-    func profileHeaderDidTapPostsButton(_ header: ProfileHeaderReusableView)
-    func profileHeaderDidTapFollowingButton(_ header: ProfileHeaderReusableView)
-    func profileHeaderDidTapFollowersButton(_ header: ProfileHeaderReusableView)
-    func profileHeaderDidTapEditProfileButton(_ header: ProfileHeaderReusableView)
+    func postsButtonTapped(_ header: ProfileHeaderReusableView)
+    func followingButtonTapped(_ header: ProfileHeaderReusableView)
+    func followersButtonTapped(_ header: ProfileHeaderReusableView)
+    func editProfileButtonTapped(_ header: ProfileHeaderReusableView)
+    func followButtonTapped(_ header: ProfileHeaderReusableView, followCompletion: @escaping (FollowStatus) -> Void)
+    func unfollowButtonTapped(_ header: ProfileHeaderReusableView, unfollowCompletion: @escaping (FollowStatus) -> Void)
 }
 
 final class ProfileHeaderReusableView: UICollectionReusableView {
     static let identifier = "ProfileHeaderCollectionReusableView"
+    
+    lazy var followStatus: FollowStatus = .notFollowing
     
     public weak var delegate: ProfileHeaderDelegate?
     
@@ -58,6 +62,8 @@ final class ProfileHeaderReusableView: UICollectionReusableView {
         button.layer.borderWidth = 0.5
         button.layer.borderColor = UIColor.lightGray.cgColor
         button.layer.cornerRadius = 5
+        button.isHidden = true
+        button.isEnabled = false
         return button
     }()
     
@@ -71,6 +77,8 @@ final class ProfileHeaderReusableView: UICollectionReusableView {
         button.layer.borderWidth = 0.5
         button.layer.borderColor = UIColor.lightGray.cgColor
         button.layer.cornerRadius = 5
+        button.isHidden = true
+        button.isEnabled = false
         return button
     }()
     
@@ -90,9 +98,10 @@ final class ProfileHeaderReusableView: UICollectionReusableView {
         return label
     }()
     
+    
     override init(frame: CGRect) {
         super.init(frame: frame)
-        addSubviews(profilePhotoImageView, postsButton, followingButton, followersButton, nameLabel, bioLabel)
+        addSubviews(profilePhotoImageView, postsButton, followingButton, followersButton, nameLabel, bioLabel, editProfileButton, followUnfollowButton)
         setupConstraints()
         setupButtonActions()
         profilePhotoImageView.layer.cornerRadius = profilePhotoWidthHeight / 2
@@ -108,38 +117,51 @@ final class ProfileHeaderReusableView: UICollectionReusableView {
         followingButton.addTarget(self, action: #selector(didTapFollowingButton), for: .touchUpInside)
         followersButton.addTarget(self, action: #selector(didTapFollowersButton), for: .touchUpInside)
         editProfileButton.addTarget(self, action: #selector(didTapEditProfileButton), for: .touchUpInside)
+        followUnfollowButton.addTarget(self, action: #selector(didTapFollowUnfollowButton), for: .touchUpInside)
     }
     
-    public func configure(name: String, bio: String, profilePicture: UIImage, postsCount: Int, followersCount: Int, followingCount: Int, isUserProfile: Bool) {
+    public func configure(name: String, bio: String, profilePicture: UIImage, postsCount: String, followersCount: String, followingCount: String, isFollowed: FollowStatus, isUserProfile: Bool) {
         profilePhotoImageView.image = profilePicture
         nameLabel.text = name
         bioLabel.text = bio
-        postsButton.configureWith(labelText: "Posts", number: postsCount)
-        followersButton.configureWith(labelText: "Followers", number: followersCount)
-        followingButton.configureWith(labelText: "Following", number: followingCount)
-        setupActionButton(isUserProfile: isUserProfile)
+        postsButton.configureWith(labelText: "Posts", numberString: postsCount)
+        followersButton.configureWith(labelText: "Followers", numberString: followersCount)
+        followingButton.configureWith(labelText: "Following", numberString: followingCount)
+        setupActionButton(isUserProfile: isUserProfile, followStatus: isFollowed)
     }
     
-    private func setupActionButton(isUserProfile: Bool) {
-        if isUserProfile {
-            addSubview(editProfileButton)
-            NSLayoutConstraint.activate([
-                editProfileButton.topAnchor.constraint(equalTo: bioLabel.bottomAnchor, constant: 15),
-                editProfileButton.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: 15),
-                editProfileButton.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -15),
-                editProfileButton.heightAnchor.constraint(equalToConstant: 30),
-                editProfileButton.bottomAnchor.constraint(lessThanOrEqualTo: self.bottomAnchor),
-            ])
-        } else {
-            addSubview(followUnfollowButton)
-            NSLayoutConstraint.activate([
-                followUnfollowButton.topAnchor.constraint(equalTo: bioLabel.bottomAnchor, constant: 15),
-                followUnfollowButton.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: 15),
-                followUnfollowButton.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -15),
-                followUnfollowButton.heightAnchor.constraint(equalToConstant: 35),
-                followUnfollowButton.bottomAnchor.constraint(lessThanOrEqualTo: self.bottomAnchor),
-            ])
+    func switchFollowUnfollowButton(followStatus: FollowStatus) {
+        switch followStatus {
+        case .notFollowing:
+            showFollowButton()
+        case .following:
+            showUnfollowButton()
         }
+    }
+    
+    public func setupActionButton(isUserProfile: Bool, followStatus: FollowStatus) {
+        
+        if isUserProfile {
+            editProfileButton.isHidden = false
+            editProfileButton.isEnabled = true
+        } else {
+            followUnfollowButton.isHidden = false
+            followUnfollowButton.isEnabled = true
+            self.followStatus = followStatus
+            switchFollowUnfollowButton(followStatus: followStatus)
+        }
+    }
+    
+    private func showFollowButton() {
+        followUnfollowButton.setTitle("Follow", for: .normal)
+        followUnfollowButton.backgroundColor = .systemBlue
+        followUnfollowButton.setTitleColor(.white, for: .normal)
+    }
+    
+    private func showUnfollowButton() {
+        followUnfollowButton.setTitle("Unfollow", for: .normal)
+        followUnfollowButton.backgroundColor = .systemBackground
+        followUnfollowButton.setTitleColor(.label, for: .normal)
     }
     
     private func setupConstraints() {
@@ -172,20 +194,49 @@ final class ProfileHeaderReusableView: UICollectionReusableView {
             bioLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 5),
             bioLabel.leadingAnchor.constraint(equalTo: nameLabel.leadingAnchor),
             bioLabel.trailingAnchor.constraint(equalTo: followersButton.trailingAnchor),
+            
+            editProfileButton.topAnchor.constraint(equalTo: bioLabel.bottomAnchor, constant: 15),
+            editProfileButton.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: 15),
+            editProfileButton.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -15),
+            editProfileButton.heightAnchor.constraint(equalToConstant: 30),
+            editProfileButton.bottomAnchor.constraint(lessThanOrEqualTo: self.bottomAnchor),
+            
+            followUnfollowButton.topAnchor.constraint(equalTo: bioLabel.bottomAnchor, constant: 15),
+            followUnfollowButton.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: 15),
+            followUnfollowButton.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -15),
+            followUnfollowButton.heightAnchor.constraint(equalToConstant: 35),
+            followUnfollowButton.bottomAnchor.constraint(lessThanOrEqualTo: self.bottomAnchor),
         ])
     }
     
     @objc private func didTapPostsButton() {
-        delegate?.profileHeaderDidTapPostsButton(self)
+        delegate?.postsButtonTapped(self)
     }
     @objc private func didTapFollowingButton() {
-        delegate?.profileHeaderDidTapFollowingButton(self)
+        delegate?.followingButtonTapped(self)
     }
     @objc private func didTapFollowersButton() {
-        delegate?.profileHeaderDidTapFollowersButton(self)
+        delegate?.followersButtonTapped(self)
     }
     @objc private func didTapEditProfileButton() {
-        delegate?.profileHeaderDidTapEditProfileButton(self)
+        delegate?.editProfileButtonTapped(self)
+    }
+    @objc private func didTapFollowUnfollowButton() {
+        
+        switch followStatus {
+            
+        case .notFollowing:
+            delegate?.followButtonTapped(self) { status in
+                self.followStatus = status
+                self.switchFollowUnfollowButton(followStatus: status)
+            }
+            
+        case .following:
+            delegate?.unfollowButtonTapped(self) { status in
+                self.followStatus = status
+                self.switchFollowUnfollowButton(followStatus: status)
+            }
+        }
     }
 }
 

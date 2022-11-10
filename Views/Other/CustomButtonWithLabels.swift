@@ -32,9 +32,9 @@ class CustomButtonWithLabels: UIButton {
         setupViewsAndConstraints()
     }
     
-    public func configureWith(labelText: String, number: Int) {
+    public func configureWith(labelText: String, numberString: String) {
         label.text = labelText
-        numberLabel.text = String(number)
+        numberLabel.text = numberString
     }
     
     required init?(coder: NSCoder) {

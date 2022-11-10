@@ -7,21 +7,19 @@
 
 import UIKit
 
-protocol FollowingListTableViewCellDelegate: AnyObject {
-    func didTapFollowUnfollowButton(model: UserRelationship)
-}
-
 class FollowingListTableViewCell: UITableViewCell {
     
     static let identifier = "FollowingListTableViewCell"
     
-    weak var delegate: FollowingListTableViewCellDelegate?
+    private var followStatus: FollowStatus!
     
-    private var model: UserRelationship?
+    private var userID: String!
+    
+    weak var delegate: FollowListCellDelegate?
     
     private let profileImageViewSize: CGFloat = 55
     
-    private let profileImageView: UIImageView = {
+    let profileImageView: UIImageView = {
         let imageView = UIImageView()
         imageView.translatesAutoresizingMaskIntoConstraints = false
         imageView.layer.masksToBounds = true
@@ -30,7 +28,7 @@ class FollowingListTableViewCell: UITableViewCell {
         return imageView
     }()
     
-    private let usernameLabel: UILabel = {
+    let usernameLabel: UILabel = {
         let label = UILabel()
 //        label.text = "Пухляш220_🐈"
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -40,7 +38,7 @@ class FollowingListTableViewCell: UITableViewCell {
         return label
     }()
     
-    private let nameLabel: UILabel = {
+    let nameLabel: UILabel = {
         let label = UILabel()
 //        label.text = "Пухляш :3"
         label.font = UIFont.systemFont(ofSize: 14)
@@ -67,6 +65,7 @@ class FollowingListTableViewCell: UITableViewCell {
     
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
+        print("initializing cell")
         setupViewsAndConstraints()
         selectionStyle = .none
         
@@ -104,19 +103,26 @@ class FollowingListTableViewCell: UITableViewCell {
         profileImageView.layer.cornerRadius = profileImageViewSize / 2
     }
     
-    
-    public func configure(with model: UserRelationship) {
-        self.model = model
-        usernameLabel.text = model.username
-        nameLabel.text = model.name
-        switch model.type {
-        case .following:
-            showUnfollowButton()
-        case .notFollowing:
-            showFollowButton()
+    func configure(userID: String, followStatus: FollowStatus) {
+        guard userID != AuthenticationManager.shared.getCurrentUserUID() else {
+            followUnfollowButton.isHidden = true
+            followUnfollowButton.isEnabled = false
+            return
         }
+        self.userID = userID
+        self.followStatus = followStatus
+    
+        switchFollowUnfollowButton(followStatus: followStatus)
     }
     
+    private func switchFollowUnfollowButton(followStatus: FollowStatus) {
+        switch followStatus {
+        case .notFollowing:
+            showFollowButton()
+        case .following:
+            showUnfollowButton()
+        }
+    }
     
     private func showFollowButton() {
         followUnfollowButton.setTitle("Follow", for: .normal)
@@ -135,17 +141,26 @@ class FollowingListTableViewCell: UITableViewCell {
         followUnfollowButton.layer.borderColor = UIColor.lightGray.cgColor
     }
     
+    
+    
     @objc func didTapFollowUnfollowButton() {
-        guard let model = model else {
-            return 
-        }
-        switch model.type {
-        case .following:
-            showUnfollowButton()
+        
+        switch followStatus {
+            
         case .notFollowing:
-            showFollowButton()
+            delegate?.followButtonTapped(userID: self.userID) { status in
+                self.followStatus = status
+                self.switchFollowUnfollowButton(followStatus: status)
+            }
+            
+        case .following:
+            delegate?.unfollowButtonTapped(userID: self.userID) { status in
+                self.followStatus = status
+                self.switchFollowUnfollowButton(followStatus: status)
+            }
+        case .none:
+            return
         }
-        delegate?.didTapFollowUnfollowButton(model: model)
     }
     
     

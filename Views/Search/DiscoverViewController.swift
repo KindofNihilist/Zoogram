@@ -12,6 +12,13 @@ class DiscoverViewController: UIViewController {
     
     let viewModel = DiscoverViewModel()
     
+    private let spinnerView: UIActivityIndicatorView = {
+        let spinner = UIActivityIndicatorView()
+        spinner.translatesAutoresizingMaskIntoConstraints = false
+        spinner.isHidden = true
+        return spinner
+    }()
+    
     private let searchBar: UISearchBar = {
         let searchBar = UISearchBar()
         searchBar.autocapitalizationType = .none
@@ -27,15 +34,6 @@ class DiscoverViewController: UIViewController {
         return tableView
     }()
     
-    private let reloadButton: UIButton = {
-        let button = UIButton()
-        button.backgroundColor = .systemRed
-        button.setTitle("Reload", for: .normal)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        button.addTarget(self, action: #selector(reloadTableView), for: .touchUpInside)
-        return button
-    }()
-    
     private var collectionView: UICollectionView?
     
     override func viewDidLoad() {
@@ -46,23 +44,18 @@ class DiscoverViewController: UIViewController {
         searchBar.delegate = self
 //        navigationController?.navigationItem.rightBarButtonItem = UIBarButtonItem(image: UIImage(systemName: "gobackwards"), style: .plain, target: self, action: #selector(reloadTableView))
         
-        view.addSubview(tableView)
-        view.addSubview(reloadButton)
+        view.addSubviews(tableView, spinnerView)
         NSLayoutConstraint.activate([
             tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             tableView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
             tableView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
-            tableView.bottomAnchor.constraint(equalTo: view.centerYAnchor),
-            reloadButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
-            reloadButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
-            reloadButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
-            reloadButton.heightAnchor.constraint(equalToConstant: 50)
+            tableView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            
+            spinnerView.centerXAnchor.constraint(equalTo: tableView.centerXAnchor),
+            spinnerView.centerYAnchor.constraint(equalTo: tableView.centerYAnchor),
+            spinnerView.heightAnchor.constraint(equalToConstant: 30),
+            spinnerView.widthAnchor.constraint(equalToConstant: 30)
         ])
-    }
-    
-    @objc func reloadTableView() {
-        print("reloading data")
-        tableView.reloadData()
     }
     
     private func setupCollectionView() {
@@ -104,8 +97,13 @@ extension DiscoverViewController: UISearchBarDelegate {
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
         print("Searching users")
         
+        spinnerView.isHidden = false
+        spinnerView.startAnimating()
+        
         viewModel.searchUser(for: searchText) {
             self.tableView.reloadData()
+            self.spinnerView.isHidden = true
+            self.spinnerView.stopAnimating()
         }
     }
     
@@ -135,9 +133,13 @@ extension DiscoverViewController: UITableViewDelegate, UITableViewDataSource {
     }
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        let userID = viewModel.foundUsers[indexPath.row].userID
-        let userProfileViewController = UserProfileViewController(for: userID, isUserProfile: false)
-        navigationController?.pushViewController(userProfileViewController, animated: true)
+        let user = viewModel.foundUsers[indexPath.row]
+        print("USER SELECTED:", user.username)
+        user.checkIfFollowedByCurrentUser {
+            let userProfileViewController = UserProfileViewController(for: user.userID, isUserProfile: user.isUserProfile, isFollowed: user.isFollowed)
+            userProfileViewController.title = user.username
+            self.navigationController?.pushViewController(userProfileViewController, animated: true)
+        }
     }
     
     

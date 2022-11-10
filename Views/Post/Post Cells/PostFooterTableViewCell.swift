@@ -71,14 +71,6 @@ class PostFooterTableViewCell: UITableViewCell {
         var views = [UIView]()
         views.append(likesLabel)
         
-        if post.likeCount == 1 {
-            likesLabel.text = "\(post.likeCount) like"
-        } else {
-            likesLabel.text = "\(post.likeCount) likes"
-        }
-    
-        
-        
         if !post.caption.isEmpty {
             let attributedUsername = NSAttributedString(string: "\(username) ", attributes: [NSAttributedString.Key.font: UIFont.boldSystemFont(ofSize: 14), NSAttributedString.Key.foregroundColor: UIColor.label])
             let attributedCaption = NSAttributedString(string: post.caption, attributes: [NSAttributedString.Key.font: UIFont.systemFont(ofSize: 14), NSAttributedString.Key.foregroundColor: UIColor.label])
@@ -89,13 +81,6 @@ class PostFooterTableViewCell: UITableViewCell {
             views.append(captionLabel)
         }
         
-        
-        
-        if post.commentsCount > 1 {
-            viewCommentsButton.setTitle("View all \(post.commentsCount) comments", for: .normal)
-        } else {
-            viewCommentsButton.setTitle("View \(post.commentsCount) comment", for: .normal)
-        }
             views.append(viewCommentsButton)
         
         let formattedDate = post.postedDate.formatted(date: .abbreviated, time: .omitted)
@@ -108,6 +93,22 @@ class PostFooterTableViewCell: UITableViewCell {
         }
         contentView.addSubview(stackView)
         setupConstraints()
+    }
+    
+    func setLikes(likesCount: Int) {
+        if likesCount == 1 {
+            likesLabel.text = "\(likesCount) like"
+        } else {
+            likesLabel.text = "\(likesCount) likes"
+        }
+    }
+
+    func setComments(commentsCount: Int) {
+        if commentsCount > 1 {
+            viewCommentsButton.setTitle("View all \(commentsCount) comments", for: .normal)
+        } else {
+            viewCommentsButton.setTitle("View \(commentsCount) comment", for: .normal)
+        }
     }
     
     private func setupConstraints() {

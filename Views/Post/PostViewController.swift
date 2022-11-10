@@ -14,6 +14,8 @@ class PostViewController: UIViewController {
     
     private var postToFocusOn: IndexPath
     
+    private var isUserProfile: Bool
+    
     private let tableView: UITableView = {
         let tableView = UITableView()
         tableView.register(PostContentTableViewCell.self, forCellReuseIdentifier: PostContentTableViewCell.identifier)
@@ -26,7 +28,8 @@ class PostViewController: UIViewController {
         return tableView
     }()
     
-    init(posts: [UserPost]) {
+    init(posts: [UserPost], isUserProfile: Bool) {
+        self.isUserProfile = isUserProfile
         self.postToFocusOn = IndexPath(row: 0, section: 0)
         self.viewModel = PostViewModel(userPosts: posts)
         super.init(nibName: nil, bundle: nil)
@@ -45,13 +48,8 @@ class PostViewController: UIViewController {
         view.backgroundColor = .systemBackground
     }
     
-    override func viewWillAppear(_ animated: Bool) {
-        tableView.scrollToRow(at: postToFocusOn, at: .top, animated: false)
-    }
-    
-    
-    func updatePostToFocusOnIndex(index: IndexPath) {
-        self.postToFocusOn = index
+    func focusTableViewOnPostWith(index: IndexPath) {
+        tableView.scrollToRow(at: index, at: .top, animated: false)
     }
     
     func addPaginatedUserPosts(posts: [UserPost]) {
@@ -61,7 +59,6 @@ class PostViewController: UIViewController {
         }
         
     }
-    
 }
 
 extension PostViewController: UITableViewDelegate, UITableViewDataSource {
@@ -75,11 +72,15 @@ extension PostViewController: UITableViewDelegate, UITableViewDataSource {
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let postModel = viewModel.postsModels[indexPath.section]
+        let post = viewModel.userPosts[indexPath.section]
         
         switch postModel.subviews[indexPath.row] {
             
         case .header(let profilePictureURL, let username):
             let cell = tableView.dequeueReusableCell(withIdentifier: PostHeaderTableViewCell.identifier, for: indexPath) as! PostHeaderTableViewCell
+            cell.delegate = self
+            cell.postID = post.postID
+            cell.postIndex = indexPath.section
             cell.configureWith(profilePictureURL: profilePictureURL, username: username)
             return cell
             
@@ -102,13 +103,21 @@ extension PostViewController: UITableViewDelegate, UITableViewDataSource {
             }
             return cell
             
-        case .actions(let actions):
+        case .actions(_):
             let cell = tableView.dequeueReusableCell(withIdentifier: PostActionsTableViewCell.identifier, for: indexPath) as! PostActionsTableViewCell
+            cell.delegate = self
+            post.checkIfLikedByCurrentUser { likeState in
+                cell.configureLikeButton(likeState: likeState)
+            }
+            cell.postID = post.postID
             return cell
             
         case .footer(let post, let username):
             let cell = tableView.dequeueReusableCell(withIdentifier: PostFooterTableViewCell.identifier, for: indexPath) as! PostFooterTableViewCell
             cell.configure(for: post, username: username)
+            viewModel.getLikesForPost(id: post.postID) { count in
+                cell.setLikes(likesCount: count)
+            }
             return cell
             
         case .comment(let comment):
@@ -148,4 +157,46 @@ extension PostViewController: UITableViewDataSourcePrefetching {
             }
         }
     }
+}
+
+extension PostViewController: PostHeaderDelegate {
+    func menuButtonTappedFor(postID: String, index: Int) {
+        let actionSheet = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
+        actionSheet.view.backgroundColor = .systemBackground
+        actionSheet.view.layer.masksToBounds = true
+        actionSheet.view.layer.cornerRadius = 15
+        if isUserProfile {
+            let deleteAction = UIAlertAction(title: "Delete", style: .destructive) { [weak self] _ in
+                self?.viewModel.deletePost(id: postID, at: index) {
+                    self?.tableView.reloadData()
+                }
+            }
+            actionSheet.addAction(deleteAction)
+        }
+        
+        let shareAction = UIAlertAction(title: "Share", style: .cancel) { [weak self] _ in
+            print("shared post", postID)
+        }
+        
+        actionSheet.addAction(shareAction)
+        present(actionSheet, animated: true)
+    }
+}
+
+extension PostViewController: PostActionsDelegate {
+    func didTapLikeButton(postID: String, postActionsView: PostActionsTableViewCell) {
+        viewModel.likePost(postID: postID) { likeState in
+            postActionsView.configureLikeButton(likeState: likeState)
+        }
+    }
+    
+    func didTapCommentButton() {
+        return
+    }
+    
+    func didTapBookmarkButton() {
+        return
+    }
+    
+    
 }

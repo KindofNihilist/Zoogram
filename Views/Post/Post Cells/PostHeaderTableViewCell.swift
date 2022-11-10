@@ -8,9 +8,18 @@
 import SDWebImage
 import UIKit
 
+protocol PostHeaderDelegate {
+    func menuButtonTappedFor(postID: String, index: Int)
+}
+
 class PostHeaderTableViewCell: UITableViewCell {
     
     static let identifier = "PostHeaderTableViewCell"
+    
+    var postID = ""
+    var postIndex = 0
+    
+    var delegate: PostHeaderDelegate?
     
     private let profilePhotoImageView: UIImageView = {
         let imageView = UIImageView()
@@ -32,8 +41,9 @@ class PostHeaderTableViewCell: UITableViewCell {
     private let menuButton: UIButton = {
        let button = UIButton()
         button.translatesAutoresizingMaskIntoConstraints = false
-        button.setImage(UIImage(systemName: "square.and.arrow.up", withConfiguration: UIImage.SymbolConfiguration(pointSize: 19)), for: .normal)
+        button.setImage(UIImage(systemName: "ellipsis", withConfiguration: UIImage.SymbolConfiguration(pointSize: 19)), for: .normal)
         button.tintColor = .label
+        button.addTarget(self, action: #selector(didTapMenuButton), for: .touchUpInside)
         return button
     }()
     
@@ -76,5 +86,9 @@ class PostHeaderTableViewCell: UITableViewCell {
         ])
         
         profilePhotoImageView.layer.cornerRadius = profilePhotoHeightWidth / 2
+    }
+    
+    @objc func didTapMenuButton() {
+        delegate?.menuButtonTappedFor(postID: self.postID, index: postIndex)
     }
 }

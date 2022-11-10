@@ -7,21 +7,28 @@
 
 import UIKit
 
-protocol FollowersListTableViewCellDelegate: AnyObject {
-    func didTapRemoveButton(model: String)
+protocol FollowListCellDelegate: AnyObject {
+    func removeButtonTapped(userID: String, removeCompletion: @escaping (FollowStatus) -> Void)
+    func undoButtonTapped(userID: String, undoCompletion: @escaping (FollowStatus) -> Void)
+    func followButtonTapped(userID: String, followCompletion: @escaping (FollowStatus) -> Void)
+    func unfollowButtonTapped(userID: String, unfollowCompletion: @escaping (FollowStatus) -> Void)
 }
 
 class FollowersListTableViewCell: UITableViewCell {
     
     static let identifier = "FollowersListTableViewCell"
     
-    weak var delegate: FollowersListTableViewCellDelegate?
+    private var followStatus: FollowStatus!
     
-    private var model: UserRelationship?
+    private var isFollowingMe: FollowStatus = .following
+    
+    private var userID: String!
+    
+    weak var delegate: FollowListCellDelegate?
     
     private let profileImageViewSize: CGFloat = 55
     
-    private let profileImageView: UIImageView = {
+    let profileImageView: UIImageView = {
         let imageView = UIImageView()
         imageView.translatesAutoresizingMaskIntoConstraints = false
         imageView.layer.masksToBounds = true
@@ -30,7 +37,7 @@ class FollowersListTableViewCell: UITableViewCell {
         return imageView
     }()
     
-    private let usernameLabel: UILabel = {
+    let usernameLabel: UILabel = {
         let label = UILabel()
         //        label.text = "Пухляш220_🐈"
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -40,7 +47,7 @@ class FollowersListTableViewCell: UITableViewCell {
         return label
     }()
     
-    private let nameLabel: UILabel = {
+    let nameLabel: UILabel = {
         let label = UILabel()
         //        label.text = "Пухляш :3"
         label.font = UIFont.systemFont(ofSize: 14)
@@ -61,6 +68,7 @@ class FollowersListTableViewCell: UITableViewCell {
         button.layer.borderWidth = 0.5
         button.layer.borderColor = UIColor.lightGray.cgColor
         button.layer.cornerRadius = 5
+        button.addTarget(self, action: #selector(removeButtonTapped), for: .touchUpInside)
         return button
     }()
     
@@ -84,19 +92,6 @@ class FollowersListTableViewCell: UITableViewCell {
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-    
-    public func configure(with model: UserRelationship) {
-        self.model = model
-        usernameLabel.text = model.username
-        nameLabel.text = model.name
-        switch model.type {
-        case .following:
-            showUnfollowButton()
-        case .notFollowing:
-            showFollowButton()
-        }
-    }
-    
     
     private func setupViewsAndConstraints() {
         contentView.addSubviews(profileImageView, removeButton, usernameLabel, nameLabel, followUnfollowButton)
@@ -131,13 +126,29 @@ class FollowersListTableViewCell: UITableViewCell {
         profileImageView.layer.cornerRadius = profileImageViewSize / 2
     }
     
-//    override func prepareForReuse() {
-//        super.prepareForReuse()
-//        profileImageView.image = nil
-//        usernameLabel.text = nil
-//        nameLabel.text = nil
-//        removeButton.setTitle(nil, for: .normal)
-//    }
+    func configure(userID: String, followStatus: FollowStatus) {
+        self.followStatus = followStatus
+        self.userID = userID
+        switchFollowUnfollowButton(followStatus: followStatus)
+    }
+    
+    private func switchFollowUnfollowButton(followStatus: FollowStatus) {
+        switch followStatus {
+        case .notFollowing:
+            showFollowButton()
+        case .following:
+            showUnfollowButton()
+        }
+    }
+    
+    private func switchRemoveButton(followStatus: FollowStatus) {
+        switch followStatus {
+        case .following:
+            removeButton.setTitle("Remove", for: .normal)
+        case .notFollowing:
+            removeButton.setTitle("Undo", for: .normal)
+        }
+    }
     
     private func showFollowButton() {
         followUnfollowButton.setTitle("Follow", for: .normal)
@@ -150,17 +161,39 @@ class FollowersListTableViewCell: UITableViewCell {
         followUnfollowButton.setTitleColor(.label, for: .normal)
     }
     
-    @objc func didTapFollowUnfollowButton() {
-        guard let model = model else {
-            return
-        }
-        switch model.type {
+    @objc func removeButtonTapped() {
+        switch isFollowingMe {
         case .following:
-            showUnfollowButton()
+            delegate?.removeButtonTapped(userID: userID) { status in
+                self.switchRemoveButton(followStatus: status)
+                self.isFollowingMe = .notFollowing
+            }
         case .notFollowing:
-            showFollowButton()
+            delegate?.undoButtonTapped(userID: userID) { status in
+                self.switchRemoveButton(followStatus: status)
+                self.isFollowingMe = .following
+            }
+        }
+        
+    }
+    
+    @objc func didTapFollowUnfollowButton() {
+        
+        switch followStatus {
+            
+        case .notFollowing:
+            delegate?.followButtonTapped(userID: self.userID) { status in
+                self.followStatus = status
+                self.switchFollowUnfollowButton(followStatus: status)
+            }
+        case .following:
+            delegate?.unfollowButtonTapped(userID: self.userID) { status in
+                self.followStatus = status
+                self.switchFollowUnfollowButton(followStatus: status)
+            }
+        default:
+            print("Follow status isn't set")
         }
     }
 }
-
 

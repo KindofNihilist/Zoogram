@@ -15,7 +15,7 @@ final class UserProfileViewController: UIViewController {
     
     private var collectionView: UICollectionView!
 
-    private var viewModel = UserProfileViewModel()
+    private var viewModel: UserProfileViewModel
     
     private var headerHeight: CGFloat = 0
     
@@ -46,25 +46,45 @@ final class UserProfileViewController: UIViewController {
     }()
     
     override func viewDidLoad() {
-        setupCollectionView()
-        viewModel.initializeViewModel(userID: viewModel.userID) {
-            if self.viewModel.isUserProfile {
-                self.configureNavigationBar()
-            }
-            self.collectionView.reloadData()
-            self.postTableViewController = PostViewController(posts: self.viewModel.userPosts)
+        if viewModel.isUserProfile {
+            self.configureNavigationBar()
         }
+        postTableViewController = PostViewController(posts: viewModel.userPosts, isUserProfile: viewModel.isUserProfile)
+        setupCollectionView()
+        NotificationCenter.default.addObserver(self, selector: #selector(onDataReceive), name: Notification.Name("ReceivedData"), object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(postDeleted), name: Notification.Name("PostDeleted"), object: nil)
+//        viewModel.initializeViewModel(userID: viewModel.userID) {
+//            if self.viewModel.isUserProfile {
+//
+//            }
+//            self.collectionView.reloadData()
+            
+//        }
         
     }
     
-    init(for userID: String, isUserProfile: Bool = true) {
-        viewModel.isUserProfile = isUserProfile
-        viewModel.userID = userID
+    init(for userID: String, isUserProfile: Bool, isFollowed: FollowStatus) {
+        viewModel = UserProfileViewModel(for: userID, followStatus: isFollowed, isUserProfile: isUserProfile)
         super.init(nibName: nil, bundle: nil)
     }
     
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+    
+    @objc private func postDeleted(_ notification: Notification) {
+        guard let index = notification.object as? Int else {
+            print("couldn't cast notification object to Int type or object is nil")
+            return
+        }
+        viewModel.userPosts.remove(at: index)
+        collectionView.reloadData()
+    }
+    
+    @objc private func onDataReceive() {
+        print("DATA RECEIVED RELOADING TABLE VIEW")
+        self.postTableViewController = PostViewController(posts: self.viewModel.userPosts, isUserProfile: viewModel.isUserProfile)
+        collectionView.reloadData()
     }
     
     private func configureNavigationBar() {
@@ -87,9 +107,10 @@ final class UserProfileViewController: UIViewController {
             collectionViewPlaceholder.bottomAnchor.constraint(equalTo: collectionView.bottomAnchor),
             collectionViewPlaceholder.widthAnchor.constraint(equalTo: collectionView.widthAnchor),
             
-            spinnerView.heightAnchor.constraint(equalToConstant: 20),
-            spinnerView.widthAnchor.constraint(equalToConstant: 20),
-            spinnerView.centerYAnchor.constraint(equalTo: collectionViewPlaceholder.centerYAnchor),
+            spinnerView.heightAnchor.constraint(equalToConstant: 25),
+            spinnerView.widthAnchor.constraint(equalToConstant: 25),
+            spinnerView.topAnchor.constraint(equalTo: collectionViewPlaceholder.topAnchor),
+            spinnerView.bottomAnchor.constraint(equalTo: collectionViewPlaceholder.bottomAnchor),
             spinnerView.centerXAnchor.constraint(equalTo: collectionViewPlaceholder.centerXAnchor)
         ])
         spinnerView.startAnimating()
@@ -130,7 +151,6 @@ final class UserProfileViewController: UIViewController {
 
         collectionView?.register(ProfileTabsReusableView.self, forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader, withReuseIdentifier: ProfileTabsReusableView.identifier)
         
-        
         guard let collectionView = collectionView else {
             return
         }
@@ -148,10 +168,9 @@ final class UserProfileViewController: UIViewController {
         collectionView.addSubview(collectionViewPlaceholder)
     }
     
+    // MARK: Profile header setup
     func createProfileHeader(for collectionView: UICollectionView, ofKind: String, for indexPath: IndexPath) -> UICollectionReusableView {
-        
         let profileHeader = collectionView.dequeueReusableSupplementaryView(ofKind: ofKind, withReuseIdentifier: ProfileHeaderReusableView.identifier, for: indexPath) as! ProfileHeaderReusableView
-        
         profileHeader.delegate = self
         profileHeader.configure(name: viewModel.name,
                                 bio: viewModel.bio,
@@ -159,8 +178,8 @@ final class UserProfileViewController: UIViewController {
                                 postsCount: viewModel.postsCount,
                                 followersCount: viewModel.followersCount,
                                 followingCount: viewModel.followingCount,
+                                isFollowed: viewModel.isFollowed,
                                 isUserProfile: viewModel.isUserProfile)
-        
         self.headerHeight = profileHeader.frame.height
         return profileHeader
     }
@@ -171,9 +190,9 @@ final class UserProfileViewController: UIViewController {
         
         profileTabsHeader.delegate = self
         
-        if viewModel.hasInitialized && !viewModel.userPosts.isEmpty {
+        if viewModel.isInitialized && !viewModel.userPosts.isEmpty {
             collectionViewPlaceholder.removeFromSuperview()
-        } else if !viewModel.hasInitialized {
+        } else if !viewModel.isInitialized {
             atachSpinnerView(to: profileTabsHeader)
         } else {
             createNoPostsView()
@@ -222,7 +241,7 @@ extension UserProfileViewController: UICollectionViewDelegate, UICollectionViewD
     
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
 //        collectionView.deselectItem(at: indexPath, animated: true)
-        postTableViewController.updatePostToFocusOnIndex(index: IndexPath(row: 0, section: indexPath.row))
+        postTableViewController.focusTableViewOnPostWith(index: IndexPath(row: 0, section: indexPath.row))
         navigationController?.pushViewController(postTableViewController, animated: true)
     }
     
@@ -275,45 +294,78 @@ extension UserProfileViewController: UICollectionViewDelegate, UICollectionViewD
 }
 
 // MARK: ProfileHeaderDelegate
-
 extension UserProfileViewController: ProfileHeaderDelegate {
     
+    func followButtonTapped(_ header: ProfileHeaderReusableView, followCompletion: @escaping (FollowStatus) -> Void) {
+        guard viewModel.isInitialized else {
+            return
+        }
+        print("Follow tapped")
+        viewModel.followUser { success in
+            if success {
+                print("Succesfully followed")
+                followCompletion(.following)
+            } else {
+                print("Unnable to follow, try again later")
+            }
+            
+        }
+    }
     
-    func profileHeaderDidTapPostsButton(_ header: ProfileHeaderReusableView) {
+    func unfollowButtonTapped(_ header: ProfileHeaderReusableView, unfollowCompletion: @escaping (FollowStatus) -> Void) {
+        guard viewModel.isInitialized else {
+            return
+        }
+        print("Unfollow tapped")
+        viewModel.unfollowUser { success in
+            if success {
+                print("Succesfully unfollowed")
+                unfollowCompletion(.notFollowing)
+            } else {
+                print("Unnable to unfollow, try again later")
+            }
+        }
+    }
+    
+    func postsButtonTapped(_ header: ProfileHeaderReusableView) {
+        guard viewModel.isInitialized else {
+            return
+        }
         // center view on the posts section
         collectionView?.scrollToItem(at: IndexPath(row: 0, section: 1), at: .top, animated: true)
     }
     
-    func profileHeaderDidTapFollowingButton(_ header: ProfileHeaderReusableView) {
-        // open tableview of people user follows
-        var testingData = [UserRelationship]()
-        for i in 0...10 {
-            testingData.append(UserRelationship(username: "Пухляш220_🐈", name: "Пухляш :3", type: i % 2 == 0 ? .following : .notFollowing))
+    func followingButtonTapped(_ header: ProfileHeaderReusableView) {
+        guard viewModel.isInitialized else {
+            return
         }
-        
-        let vc = FollowListViewController(data: testingData, viewKind: .following)
+        // open tableview of people user follows
+        let vc = FollowListViewController(for: viewModel.userID, isUserProfile: viewModel.isUserProfile , viewKind: .following)
         vc.title = "Following"
         navigationController?.pushViewController(vc, animated: true)
     }
     
-    func profileHeaderDidTapFollowersButton(_ header: ProfileHeaderReusableView) {
-        // open viewcontroller with tableview of people following user
-        var testingData = [UserRelationship]()
-        for i in 0...10 {
-            testingData.append(UserRelationship(username: "Пухляш220_🐈", name: "Пухляш :3", type: i % 2 == 0 ? .following : .notFollowing))
+    func followersButtonTapped(_ header: ProfileHeaderReusableView) {
+        guard viewModel.isInitialized else {
+            return
         }
-        let vc = FollowListViewController(data: testingData, viewKind: .followers)
+        // open viewcontroller with tableview of people following user
+        let vc = FollowListViewController(for: viewModel.userID, isUserProfile: viewModel.isUserProfile, viewKind: .followers)
         vc.title = "Followers"
         navigationController?.pushViewController(vc, animated: true)
     }
     
-    func profileHeaderDidTapEditProfileButton(_ header: ProfileHeaderReusableView) {
+    func editProfileButtonTapped(_ header: ProfileHeaderReusableView) {
+        guard viewModel.isInitialized else {
+            return
+        }
         // navigate to ProfileEdditingViewController
         let vc = ProfileEdditingViewController(profileImage: viewModel.profilePhoto)
         vc.delegate = self
         present(UINavigationController(rootViewController: vc), animated: true)
     }
 }
+
 
 extension UserProfileViewController: ProfileTabsCollectionViewDelegate {
     func didTapGridTabButton() {

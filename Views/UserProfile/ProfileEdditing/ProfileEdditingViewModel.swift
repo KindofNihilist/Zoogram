@@ -38,9 +38,7 @@ class ProfileEdditingViewModel {
     
     func getUserProfileData(completion: @escaping () -> Void) {
         DatabaseManager.shared.getUser(for: AuthenticationManager.shared.getCurrentUserUID()) { user in
-            guard let user = user else {
-                return
-            }
+            
             self.name = user.name
             self.username = user.username
             self.bio = user.bio ?? ""

@@ -9,7 +9,7 @@ import UIKit
 
 enum UserActivityType {
     case liked(post: UserPost)
-    case followed(state: FollowState)
+    case followed(state: FollowStatus)
     case commented
 }
 
@@ -126,7 +126,7 @@ class ActivityViewController: UIViewController, UITableViewDelegate, UITableView
         switch model.type {
             
         case .liked(let post):
-            let vc = PostViewController(posts: [post])
+            let vc = PostViewController(posts: [post], isUserProfile: true)
             present(vc, animated: true)
             
         case .followed(_):
@@ -148,7 +148,7 @@ extension ActivityViewController: PostLikedTableViewCellDelegate {
         switch model.type {
             
         case .liked(let post):
-            let vc = UINavigationController(rootViewController: PostViewController(posts: [post]))
+            let vc = UINavigationController(rootViewController: PostViewController(posts: [post], isUserProfile: true))
             vc.modalPresentationStyle = .fullScreen
             present(vc, animated:  true)
             

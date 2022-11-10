@@ -34,12 +34,6 @@ final class PostContentTableViewCell: UITableViewCell {
     }
     
     public func configure(with image: UIImage) {
-//        postImageView.sd_setImage(with: URL(string: photoURL)) { image, error, cache, url in
-//            if let downloadedImage = image {
-//                let imageAspectRatio = downloadedImage.size.width / downloadedImage.size.height
-//                self.setupImageViewConstraints(for: imageAspectRatio)
-//            }
-//        }
         postImageView.image = image
         let imageAspectRatio = image.size.width / image.size.height
         setupImageViewHeightConstraint(for: imageAspectRatio)

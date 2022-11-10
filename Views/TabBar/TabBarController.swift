@@ -34,7 +34,8 @@ class TabBarController: UITabBarController {
     }
     
     func loadTabBar() {
-        let tabItems: [UIViewController] = [HomeViewController(), DiscoverViewController(), NewPostViewController(), ActivityViewController(), UserProfileViewController(for: AuthenticationManager.shared.getCurrentUserUID())]
+        let uid = AuthenticationManager.shared.getCurrentUserUID()
+        let tabItems: [UIViewController] = [HomeViewController(), DiscoverViewController(), NewPostViewController(), ActivityViewController(), UserProfileViewController(for: uid, isUserProfile: true, isFollowed: .notFollowing)]
         let tabIcons: [TabItem] = [.home, .discover, .makeAPost, .activity, .myProfile]
         self.setupTabBar(tabItems) { (controllers) in
             self.view.layoutIfNeeded()

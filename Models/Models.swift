@@ -13,6 +13,15 @@ enum Gender: String {
     case other = "Other"
 }
 
-enum CellType {
+enum FollowCellType {
     case following, followers
+}
+
+enum PostLikeState {
+    case liked, notLiked
+}
+
+public enum FollowStatus {
+    case following // Indicates the current user is following the other user
+    case notFollowing // Indicates the current user is not following the other user
 }

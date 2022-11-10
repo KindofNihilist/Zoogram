@@ -12,19 +12,18 @@ class NewPostViewModel {
     var photo: UIImage
     var caption: String
     var post: UserPost!
-    let postUID: String
     
     init(photo: UIImage = UIImage(), caption: String = "") {
         self.photo = photo
         self.caption = caption
-        self.postUID = UUID().uuidString
     }
     
-    func createPost(postType: UserPostType, caption: String, photoURL: String) {
+    func createPost(postType: UserPostType, caption: String) {
         let userUID = AuthenticationManager.shared.getCurrentUserUID()
+        let postUID = DatabaseManager.shared.createPostUID()
         post = UserPost(userID: userUID,
                         postID: postUID,
-                        photoURL: photoURL,
+                        photoURL: "",
                         caption: caption,
                         likeCount: 0,
                         commentsCount: 0,
@@ -40,18 +39,27 @@ class NewPostViewModel {
     }
     
     func makeAPost(postType: UserPostType, caption: String, completion: @escaping (Bool) -> Void) {
-        let fileName = "\(postUID)_post.png"
+        
+        self.createPost(postType: postType, caption: caption)
+        let fileName = "\(post.postID)_post.png"
+        
         StorageManager.shared.uploadPostPhoto(photo: photo, fileName: fileName) { result in
             
             switch result {
                 
             case .success(let photoURL):
+                self.post.photoURL = photoURL
                 
-                self.createPost(postType: postType, caption: caption, photoURL: photoURL)
-                
-                DatabaseManager.shared.insertNewPost(post: self.post) { isSuccessfull in
-                    if isSuccessfull {
+                DatabaseManager.shared.insertNewPost(post: self.post) { result in
+                    
+                    switch result {
+                        
+                    case .success(let message):
+                        print(message)
                         completion(true)
+                        
+                    case .failure(let error):
+                        print(error)
                     }
                 }
                 
