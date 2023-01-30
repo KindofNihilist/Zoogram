@@ -19,8 +19,6 @@ class RegistrationViewModel {
                               username: username,
                               name: "",
                               birthday: "",
-                              following: 0,
-                              followers: 0,
                               posts: 0,
                               joinDate: Date().timeIntervalSince1970)
         
@@ -31,7 +29,7 @@ class RegistrationViewModel {
         AuthenticationManager.shared.createNewUser(email: email, password: password) { success, userID, errorDescription in
             if success {
                 self.fillInBasicZoogramUserModel(userID: userID, email: email, username: username)
-                DatabaseManager.shared.insertNewUser(with: self.newUser) { success in
+                UserService.shared.insertNewUser(with: self.newUser) { success in
                     if success {
                         completion(true, "")
                     } else {
@@ -48,17 +46,17 @@ class RegistrationViewModel {
         let dict = ["name" : name, "bio" : bio]
         
         if let image = profilePic {
-            DatabaseManager.shared.updateUserProfilePicture(newProfilePic: image)
+            UserService.shared.updateUserProfilePicture(newProfilePic: image)
         }
         
-        DatabaseManager.shared.updateUserProfile(with: dict) {
+        UserService.shared.updateUserProfile(with: dict) {
             completion()
         }
     }
     
     func finishSignUp(dateOfBirth: String, gender: String, completion: @escaping () -> Void) {
         let dict = ["gender" : gender, "birthday" : dateOfBirth]
-        DatabaseManager.shared.updateUserProfile(with: dict) {
+        UserService.shared.updateUserProfile(with: dict) {
             completion()
         }
     }
@@ -73,7 +71,7 @@ class RegistrationViewModel {
     }
     
     func checkIfUsernameIsAvailable(username: String, completion: @escaping (Bool) -> Void) {
-        DatabaseManager.shared.checkIfUsernameIsAvailable(username: username) { isAvailable in
+        UserService.shared.checkIfUsernameIsAvailable(username: username) { isAvailable in
             completion(isAvailable)
         }
     }

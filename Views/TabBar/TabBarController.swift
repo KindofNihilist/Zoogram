@@ -12,6 +12,8 @@ class TabBarController: UITabBarController {
     
     var tabBarHeight: CGFloat = 55
     
+    var previousViewController: UIViewController?
+    
     override func viewWillAppear(_ animated: Bool) {
         loadTabBar()
     }
@@ -25,7 +27,7 @@ class TabBarController: UITabBarController {
         if showAppearAnimation {
             view.alpha = 0
             view.transform = CGAffineTransform(scaleX: 0.1, y: 0.1)
-            animateAppearing()
+//            animateAppearing()
         }
     }
     
@@ -48,7 +50,7 @@ class TabBarController: UITabBarController {
             item.image = tabIcons[index].icon
             item.selectedImage = tabIcons[index].selectedIcon
         }
-        tabBar.isTranslucent = false
+//        tabBar.isTranslucent = false
         tabBar.configureTabBarColor(with: .systemBackground)
         tabBar.tintColor = .label
     }
@@ -91,5 +93,24 @@ extension TabBarController: UITabBarControllerDelegate {
         } else {
             return true
         }
+    }
+    
+    func tabBarController(_ tabBarController: UITabBarController, didSelect viewController: UIViewController) {
+        if previousViewController == viewController {
+            
+            if let navVC = viewController as? UINavigationController, let vc = navVC.viewControllers.first as? HomeViewController {
+                
+                if vc.isViewLoaded && (vc.view.window != nil) {
+                    
+                    vc.setTopTableViewVisibleContent()
+                }
+            } else if let navVC = viewController as? UINavigationController, let vc = navVC.viewControllers.first as? UserProfileViewController {
+               
+                if vc.isViewLoaded && (vc.view.window != nil) {
+                    vc.setTopCollectionViewVisibleContent()
+                }
+            }
+        }
+        previousViewController = viewController
     }
 }

@@ -27,16 +27,52 @@ class FollowListViewController: UIViewController, UITableViewDelegate, UITableVi
         return tableView
     }()
     
+    private lazy var messageImageView: UIImageView = {
+        let imageview = UIImageView()
+        imageview.image = UIImage(systemName: "person.crop.circle.badge.plus", withConfiguration: UIImage.SymbolConfiguration(pointSize: 25))
+        imageview.contentMode = .scaleAspectFit
+        imageview.tintColor = .label
+        imageview.translatesAutoresizingMaskIntoConstraints = false
+        return imageview
+    }()
+    
+    private lazy var messageTitle: UILabel = {
+        let label = UILabel()
+        label.font = .boldSystemFont(ofSize: 25)
+        label.sizeToFit()
+        label.textColor = .label
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+    
+    private lazy var message: UILabel = {
+        let label = UILabel()
+        label.font = .systemFont(ofSize: 15)
+        label.numberOfLines = 2
+        label.textColor = .secondaryLabel
+        label.textAlignment = .center
+        label.sizeToFit()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+    
     init(for uid: String, isUserProfile: Bool, viewKind: FollowCellType) {
         self.isUserProfile = isUserProfile
         self.viewKind = viewKind
         self.viewModel.uid = uid
         super.init(nibName: nil, bundle: nil)
-        
         tableView.delegate = self
         tableView.dataSource = self
         tableView.register(FollowingListTableViewCell.self, forCellReuseIdentifier: FollowingListTableViewCell.identifier)
         tableView.register(FollowersListTableViewCell.self, forCellReuseIdentifier: FollowersListTableViewCell.identifier)
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        
+    }
+    
+    @objc func popBack() {
+        self.navigationController?.popViewController(animated: true)
     }
     
     override func viewDidLoad() {
@@ -47,11 +83,17 @@ class FollowListViewController: UIViewController, UITableViewDelegate, UITableVi
             
         case .following:
             viewModel.getFollowing() {
+                if self.viewModel.users.isEmpty {
+                    self.showNoOneFollowedMessage()
+                }
                 self.tableView.reloadData()
             }
             
         case .followers:
             viewModel.getFollowers() {
+                if self.viewModel.users.isEmpty {
+                    self.showNoFollowersMessage()
+                }
                 self.tableView.reloadData()
             }
         }
@@ -61,8 +103,38 @@ class FollowListViewController: UIViewController, UITableViewDelegate, UITableVi
         fatalError("init(coder:) has not been implemented")
     }
     
+    func showNoFollowersMessage() {
+        messageTitle.text = "Followers"
+        message.text = "You'll see all of the people who follow \nyou here."
+        self.view.addSubviews(messageTitle, messageImageView, message)
+        setupMessageConstraints()
+    }
+    
+    func showNoOneFollowedMessage() {
+        messageTitle.text = "People you follow"
+        message.text = "When you follow someone, \nyou'll see them here."
+        self.view.addSubviews(messageTitle, messageImageView, message)
+        setupMessageConstraints()
+    }
+    
     func numberOfSections(in tableView: UITableView) -> Int {
         return 1
+    }
+    
+    func setupMessageConstraints() {
+        NSLayoutConstraint.activate([
+            messageImageView.bottomAnchor.constraint(equalTo: view.centerYAnchor, constant: -10),
+            messageImageView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            messageImageView.heightAnchor.constraint(equalToConstant: 100),
+            messageImageView.widthAnchor.constraint(equalToConstant: 100),
+            
+            messageTitle.topAnchor.constraint(equalTo: messageImageView.bottomAnchor, constant: 10),
+            messageTitle.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            
+            message.topAnchor.constraint(equalTo: messageTitle.bottomAnchor, constant: 8),
+            message.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            
+        ])
     }
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {

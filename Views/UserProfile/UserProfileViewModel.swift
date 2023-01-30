@@ -16,86 +16,82 @@ class UserProfileViewModel {
     var isFollowed: FollowStatus
     var lastObtainedPostKey = ""
     
+    var user: Observable<ZoogramUser> = Observable(ZoogramUser(userID: "",
+                                                               profilePhotoURL: "",
+                                                               email: "",
+                                                               phoneNumber: "",
+                                                               username: "",
+                                                               name: "",
+                                                               bio: "",
+                                                               birthday: "",
+                                                               gender: "",
+                                                               posts: 0,
+                                                               joinDate: 0))
     
-    var username: String = ""
-    var name: String = ""
-    var bio: String = ""
-    var profilePhoto = UIImage()
-    var postsCount = ""
-    var followersCount = ""
-    var followingCount = ""
-    var userID: String!
-    var userPosts = [UserPost]()
+    var profilePhoto: Observable<UIImage> = Observable(UIImage())
+    var postsCount: Observable<String> = Observable("")
+    var followersCount: Observable<String> = Observable("")
+    var followingCount: Observable<String> = Observable("")
     
-//    func initializeViewModel(userID: String, completion: @escaping () -> Void) {
-//        getUserDataFor(userID: userID) {
-//            self.getUserPosts() {
-//                self.hasInitialized = true
-//                completion()
-//            }
-//        }
-//
-//        getFollowersFollowingNumber(userID: userID)
-//
-//    }
+    var userPosts: Observable<[UserPost]> = Observable([])
     
     init(for uid: String, followStatus: FollowStatus, isUserProfile: Bool) {
         self.isFollowed = followStatus
         self.isUserProfile = isUserProfile
         
-        let dispatchGroup = DispatchGroup()
         print("Initialize for UID: \(uid)")
-        dispatchGroup.enter()
+        
         getUserDataFor(userID: uid) {
-            print("got data")
-            self.getUserPosts(for: uid) {
-                print("got posts")
-                self.getFollowersFollowingNumber(userID: uid) {
-                    print("got followers and followed")
-                    dispatchGroup.leave()
-                    self.isInitialized = true
-                }
-            }
+            print("Got user data")
         }
         
+        getUserPosts(for: uid) {
+            print("Got first 12 posts")
+            self.isInitialized = true
+        }
+
+        getPostsCount(userID: uid) {
+            print("Got post count")
+        }
         
+        getFollowersCount(userID: uid) {
+            print("Got followers count")
+        }
         
-        dispatchGroup.notify(queue: .main) {
-            NotificationCenter.default.post(name: Notification.Name("ReceivedData"), object: nil)
+        getFollowingCount(userID: uid) {
+            print("Got following count")
         }
     }
     
-    func getFollowersFollowingNumber(userID: String, completion: @escaping () -> Void) {
-        let dispatchGroup = DispatchGroup()
-        DatabaseManager.shared.getFollowersNumber(for: userID) { followersCount in
-            dispatchGroup.enter()
-            self.followersCount = "\(followersCount)"
-            dispatchGroup.leave()
-        }
-        DatabaseManager.shared.getFollowingNumber(for: userID) { followingCount in
-            dispatchGroup.enter()
-            self.followingCount = "\(followingCount)"
-            dispatchGroup.leave()
-        }
-        dispatchGroup.notify(queue: .main) {
+    func getFollowersCount(userID: String, completion: @escaping () -> Void) {
+        FollowService.shared.getFollowersNumber(for: userID) { followersCount in
+            self.followersCount.value = "\(followersCount)"
             completion()
         }
-        
+    }
+    
+    func getFollowingCount(userID: String, completion: @escaping () -> Void) {
+        FollowService.shared.getFollowingNumber(for: userID) { followingCount in
+            self.followingCount.value = "\(followingCount)"
+            completion()
+        }
+    }
+    
+    func getPostsCount(userID: String, completion: @escaping () -> Void) {
+        UserPostService.shared.getPostCount(for: userID) { count in
+            self.postsCount.value = String(count)
+            completion()
+        }
     }
     
     
     func getUserDataFor(userID: String, completion: @escaping () -> Void) {
-        DatabaseManager.shared.getUser(for: userID) { [weak self] user in
-    
-            self?.userID = user.userID
-            self?.username = user.username
-            self?.name = user.name
-            self?.bio = user.bio ?? ""
-            self?.postsCount = "\(user.posts)"
-            print(user.self)
+        UserService.shared.getUser(for: userID) { [weak self] user in
+            self?.user.value = user
+            
             SDWebImageManager.shared.loadImage(with: URL(string: user.profilePhotoURL), progress: .none) { image, _, _, _, _, _ in
                 if let image = image {
-                    self?.profilePhoto = image
+                    self?.profilePhoto.value = image
                     completion()
                 }
             }
@@ -103,8 +99,8 @@ class UserProfileViewModel {
     }
     
     func getUserPosts(for uid: String, completion: @escaping () -> Void) {
-        DatabaseManager.shared.getPosts(for: uid) { posts, lastObtainedPostKey in
-            self.userPosts.append(contentsOf: posts)
+        UserPostService.shared.getPosts(for: uid) { posts, lastObtainedPostKey in
+            self.userPosts.value?.append(contentsOf: posts)
             self.lastObtainedPostKey = lastObtainedPostKey
             print("Downloaded initials posts with last post key: \(lastObtainedPostKey)")
             completion()
@@ -112,14 +108,14 @@ class UserProfileViewModel {
     }
     
     func getMoreUserPosts(completion: @escaping ([UserPost]) -> Void) {
-        guard let userID = userID,
+        guard let userID = user.value?.userID,
         lastObtainedPostKey != "" else {
             return
         }
         
         isPaginating = true
         
-        DatabaseManager.shared.getMorePosts(after: lastObtainedPostKey, for: userID) { posts, lastDownloadedPostKey in
+        UserPostService.shared.getMorePosts(after: lastObtainedPostKey, for: userID) { posts, lastDownloadedPostKey in
             print("Prev last post key:", self.lastObtainedPostKey)
             print("Last downloaded post key:", lastDownloadedPostKey)
             print("Got more posts with last post key: \(lastDownloadedPostKey)")
@@ -128,20 +124,26 @@ class UserProfileViewModel {
                 return
             }
             self.lastObtainedPostKey = lastDownloadedPostKey
-            self.userPosts.append(contentsOf: posts)
+            self.userPosts.value?.append(contentsOf: posts)
             self.isPaginating = false
             completion(posts)
         }
     }
     
     func followUser(completion: @escaping (Bool) -> Void) {
-        DatabaseManager.shared.followUser(uid: userID) { success in
+        guard let userID = user.value?.userID else {
+            return
+        }
+        FollowService.shared.followUser(uid: userID) { success in
             completion(success)
         }
     }
     
     func unfollowUser(completion: @escaping (Bool) -> Void) {
-        DatabaseManager.shared.unfollowUser(uid: userID) { success in
+        guard let userID = user.value?.userID else {
+            return
+        }
+        FollowService.shared.unfollowUser(uid: userID) { success in
             completion(success)
         }
     }

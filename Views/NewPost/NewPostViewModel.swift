@@ -6,21 +6,34 @@
 //
 
 import UIKit
+import Firebase
 
 class NewPostViewModel {
+    
+    var followersRef: DatabaseReference!
+    var followersSnap: DataSnapshot!
     
     var photo: UIImage
     var caption: String
     var post: UserPost!
+    
+    
     
     init(photo: UIImage = UIImage(), caption: String = "") {
         self.photo = photo
         self.caption = caption
     }
     
+    func getSnapshotOfFollowers() {
+        let uid = AuthenticationManager.shared
+            .getCurrentUserUID()
+        followersRef = Database.database(url: "https://catogram-58487-default-rtdb.europe-west1.firebasedatabase.app").reference()
+        followersRef.child("Followers/\(uid)").observe(.value) { self.followersSnap = $0 }
+    }
+    
     func createPost(postType: UserPostType, caption: String) {
         let userUID = AuthenticationManager.shared.getCurrentUserUID()
-        let postUID = DatabaseManager.shared.createPostUID()
+        let postUID = UserPostService.shared.createPostUID()
         post = UserPost(userID: userUID,
                         postID: postUID,
                         photoURL: "",
@@ -50,13 +63,16 @@ class NewPostViewModel {
             case .success(let photoURL):
                 self.post.photoURL = photoURL
                 
-                DatabaseManager.shared.insertNewPost(post: self.post) { result in
+                UserPostService.shared.insertNewPost(post: self.post) { result in
                     
                     switch result {
                         
                     case .success(let message):
                         print(message)
-                        completion(true)
+                        
+                        UserPostService.shared.fanoutPost(uid: self.post.userID, followersSnapshot: self.followersSnap, post: self.post) {
+                            completion(true)
+                        }
                         
                     case .failure(let error):
                         print(error)

@@ -17,6 +17,8 @@ class NewPostViewController: UIViewController {
     var isAspectFit = false
     private var selectedPhoto: UIImage?
     
+    var photoPreviewView: CameraRollPreviewHeader?
+    
     var userPhotos: PHFetchResult<PHAsset>?
     
     
@@ -52,7 +54,9 @@ class NewPostViewController: UIViewController {
     }
     
     override func viewWillAppear(_ animated: Bool) {
-        fetchUserPhotos()
+        fetchUserPhotos() {
+            self.selectPhotoAsPreview(at: 0)
+        }
         
         //        if let layout = self.userPhotoLibraryCollectionView.collectionViewLayout as? UICollectionViewFlowLayout{
         //            self.assetThumbnailSize = layout.itemSize
@@ -67,7 +71,23 @@ class NewPostViewController: UIViewController {
         navigationItem.leftBarButtonItem?.tintColor = .white
     }
     
-    private func fetchUserPhotos() {
+    func selectPhotoAsPreview(at path: Int, completion: @escaping () -> Void = {}) {
+        let asset = userPhotos?.object(at: path)
+        let photoSize = CGSize(width: view.frame.width, height: view.frame.width)
+        let options = PHImageRequestOptions()
+        options.deliveryMode = .highQualityFormat
+        
+        PHCachingImageManager.default().requestImage(for: asset!, targetSize: photoSize, contentMode: .aspectFill, options: options) { image, _ in
+            guard let image = image else {
+                return
+            }
+            self.selectedPhoto = image
+            self.photoPreviewView?.update(with: image)
+            completion()
+        }
+    }
+    
+    private func fetchUserPhotos(completion: @escaping () -> Void) {
         PHPhotoLibrary.requestAuthorization(for: .readWrite) { [weak self] status in
             switch status {
             case .authorized:
@@ -75,10 +95,11 @@ class NewPostViewController: UIViewController {
                 let fetchOptions = PHFetchOptions()
                 fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
                 self?.userPhotos = PHAsset.fetchAssets(with: .image, options: fetchOptions)
-                print(self?.userPhotos?.count)
+                print("Photos in library", self?.userPhotos?.count)
                 DispatchQueue.main.async {
                     self?.userPhotoLibraryCollectionView.reloadData()
                     self?.userPhotoLibraryCollectionView.scrollToItem(at: IndexPath(item: 0, section: 1), at: .top, animated: false)
+                    completion()
                 }
                 
             case .denied:
@@ -145,7 +166,7 @@ extension NewPostViewController: UICollectionViewDelegate, UICollectionViewDataS
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: PhotoCollectionViewCell.identifier, for: indexPath) as! PhotoCollectionViewCell
         let asset = userPhotos?.object(at: indexPath.row)
         let options = PHImageRequestOptions()
-        options.deliveryMode = .highQualityFormat
+        options.deliveryMode = .fastFormat
         options.isSynchronous = true
         PHCachingImageManager.default().requestImage(for: asset!, targetSize: cell.frame.size, contentMode: .aspectFill, options: options) { image, _ in
             guard let image = image else {
@@ -165,6 +186,7 @@ extension NewPostViewController: UICollectionViewDelegate, UICollectionViewDataS
             let cameraRollPreview = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: CameraRollPreviewHeader.identifier, for: indexPath) as! CameraRollPreviewHeader
             cameraRollPreview.update(with: selectedPhoto ?? UIImage())
             cameraRollPreview.delegate = self
+            self.photoPreviewView = cameraRollPreview
             return cameraRollPreview
         } else {
             let cameraRollHeader = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: CameraRollHeader.identifier, for: indexPath) as! CameraRollHeader
@@ -174,12 +196,9 @@ extension NewPostViewController: UICollectionViewDelegate, UICollectionViewDataS
     }
     
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-        let asset = userPhotos?.object(at: indexPath.row)
-        PHImageManager.default().requestImage(for: asset!, targetSize: PHImageManagerMaximumSize, contentMode: .aspectFill, options: nil) { [weak self] image, _ in
-            guard let image = image else { return }
-            self?.selectedPhoto = image
+        selectPhotoAsPreview(at: indexPath.row) {
             let header = collectionView.supplementaryView(forElementKind: UICollectionView.elementKindSectionHeader, at: IndexPath(item: 0, section: 0)) as? CameraRollPreviewHeader
-            header?.update(with: image)
+            header?.update(with: self.selectedPhoto!)
             collectionView.scrollToItem(at: IndexPath(item: 0, section: 1), at: .bottom, animated: true)
         }
     }

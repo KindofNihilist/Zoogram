@@ -37,7 +37,7 @@ class ProfileEdditingViewModel {
     
     
     func getUserProfileData(completion: @escaping () -> Void) {
-        DatabaseManager.shared.getUser(for: AuthenticationManager.shared.getCurrentUserUID()) { user in
+        UserService.shared.getUser(for: AuthenticationManager.shared.getCurrentUserUID()) { user in
             
             self.name = user.name
             self.username = user.username
@@ -95,13 +95,17 @@ class ProfileEdditingViewModel {
     
     func saveChanges(completion: @escaping () -> Void) {
         if hasChangedProfilePic {
-            DatabaseManager.shared.updateUserProfilePicture(newProfilePic: newProfilePicture!)
+            print("inside hasChangedProfilePic")
+            UserService.shared.updateUserProfilePicture(newProfilePic: newProfilePicture!)
             
-            DatabaseManager.shared.updateUserProfile(with: self.changedValues) {
+            UserService.shared.updateUserProfile(with: self.changedValues) {
                 completion()
             }
         } else {
-            DatabaseManager.shared.updateUserProfile(with: self.changedValues) {
+            print("Changed values", changedValues)
+            print("inside updateUserProfile")
+            UserService.shared.updateUserProfile(with: self.changedValues) {
+                print("finished updating profile data")
                 completion()
             }
         }

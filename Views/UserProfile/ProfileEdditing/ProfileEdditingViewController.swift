@@ -6,16 +6,10 @@
 //
 import UIKit
 
-protocol ProfileEdditingProtocol {
-    func reloadChangedData()
-}
-
-class ProfileEdditingViewController: UIViewController, UITableViewDataSource, UITableViewDelegate {
+class ProfileEdditingViewController: UIViewController {
     
     let viewModel = ProfileEdditingViewModel()
-    
-    var delegate: ProfileEdditingProtocol?
-    
+    let profileImage: UIImage
     var imagePicker = UIImagePickerController()
     
     var profilePictureHeaderView: ProfilePictureHeader = {
@@ -36,8 +30,8 @@ class ProfileEdditingViewController: UIViewController, UITableViewDataSource, UI
     }()
     
     init(profileImage: UIImage) {
+        self.profileImage = profileImage
         super.init(nibName: nil, bundle: nil)
-        profilePictureHeaderView.configure(with: profileImage)
     }
     
     required init?(coder: NSCoder) {
@@ -60,8 +54,7 @@ class ProfileEdditingViewController: UIViewController, UITableViewDataSource, UI
     }
     
     override func viewWillAppear(_ animated: Bool) {
-//        viewModel.configureModels()
-        
+        profilePictureHeaderView.configure(with: profileImage)
     }
     
     override func viewDidAppear(_ animated: Bool) {
@@ -89,7 +82,7 @@ class ProfileEdditingViewController: UIViewController, UITableViewDataSource, UI
     
     @objc func didTapSave() {
         viewModel.saveChanges {
-            self.delegate?.reloadChangedData()
+            print("saved changes")
             self.dismiss(animated: true)
         }
         
@@ -103,6 +96,10 @@ class ProfileEdditingViewController: UIViewController, UITableViewDataSource, UI
     func numberOfSections(in tableView: UITableView) -> Int {
         return viewModel.models.count
     }
+}
+
+
+extension ProfileEdditingViewController: UITableViewDataSource, UITableViewDelegate {
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return viewModel.models[section].count
@@ -132,9 +129,7 @@ class ProfileEdditingViewController: UIViewController, UITableViewDataSource, UI
         } else {
             return 0
         }
-        
     }
-    
 }
 
 

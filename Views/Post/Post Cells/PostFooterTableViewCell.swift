@@ -74,6 +74,7 @@ class PostFooterTableViewCell: UITableViewCell {
         if !post.caption.isEmpty {
             let attributedUsername = NSAttributedString(string: "\(username) ", attributes: [NSAttributedString.Key.font: UIFont.boldSystemFont(ofSize: 14), NSAttributedString.Key.foregroundColor: UIColor.label])
             let attributedCaption = NSAttributedString(string: post.caption, attributes: [NSAttributedString.Key.font: UIFont.systemFont(ofSize: 14), NSAttributedString.Key.foregroundColor: UIColor.label])
+            
             let usernameWithCaption = NSMutableAttributedString()
             usernameWithCaption.append(attributedUsername)
             usernameWithCaption.append(attributedCaption)

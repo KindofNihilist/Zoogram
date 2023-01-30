@@ -10,13 +10,10 @@ import UIKit
 
 class HomeViewController: UIViewController {
     
-    private var postModels = [UserPost]()
+    private let viewModel = HomeViewModel()
     
-    private var postViewModels = [PostModel]()
-    
-    private let feedTableView: UITableView = {
-        let tableView = UITableView()
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "Cell")
+    let tableView: PostsTableView = {
+        let tableView = PostsTableView()
         tableView.register(PostContentTableViewCell.self, forCellReuseIdentifier: PostContentTableViewCell.identifier)
         tableView.register(PostHeaderTableViewCell.self, forCellReuseIdentifier: PostHeaderTableViewCell.identifier)
         tableView.register(PostActionsTableViewCell.self, forCellReuseIdentifier: PostActionsTableViewCell.identifier)
@@ -24,111 +21,132 @@ class HomeViewController: UIViewController {
         tableView.register(PostFooterTableViewCell.self, forCellReuseIdentifier: PostFooterTableViewCell.identifier)
         tableView.allowsSelection = false
         tableView.separatorStyle = .none
-        tableView.translatesAutoresizingMaskIntoConstraints = false
         return tableView
     }()
     
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        configureModels()
-    }
-    
-    override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
-    }
     
     override func viewDidLoad() {
-        feedTableView.delegate = self
-        feedTableView.dataSource = self
-        view.addSubview(feedTableView)
-        feedTableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor).isActive = true
-        feedTableView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor).isActive = true
-        feedTableView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor).isActive = true
-        feedTableView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor).isActive = true
-        setupNavigationBar()
-    }
-        
-    private func configureModels() {
-        for post in postModels {
-            var postView = [PostSubviewType]()
-            postView.append(PostSubviewType.header(profilePictureURL: "", username: "username"))
-            postView.append(PostSubviewType.postContent(provider: post))
-            postView.append(PostSubviewType.actions(provider: ""))
-            postView.append(PostSubviewType.footer(provider: post, username: "username"))
-            postViewModels.append(PostModel(subviews: postView))
+        super.viewDidLoad()
+        view = tableView
+        setNavigationBarTitle()
+        tableView.postsTableDelegate = self
+        view.backgroundColor = .systemBackground
+        print("Loading HomeViewController")
+        viewModel.getUserFeedPosts { posts in
+//            self.bindValues()
+            self.tableView.setupFor(posts: posts, isAFeed: true)
+            print("Got user feed posts")
         }
-        print(postModels.count)
     }
     
-    private func setupNavigationBar() {
-        let label: UILabel = {
-            let label = UILabel()
-            label.text = "Zoogram"
-            label.font = UIFont(name: "Noteworthy-Bold", size: 25)
-            label.translatesAutoresizingMaskIntoConstraints = false
-            return label
-        }()
-        navigationItem.leftBarButtonItem = UIBarButtonItem(customView: label)
+    
+//    func bindValues() {
+//        viewModel.posts.bind { userPosts in
+//            guard let posts = userPosts else {
+//                return
+//            }
+//
+//        }
+//    }
+    
+    func setNavigationBarTitle() {
+        
+        let navigationBarTitleLabel = UILabel()
+        navigationBarTitleLabel.text = "Zoogram"
+        navigationBarTitleLabel.font = UIFont(name: "Noteworthy-Bold", size: 24)
+        navigationBarTitleLabel.sizeToFit()
+//        navigationBarTitleLabel.translatesAutoresizingMaskIntoConstraints = false
+//        navigationController?.navigationBar.addSubview(navigationBarTitleLabel)
+//
+//        if UIDevice.current.hasNotch {
+//            print("has notch")
+//            navigationBarTitleLabel.topAnchor.constraint(equalTo: (navigationController?.navigationBar.topAnchor)!).isActive = true
+//            navigationBarTitleLabel.leadingAnchor.constraint(equalTo: (navigationController?.navigationBar.leadingAnchor)!, constant: 20).isActive = true
+//        } else {
+//            print("doesn't have notch")
+//            navigationBarTitleLabel.centerYAnchor.constraint(equalTo: (navigationController?.navigationBar.centerYAnchor)!).isActive = true
+//            navigationBarTitleLabel.leadingAnchor.constraint(equalTo: (navigationController?.navigationBar.leadingAnchor)!, constant: 20).isActive = true
+//        }
+        
+        
+        
+        
+        let leftItem = UIBarButtonItem(customView: navigationBarTitleLabel)
+        navigationItem.leftBarButtonItem = leftItem
+        
+//        let attributes = [NSAttributedString.Key.font: UIFont(name: "Noteworthy-Bold", size: 18)!]
+//        navigationController?.navigationBar.standardAppearance.titleTextAttributes = attributes
+    }
+    
+    func focusTableViewOnPostWith(index: IndexPath) {
+        tableView.scrollToRow(at: index, at: .top, animated: false)
+    }
+    
+    func setTopTableViewVisibleContent() {
+        tableView.setContentOffset(CGPointZero, animated: true)
     }
 }
 
-extension HomeViewController: UITableViewDelegate, UITableViewDataSource {
-    
-    func numberOfSections(in tableView: UITableView) -> Int {
-        return postViewModels.count
+extension HomeViewController: PostsTableViewProtocol {
+    func didTapCommentButton(post: UserPost) {
+        let commentsViewController = CommentsViewController()
+        commentsViewController.hidesBottomBarWhenPushed = true
+        print(post.caption)
+        navigationController?.pushViewController(commentsViewController, animated: true)
     }
     
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return postViewModels[section].subviews.count
+    func didSelectUser(userID: String, index: Int) {
+        guard let post = viewModel.posts.value?[index] else {
+            return
+        }
+        let userProfileVC = UserProfileViewController(for: post.userID, isUserProfile: post.isMadeByCurrentUser(), isFollowed: post.author.isFollowed )
+        self.navigationController?.pushViewController(userProfileVC, animated: true)
     }
     
-    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let model = postViewModels[indexPath.section]
-        switch model.subviews[indexPath.row] {
-            
-        case .header(let profilePictureURL, let username):
-            let cell = tableView.dequeueReusableCell(withIdentifier: PostHeaderTableViewCell.identifier, for: indexPath) as! PostHeaderTableViewCell
-            cell.configureWith(profilePictureURL: profilePictureURL, username: username)
-            return cell
-            
-        case .postContent(let post):
-            let cell = tableView.dequeueReusableCell(withIdentifier: PostContentTableViewCell.identifier, for: indexPath) as! PostContentTableViewCell
-//            SDWebImageManager.shared.loadImage(with: URL(string: post.photoURL), options: [.highPriority], progress: nil) { (image, data, error, cacheType, finished, url) in
-//                cell.configure(with: image)
-//            }
-            return cell
-            
-        case .actions(let actions):
-            let cell = tableView.dequeueReusableCell(withIdentifier: PostActionsTableViewCell.identifier, for: indexPath) as! PostActionsTableViewCell
-            return cell
-            
-        case .footer(let post, let username):
-            let cell = tableView.dequeueReusableCell(withIdentifier: PostFooterTableViewCell.identifier, for: indexPath) as! PostFooterTableViewCell
-            cell.configure(for: post, username: username)
-            return cell
-            
-        case .comment(let comment):
-            let cell = tableView.dequeueReusableCell(withIdentifier: PostCommentsTableViewCell.identifier, for: indexPath) as! PostCommentsTableViewCell
-            cell.configure(with: comment)
-            return cell
+    func didTapMenuButton(postID: String, index: Int) {
+        guard let post = viewModel.posts.value?[index] else {
+            return
+        }
+        let actionSheet = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
+        actionSheet.view.backgroundColor = .systemBackground
+        actionSheet.view.layer.masksToBounds = true
+        actionSheet.view.layer.cornerRadius = 15
+        
+        if post.isMadeByCurrentUser() {
+            let deleteAction = UIAlertAction(title: "Delete", style: .destructive) { [weak self] _ in
+                self?.tableView.deletePost(postID: postID, index: index)
+            }
+            actionSheet.addAction(deleteAction)
+        }
+        
+        let shareAction = UIAlertAction(title: "Share", style: .cancel) { [weak self] _ in
+            print("shared post", postID)
+        }
+        
+        actionSheet.addAction(shareAction)
+        present(actionSheet, animated: true)
+    }
+    
+    
+    
+    func refreshUserFeed() {
+        viewModel.refreshTheFeed { posts in
+            self.tableView.setupFor(posts: posts, isAFeed: true)
+            self.tableView.stopRefreshingTheFeed()
         }
     }
     
-    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        tableView.deselectRow(at: indexPath, animated: true)
-    }
-    
-    
-    
-    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        let model = postViewModels[indexPath.section]
-        switch model.subviews[indexPath.row] {
-        case .header(_): return 50
-        case .postContent(_): return UITableView.automaticDimension
-        case .actions(_): return 50
-        case .footer(_): return UITableView.automaticDimension
-        case .comment(_): return 50
+    func paginateMorePosts() {
+        guard !viewModel.isPaginating else {
+            print("already paginating")
+            return
+        }
+        
+        viewModel.getMoreUserFeedPosts { feedPosts in
+            print("Fetched more feed posts")
+            self.tableView.addPaginatedUserPosts(posts: feedPosts)
         }
     }
-    
 }
+
+

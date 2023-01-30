@@ -13,6 +13,7 @@ public enum UserPostType: Codable {
 }
 
 public class UserPost: Codable {
+    var author: ZoogramUser!
     var userID: String
     var postID: String
 //    var postType: UserPostType
@@ -23,7 +24,6 @@ public class UserPost: Codable {
     var commentsCount: Int
     var postedDate: Date
     var likeState: PostLikeState?
-    
     var image: UIImage?
     
     lazy var convertedURL: URL = {
@@ -58,9 +58,14 @@ public class UserPost: Codable {
     }
     
     func checkIfLikedByCurrentUser(completion: @escaping (PostLikeState) -> Void) {
-        DatabaseManager.shared.checkIfPostIsLiked(postID: postID) { likeState in
+        LikeSystemService.shared.checkIfPostIsLiked(postID: postID) { likeState in
             completion(likeState)
         }
+    }
+    
+    func isMadeByCurrentUser() -> Bool {
+        let currentUserID = AuthenticationManager.shared.getCurrentUserUID()
+        return userID == currentUserID
     }
     
     enum CodingKeys: CodingKey {

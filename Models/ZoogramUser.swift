@@ -21,13 +21,11 @@ class ZoogramUser: Codable {
     var bio: String?
     var birthday: String
     var gender: String?
-    var following: Int
-    var followers: Int
     var posts: Int
     var joinDate: Double //TimeInterval
     
 
-    init(userID: String, profilePhotoURL: String, email: String, phoneNumber: String? = nil, username: String, name: String, bio: String? = nil, birthday: String, gender: String? = nil, following: Int, followers: Int, posts: Int, joinDate: Double) {
+    init(userID: String, profilePhotoURL: String, email: String, phoneNumber: String? = nil, username: String, name: String, bio: String? = nil, birthday: String, gender: String? = nil, posts: Int, joinDate: Double) {
         self.userID = userID
         self.profilePhotoURL = profilePhotoURL
         self.email = email
@@ -37,8 +35,6 @@ class ZoogramUser: Codable {
         self.bio = bio
         self.birthday = birthday
         self.gender = gender
-        self.following = following
-        self.followers = followers
         self.posts = posts
         self.joinDate = joinDate
         self.isUserProfile = checkIfCurrentUser(uid: userID)
@@ -55,8 +51,6 @@ class ZoogramUser: Codable {
         self.bio = try container.decodeIfPresent(String.self, forKey: .bio)
         self.birthday = try container.decode(String.self, forKey: .birthday)
         self.gender = try container.decodeIfPresent(String.self, forKey: .gender)
-        self.following = try container.decode(Int.self, forKey: .following)
-        self.followers = try container.decode(Int.self, forKey: .followers)
         self.posts = try container.decode(Int.self, forKey: .posts)
         self.joinDate = try container.decode(Double.self, forKey: .joinDate)
         self.isUserProfile = checkIfCurrentUser(uid: userID)
@@ -75,13 +69,13 @@ class ZoogramUser: Codable {
         }
     }
     
-    func checkIfFollowedByCurrentUser(completion: @escaping () -> Void) {
-        DatabaseManager.shared.checkFollowStatus(for: userID) { followStatus in
-            print("FOLLOW STATUS", followStatus)
-            self.isFollowed = followStatus
-            completion()
-        }
-    }
+//    func checkIfFollowedByCurrentUser(completion: @escaping () -> Void) {
+//        FollowService.shared.checkFollowStatus(for: userID) { followStatus in
+//            print("FOLLOW STATUS", followStatus)
+//            self.isFollowed = followStatus
+//            completion()
+//        }
+//    }
     
     enum CodingKeys: CodingKey {
         case userID
@@ -93,16 +87,7 @@ class ZoogramUser: Codable {
         case bio
         case birthday
         case gender
-        case following
-        case followers
         case posts
         case joinDate
     }
-    
-}
-
-struct UserProfileCounts {
-    let followers: Int
-    let following: Int
-    let posts: Int
 }

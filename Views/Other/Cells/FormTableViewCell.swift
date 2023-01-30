@@ -33,6 +33,8 @@ class FormTableViewCell: UITableViewCell, UITextFieldDelegate {
         textField.returnKeyType = .done
         textField.font = UIFont.systemFont(ofSize: 14)
         textField.translatesAutoresizingMaskIntoConstraints = false
+        textField.autocorrectionType = .no
+        textField.autocapitalizationType = .none
         return textField
     }()
     
@@ -60,6 +62,7 @@ class FormTableViewCell: UITableViewCell, UITextFieldDelegate {
         formLabel.text = model.label
         textField.placeholder = model.placeholder
         textField.text = model.value
+        textField.addTarget(self, action: #selector(textFieldValueDidChange), for: .editingChanged)
     }
     
 //    override func prepareForReuse() {
@@ -94,12 +97,23 @@ class FormTableViewCell: UITableViewCell, UITextFieldDelegate {
         return true
     }
     
-    func textFieldDidEndEditing(_ textField: UITextField) {
-        model?.value = textField.text
-        guard let model = model else {
-            return
-        }
-        delegate?.formTableViewCell(self, didUpdateModel: model )
+//    func textFieldDidEndEditing(_ textField: UITextField) {
+//        model?.value = textField.text
+//        guard let model = model else {
+//            return
+//        }
+//        delegate?.formTableViewCell(self, didUpdateModel: model )
+//    }
+    
+   @objc func textFieldValueDidChange() {
+       model?.value = textField.text
+       guard let model = model else {
+           return
+       }
+       delegate?.formTableViewCell(self, didUpdateModel: model )
     }
+    
+    
+    
     
 }

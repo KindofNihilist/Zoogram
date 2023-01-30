@@ -20,7 +20,12 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window = UIWindow(frame: UIScreen.main.bounds)
         window?.backgroundColor = .systemBackground
         if Auth.auth().currentUser == nil {
-            window?.rootViewController = UINavigationController(rootViewController: LoginViewController())
+            let navigationController = UINavigationController(rootViewController: LoginViewController())
+            navigationController.navigationBar.backgroundColor = .systemBackground
+            navigationController.navigationBar.isTranslucent = false
+            navigationController.tabBarController?.tabBar.isTranslucent = false
+            navigationController.tabBarController?.tabBar.backgroundColor = .systemBackground
+            window?.rootViewController = navigationController
         } else {
             self.window?.rootViewController = TabBarController()
         }

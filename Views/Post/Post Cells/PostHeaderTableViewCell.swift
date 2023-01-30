@@ -10,6 +10,7 @@ import UIKit
 
 protocol PostHeaderDelegate {
     func menuButtonTappedFor(postID: String, index: Int)
+    func didSelectUser(userID: String, atIndex: Int)
 }
 
 class PostHeaderTableViewCell: UITableViewCell {
@@ -17,6 +18,7 @@ class PostHeaderTableViewCell: UITableViewCell {
     static let identifier = "PostHeaderTableViewCell"
     
     var postID = ""
+    var userID = ""
     var postIndex = 0
     
     var delegate: PostHeaderDelegate?
@@ -52,10 +54,26 @@ class PostHeaderTableViewCell: UITableViewCell {
         backgroundColor = .systemBackground
         contentView.clipsToBounds = true
         setupViewsAndConstraints()
+        addGestureRecognizers()
     }
     
-    public func configureWith(profilePictureURL: String, username: String) {
+    func addGestureRecognizers() {
+        let userNameGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(didTapUser))
+        let profileImageGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(didTapUser))
+        
+        usernameLabel.isUserInteractionEnabled = true
+        usernameLabel.addGestureRecognizer(userNameGestureRecognizer)
+        
+        profilePhotoImageView.isUserInteractionEnabled = true
+        profilePhotoImageView.addGestureRecognizer(profileImageGestureRecognizer)
+        
+    }
+    
+    public func configureWith(profilePictureURL: String, username: String, postID: String, userID: String, postIndex: Int) {
         profilePhotoImageView.sd_setImage(with: URL(string: profilePictureURL), completed: nil)
+        self.postID = postID
+        self.userID = userID
+        self.postIndex = postIndex
         usernameLabel.text = username
     }
     
@@ -90,5 +108,9 @@ class PostHeaderTableViewCell: UITableViewCell {
     
     @objc func didTapMenuButton() {
         delegate?.menuButtonTappedFor(postID: self.postID, index: postIndex)
+    }
+    
+    @objc func didTapUser() {
+        delegate?.didSelectUser(userID: self.userID, atIndex: self.postIndex)
     }
 }

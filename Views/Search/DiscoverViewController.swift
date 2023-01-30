@@ -95,8 +95,6 @@ extension DiscoverViewController: UICollectionViewDelegate, UICollectionViewData
 extension DiscoverViewController: UISearchBarDelegate {
     
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
-        print("Searching users")
-        
         spinnerView.isHidden = false
         spinnerView.startAnimating()
         
@@ -112,7 +110,6 @@ extension DiscoverViewController: UISearchBarDelegate {
 
 extension DiscoverViewController: UITableViewDelegate, UITableViewDataSource {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        print("Number of users found:", viewModel.foundUsers.count)
         return viewModel.foundUsers.count
     }
     
@@ -135,11 +132,9 @@ extension DiscoverViewController: UITableViewDelegate, UITableViewDataSource {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let user = viewModel.foundUsers[indexPath.row]
         print("USER SELECTED:", user.username)
-        user.checkIfFollowedByCurrentUser {
-            let userProfileViewController = UserProfileViewController(for: user.userID, isUserProfile: user.isUserProfile, isFollowed: user.isFollowed)
-            userProfileViewController.title = user.username
-            self.navigationController?.pushViewController(userProfileViewController, animated: true)
-        }
+        let userProfileViewController = UserProfileViewController(for: user.userID, isUserProfile: user.isUserProfile, isFollowed: user.isFollowed)
+        userProfileViewController.title = user.username
+        self.navigationController?.pushViewController(userProfileViewController, animated: true)
     }
     
     

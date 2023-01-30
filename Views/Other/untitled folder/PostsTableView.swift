@@ -1,69 +1,103 @@
 //
-//  PostViewController.swift
+//  PostsTableView.swift
 //  Zoogram
 //
-//  Created by Artem Dolbiev on 20.01.2022.
+//  Created by Artem Dolbiiev on 27.12.2022.
 //
-import SDWebImage
+
 import UIKit
+import SDWebImage
 
+protocol PostsTableViewProtocol: AnyObject {
+    func paginateMorePosts()
+    func refreshUserFeed()
+    func didTapCommentButton()
+    func didSelectUser(userID: String, index: Int)
+    func didTapMenuButton(postID: String, index: Int)
+}
 
-class PostViewController: UIViewController {
+extension PostsTableViewProtocol {
+    func paginateMorePosts() {}
+    func refreshUserFeed() {}
+}
+
+class PostsTableView: UITableView {
     
-    private let viewModel: PostViewModel
+    let viewModel = PostsTableViewViewModel()
     
-    private var postToFocusOn: IndexPath
+    weak var postsTableDelegate: PostsTableViewProtocol?
     
-    private var isUserProfile: Bool
+    let feedRefreshControl = UIRefreshControl()
     
-    private let tableView: UITableView = {
-        let tableView = UITableView()
-        tableView.register(PostContentTableViewCell.self, forCellReuseIdentifier: PostContentTableViewCell.identifier)
-        tableView.register(PostHeaderTableViewCell.self, forCellReuseIdentifier: PostHeaderTableViewCell.identifier)
-        tableView.register(PostActionsTableViewCell.self, forCellReuseIdentifier: PostActionsTableViewCell.identifier)
-        tableView.register(PostCommentsTableViewCell.self, forCellReuseIdentifier: PostCommentsTableViewCell.identifier)
-        tableView.register(PostFooterTableViewCell.self, forCellReuseIdentifier: PostFooterTableViewCell.identifier)
-        tableView.allowsSelection = false
-        tableView.separatorStyle = .none
-        return tableView
-    }()
-    
-    init(posts: [UserPost], isUserProfile: Bool) {
-        self.isUserProfile = isUserProfile
-        self.postToFocusOn = IndexPath(row: 0, section: 0)
-        self.viewModel = PostViewModel(userPosts: posts)
-        super.init(nibName: nil, bundle: nil)
-        view = tableView
-        tableView.delegate = self
-        tableView.dataSource = self
-        tableView.prefetchDataSource = self
+    override init(frame: CGRect, style: UITableView.Style) {
+        super.init(frame: frame, style: style)
+        register(PostContentTableViewCell.self, forCellReuseIdentifier: PostContentTableViewCell.identifier)
+        register(PostHeaderTableViewCell.self, forCellReuseIdentifier: PostHeaderTableViewCell.identifier)
+        register(PostActionsTableViewCell.self, forCellReuseIdentifier: PostActionsTableViewCell.identifier)
+        register(PostCommentsTableViewCell.self, forCellReuseIdentifier: PostCommentsTableViewCell.identifier)
+        register(PostFooterTableViewCell.self, forCellReuseIdentifier: PostFooterTableViewCell.identifier)
+        allowsSelection = false
+        separatorStyle = .none
+        self.dataSource = self
+        self.delegate = self
+        
     }
     
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
     
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        view.backgroundColor = .systemBackground
+    func setupFor(posts: [UserPost], isAFeed: Bool) {
+        if isAFeed {
+            setupRefreshControl()
+        }
+        print("Setup for posts count:", posts.count)
+        viewModel.postsModels.removeAll()
+        viewModel.isAFeed = isAFeed
+        viewModel.configurePostViewModels(from: posts) {
+            self.reloadData()
+        }
     }
     
-    func focusTableViewOnPostWith(index: IndexPath) {
-        tableView.scrollToRow(at: index, at: .top, animated: false)
+    func deletePost(postID: String, index: Int) {
+        self.viewModel.deletePost(id: postID, at: index) {
+            self.reloadData()
+        }
     }
     
     func addPaginatedUserPosts(posts: [UserPost]) {
-        viewModel.userPosts.append(contentsOf: posts)
         viewModel.configurePostViewModels(from: posts) {
-            self.tableView.reloadData()
+            self.reloadData()
         }
-        
     }
+    
+    func setupRefreshControl() {
+        feedRefreshControl.addTarget(self, action: #selector(refreshUserFeed), for: .valueChanged)
+        self.refreshControl = feedRefreshControl
+    }
+    
+    func stopRefreshingTheFeed() {
+        self.refreshControl?.endRefreshing()
+    }
+    
+    @objc func refreshUserFeed() {
+        self.postsTableDelegate?.refreshUserFeed()
+    }
+    
 }
 
-extension PostViewController: UITableViewDelegate, UITableViewDataSource {
+extension PostsTableView: UITableViewDelegate, UITableViewDataSource {
     func numberOfSections(in tableView: UITableView) -> Int {
         return viewModel.postsModels.count
+    }
+    
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        let position = scrollView.contentOffset.y
+        
+        if position > (self.contentSize.height - 100 - scrollView.frame.size.height) {
+            self.postsTableDelegate?.paginateMorePosts()
+            print("Call to paginate more posts")
+        }
     }
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -79,9 +113,7 @@ extension PostViewController: UITableViewDelegate, UITableViewDataSource {
         case .header(let profilePictureURL, let username):
             let cell = tableView.dequeueReusableCell(withIdentifier: PostHeaderTableViewCell.identifier, for: indexPath) as! PostHeaderTableViewCell
             cell.delegate = self
-            cell.postID = post.postID
-            cell.postIndex = indexPath.section
-            cell.configureWith(profilePictureURL: profilePictureURL, username: username)
+            cell.configureWith(profilePictureURL: profilePictureURL, username: username, postID: post.postID, userID: post.userID, postIndex: indexPath.section)
             return cell
             
         case .postContent(let post):
@@ -143,7 +175,7 @@ extension PostViewController: UITableViewDelegate, UITableViewDataSource {
     }
 }
 
-extension PostViewController: UITableViewDataSourcePrefetching {
+extension PostsTableView: UITableViewDataSourcePrefetching {
     
     func tableView(_ tableView: UITableView, prefetchRowsAt indexPaths: [IndexPath]) {
         print("PREFETCHING DATA")
@@ -159,31 +191,7 @@ extension PostViewController: UITableViewDataSourcePrefetching {
     }
 }
 
-extension PostViewController: PostHeaderDelegate {
-    func menuButtonTappedFor(postID: String, index: Int) {
-        let actionSheet = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
-        actionSheet.view.backgroundColor = .systemBackground
-        actionSheet.view.layer.masksToBounds = true
-        actionSheet.view.layer.cornerRadius = 15
-        if isUserProfile {
-            let deleteAction = UIAlertAction(title: "Delete", style: .destructive) { [weak self] _ in
-                self?.viewModel.deletePost(id: postID, at: index) {
-                    self?.tableView.reloadData()
-                }
-            }
-            actionSheet.addAction(deleteAction)
-        }
-        
-        let shareAction = UIAlertAction(title: "Share", style: .cancel) { [weak self] _ in
-            print("shared post", postID)
-        }
-        
-        actionSheet.addAction(shareAction)
-        present(actionSheet, animated: true)
-    }
-}
-
-extension PostViewController: PostActionsDelegate {
+extension PostsTableView: PostActionsDelegate {
     func didTapLikeButton(postID: String, postActionsView: PostActionsTableViewCell) {
         viewModel.likePost(postID: postID) { likeState in
             postActionsView.configureLikeButton(likeState: likeState)
@@ -197,6 +205,14 @@ extension PostViewController: PostActionsDelegate {
     func didTapBookmarkButton() {
         return
     }
+}
+
+extension PostsTableView: PostHeaderDelegate {
+    func menuButtonTappedFor(postID: String, index: Int) {
+        postsTableDelegate?.didTapMenuButton(postID: postID, index: index)
+    }
     
-    
+    func didSelectUser(userID: String, atIndex: Int) {
+        postsTableDelegate?.didSelectUser(userID: userID, index: atIndex)
+    }
 }
