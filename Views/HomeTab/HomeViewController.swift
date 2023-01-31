@@ -89,7 +89,7 @@ class HomeViewController: UIViewController {
 
 extension HomeViewController: PostsTableViewProtocol {
     func didTapCommentButton(post: UserPost) {
-        let commentsViewController = CommentsViewController()
+        let commentsViewController = CommentsTableViewController()
         commentsViewController.hidesBottomBarWhenPushed = true
         print(post.caption)
         navigationController?.pushViewController(commentsViewController, animated: true)
