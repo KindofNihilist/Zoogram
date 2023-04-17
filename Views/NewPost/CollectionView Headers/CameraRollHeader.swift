@@ -7,13 +7,11 @@
 
 import UIKit
 
-protocol CameraRollHeaderDelegate: AnyObject {
-    func didTapCameraButton(_ header: CameraRollHeader)
+protocol CameraRollHeaderDelegate: UIImagePickerControllerDelegate, UINavigationControllerDelegate, AnyObject {
+    func didTapCameraButton(_ header: CameraRollHeaderView)
 }
 
-class CameraRollHeader: UICollectionReusableView {
-    
-    static let identifier = "CameraRollHeader"
+class CameraRollHeaderView: UIView {
     
     weak var delegate: CameraRollHeaderDelegate?
     
@@ -44,6 +42,11 @@ class CameraRollHeader: UICollectionReusableView {
         setupViewsAndConstraints()
     }
     
+    override func layoutSubviews() {
+        cameraButton.layer.cornerRadius = (self.bounds.height - 15) / 2
+    }
+    
+    
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
@@ -59,11 +62,9 @@ class CameraRollHeader: UICollectionReusableView {
             
             cameraButton.centerYAnchor.constraint(equalTo: self.centerYAnchor),
             cameraButton.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -15),
-            cameraButton.heightAnchor.constraint(equalToConstant: self.frame.height - 15),
-            cameraButton.widthAnchor.constraint(equalToConstant: self.frame.height - 15),
+            cameraButton.heightAnchor.constraint(equalTo: self.heightAnchor, constant: -15),
+            cameraButton.widthAnchor.constraint(equalTo: self.heightAnchor, constant: -15),
         ])
-        
-        cameraButton.layer.cornerRadius = (self.frame.height - 15) / 2
     }
     
     @objc private func didTapCameraButton() {

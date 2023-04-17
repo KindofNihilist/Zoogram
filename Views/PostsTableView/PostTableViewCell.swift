@@ -9,10 +9,11 @@ import UIKit
 import SDWebImage
 
 protocol PostTableViewCellProtocol: AnyObject {
-    func menuButtonTapped(forPost: String, atIndex: Int)
-    func didSelectUser(userID: String, atIndex: Int)
-    func didTapLikeButton(postID: String, postActionsCell: PostTableViewCell)
-    func didTapCommentButton(post: UserPost)
+    func menuButtonTapped(postIndex: IndexPath)
+    func didTapPostAuthor(postIndex: IndexPath)
+    func didTapLikeButton(postIndex: IndexPath, completion: @escaping (LikeState) -> Void)
+    func didTapCommentButton(postIndex: IndexPath)
+    func didTapBookmarkButton(postIndex: IndexPath, completion: @escaping (BookmarkState) -> Void)
 }
 
 class PostTableViewCell: UITableViewCell {
@@ -20,15 +21,13 @@ class PostTableViewCell: UITableViewCell {
     static let identifier = "PostTableViewCell"
     
     var delegate: PostTableViewCellProtocol?
-    var likeButtonState: PostLikeState?
-    var index: Int?
-    var post: UserPost?
+    var likeButtonState: LikeState = .notLiked
+    var bookmarkButtonState: BookmarkState = .notBookmarked
+    var indexPath: IndexPath?
+    var post: PostViewModel?
+    var likeHapticFeedbackGenerator = UINotificationFeedbackGenerator()
     
     var imageViewHeightConstraint: NSLayoutConstraint!
-    
-//    override func prepareForReuse() {
-//        removeConstraints(postImageView.constraints)
-//    }
     
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -45,15 +44,19 @@ class PostTableViewCell: UITableViewCell {
         fatalError("init(coder:) has not been implemented")
     }
     
+    override func prepareForReuse() {
+        captionLabel.text?.removeAll()
+    }
     
-    //MARK: Post Header
+    
+    //MARK: Post Header Views
     
     private let headerContainerView: UIView = {
         let container = UIView()
         container.translatesAutoresizingMaskIntoConstraints = false
         return container
     }()
-
+    
     private let profilePhotoImageView: UIImageView = {
         let imageView = UIImageView()
         imageView.translatesAutoresizingMaskIntoConstraints = false
@@ -64,19 +67,22 @@ class PostTableViewCell: UITableViewCell {
     }()
     
     private let usernameLabel: UILabel = {
-       let label = UILabel()
+        let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
         label.font = UIFont.boldSystemFont(ofSize: 14)
+        label.backgroundColor = .systemBackground
         label.textColor = .label
         return label
     }()
     
     private let menuButton: UIButton = {
-       let button = UIButton()
+        let button = UIButton()
         button.translatesAutoresizingMaskIntoConstraints = false
         button.setImage(UIImage(systemName: "ellipsis", withConfiguration: UIImage.SymbolConfiguration(pointSize: 19)), for: .normal)
         button.tintColor = .label
         button.addTarget(self, action: #selector(menuButtonTapped), for: .touchUpInside)
+        button.backgroundColor = .systemBackground
+        button.isOpaque = true
         return button
     }()
     
@@ -86,12 +92,12 @@ class PostTableViewCell: UITableViewCell {
         let imageView = UIImageView()
         imageView.contentMode = .scaleAspectFit
         imageView.translatesAutoresizingMaskIntoConstraints = false
-        imageView.backgroundColor = .secondarySystemBackground
+        imageView.backgroundColor = .systemCyan
         imageView.clipsToBounds = true
         return imageView
     }()
     
-    //MARK: Post Actions
+    //MARK: Post Actions Views
     
     private let actionsContainerView: UIView = {
         let container = UIView()
@@ -106,6 +112,7 @@ class PostTableViewCell: UITableViewCell {
         button.imageView?.contentMode = .scaleAspectFit
         button.tintColor = .label
         button.backgroundColor = .systemBackground
+        button.isOpaque = true
         button.addTarget(self, action: #selector(likeButtonTapped), for: .touchUpInside)
         return button
     }()
@@ -117,6 +124,7 @@ class PostTableViewCell: UITableViewCell {
         button.imageView?.contentMode = .scaleAspectFit
         button.tintColor = .label
         button.backgroundColor = .systemBackground
+        button.isOpaque = true
         button.addTarget(self, action: #selector(commentButtonTapped), for: .touchUpInside)
         return button
     }()
@@ -126,63 +134,36 @@ class PostTableViewCell: UITableViewCell {
         button.translatesAutoresizingMaskIntoConstraints = false
         button.setImage(UIImage(systemName: "bookmark", withConfiguration: UIImage.SymbolConfiguration(pointSize: 29)), for: .normal)
         button.imageView?.contentMode = .scaleAspectFit
+        button.isOpaque = true
+        button.backgroundColor = .systemBackground
         button.tintColor = .label
+        button.addTarget(self, action: #selector(bookmarkButtonTapped), for: .touchUpInside)
         return button
     }()
     
-    //MARK: Post Comments
-    private let commentsContainerView: UIView = {
-        let container = UIView()
-        container.translatesAutoresizingMaskIntoConstraints = false
-        return container
-    }()
+    //MARK: Post Footer Views
     
-    private let commenterProfilePhotoImageView: UIImageView = {
-        let imageView = UIImageView()
-        imageView.layer.masksToBounds = true
-        imageView.translatesAutoresizingMaskIntoConstraints = false
-        imageView.contentMode = .scaleAspectFit
-        imageView.backgroundColor = .secondarySystemBackground
-        return imageView
-    }()
-    
-    private let messageLabel: UILabel = {
-        let label = UILabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.textColor = .label
-        label.font = UIFont.systemFont(ofSize: 13)
-        label.text = "Wow what a cool post!"
-        return label
-    }()
-    
-    private let timePassedLabel: UILabel = {
-        let label = UILabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.font = UIFont.systemFont(ofSize: 13)
-        label.textColor = .secondaryLabel
-        label.text = "2h"
-        return label
-    }()
-    
-    //MARK: Post Footer
-    
-    private let footerContainerView: UIView = {
-        let container = UIView()
-        container.translatesAutoresizingMaskIntoConstraints = false
-        return container
+    private let footerContainerStackView: UIStackView = {
+        let stackView = UIStackView()
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        stackView.axis = .vertical
+        stackView.spacing = 5
+        stackView.distribution = .fillProportionally
+        return stackView
     }()
     
     private let likesLabel: UILabel = {
         let label = UILabel()
         label.font = UIFont.boldSystemFont(ofSize: 14)
+        label.backgroundColor = .systemBackground
         label.textColor = .label
-        label.translatesAutoresizingMaskIntoConstraints = false
+        //        label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
     
     private lazy var captionLabel: UILabel = {
         let label = UILabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
+        label.backgroundColor = .systemBackground
         label.numberOfLines = 0
         return label
     }()
@@ -191,22 +172,27 @@ class PostTableViewCell: UITableViewCell {
         let button = UIButton()
         button.titleLabel?.font = UIFont.systemFont(ofSize: 14)
         button.setTitleColor(.secondaryLabel, for: .normal)
-        button.translatesAutoresizingMaskIntoConstraints = false
+        //        button.translatesAutoresizingMaskIntoConstraints = false
         button.contentHorizontalAlignment = .left
+        button.isHidden = true
+        button.backgroundColor = .systemBackground
+        button.isOpaque = true
+        button.addTarget(self, action: #selector(commentButtonTapped), for: .touchUpInside)
         return button
     }()
     
     private let timeSincePostedLabel: UILabel = {
         let label = UILabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
+        //        label.translatesAutoresizingMaskIntoConstraints = false
         label.font = UIFont.systemFont(ofSize: 12)
         label.textColor = .secondaryLabel
+        label.backgroundColor = .systemBackground
         return label
     }()
     
     //MARK: Constraints setup
     
-    func setupHeader() {
+    private func setupHeader() {
         contentView.addSubview(headerContainerView)
         headerContainerView.addSubviews(profilePhotoImageView, usernameLabel, menuButton)
         profilePhotoImageView.layer.cornerRadius = 35 / 2
@@ -236,7 +222,7 @@ class PostTableViewCell: UITableViewCell {
         ])
     }
     
-    func setupContentView() {
+    private func setupContentView() {
         contentView.addSubview(postImageView)
         self.imageViewHeightConstraint = postImageView.heightAnchor.constraint(equalTo: contentView.widthAnchor)
         
@@ -244,15 +230,14 @@ class PostTableViewCell: UITableViewCell {
             postImageView.topAnchor.constraint(equalTo: headerContainerView.bottomAnchor),
             postImageView.leadingAnchor.constraint(equalTo: headerContainerView.leadingAnchor),
             postImageView.trailingAnchor.constraint(equalTo: headerContainerView.trailingAnchor),
-//            postImageView.bottomAnchor.constraint(equalTo: actionsContainerView.topAnchor),
             self.imageViewHeightConstraint
         ])
     }
     
-    func setupActionsView() {
+    private func setupActionsView() {
         contentView.addSubview(actionsContainerView)
         actionsContainerView.addSubviews(likeButton, commentButton, bookmarkButton)
-
+        
         NSLayoutConstraint.activate([
             actionsContainerView.topAnchor.constraint(equalTo: postImageView.bottomAnchor),
             actionsContainerView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
@@ -261,7 +246,7 @@ class PostTableViewCell: UITableViewCell {
         ])
         
         NSLayoutConstraint.activate([
-            likeButton.leadingAnchor.constraint(equalTo: actionsContainerView.leadingAnchor, constant: 13),
+            likeButton.leadingAnchor.constraint(equalTo: profilePhotoImageView.leadingAnchor),
             likeButton.centerYAnchor.constraint(equalTo: actionsContainerView.centerYAnchor),
             likeButton.widthAnchor.constraint(equalToConstant: 30),
             likeButton.heightAnchor.constraint(equalToConstant: 30),
@@ -278,137 +263,135 @@ class PostTableViewCell: UITableViewCell {
         ])
     }
     
-    func setupCommentsSection() {
+    private func setupFooter() {
+        contentView.addSubview(footerContainerStackView)
         
-    }
-    
-    func setupFooter() {
-        contentView.addSubview(footerContainerView)
-        
-        footerContainerView.addSubviews(likesLabel, timeSincePostedLabel, captionLabel)
-        
-        let bottomConstraint = footerContainerView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
+        let bottomConstraint = footerContainerStackView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -10)
         bottomConstraint.priority = UILayoutPriority(999)
         
         NSLayoutConstraint.activate([
-            footerContainerView.topAnchor.constraint(equalTo: actionsContainerView.bottomAnchor),
-            footerContainerView.leadingAnchor.constraint(equalTo: actionsContainerView.leadingAnchor),
-            footerContainerView.trailingAnchor.constraint(equalTo: actionsContainerView.trailingAnchor),
+            footerContainerStackView.topAnchor.constraint(equalTo: actionsContainerView.bottomAnchor),
+            footerContainerStackView.leadingAnchor.constraint(equalTo: likeButton.leadingAnchor, constant: 5),
+            footerContainerStackView.trailingAnchor.constraint(equalTo: actionsContainerView.trailingAnchor),
             bottomConstraint
         ])
         
-        NSLayoutConstraint.activate([
-            likesLabel.topAnchor.constraint(equalTo: footerContainerView.topAnchor),
-            likesLabel.leadingAnchor.constraint(equalTo: likeButton.leadingAnchor),
-            likesLabel.trailingAnchor.constraint(lessThanOrEqualTo: footerContainerView.trailingAnchor, constant: 10),
-            likesLabel.heightAnchor.constraint(equalToConstant: 15),
-            
-            captionLabel.topAnchor.constraint(equalTo: likesLabel.bottomAnchor, constant: 10),
-            captionLabel.leadingAnchor.constraint(equalTo: footerContainerView.leadingAnchor, constant: 10),
-            captionLabel.trailingAnchor.constraint(equalTo: footerContainerView.trailingAnchor),
-            
-            timeSincePostedLabel.topAnchor.constraint(equalTo: captionLabel.bottomAnchor, constant: 10),
-            timeSincePostedLabel.leadingAnchor.constraint(equalTo: captionLabel.leadingAnchor),
-            timeSincePostedLabel.trailingAnchor.constraint(lessThanOrEqualTo: captionLabel.trailingAnchor, constant: 10),
-            timeSincePostedLabel.bottomAnchor.constraint(equalTo: footerContainerView.bottomAnchor, constant: -15)
-        ])
+        footerContainerStackView.addArrangedSubviews(likesLabel, captionLabel, viewCommentsButton, timeSincePostedLabel)
     }
     
     
     //MARK: Configure Post
     
-    func configureHeader(profilePhotoURL: URL, username: String) {
-        profilePhotoImageView.sd_setImage(with: profilePhotoURL)
+    func configure(with viewModel: PostViewModel, for postIndex: IndexPath) {
+        configureHeader(profilePhoto: viewModel.authorProfilePhoto, username: viewModel.authorUsername)
+        configureImageView(with: viewModel.postImage)
+        configureFooter(username: viewModel.authorUsername, caption: viewModel.postCaption, likesTitle: viewModel.likesCountTitle, timeSincePostedTitle: viewModel.timeSincePostedTitle)
+    
+        setCommentsTitle(title: viewModel.commentsCountTitle)
+        configureLikeButton(likeState: viewModel.likeState, isUserInitiated: false)
+        setBookmarkButtonState(state: viewModel.bookmarkState, animated: false)
+        self.indexPath = postIndex
+        self.likeButtonState = viewModel.likeState
+        self.bookmarkButtonState = viewModel.bookmarkState
+    }
+    
+    private func configureHeader(profilePhoto: UIImage, username: String) {
+        profilePhotoImageView.image = profilePhoto
         usernameLabel.text = username
     }
     
-    func configureImageView(with photo: UIImage) {
+    private func configureImageView(with photo: UIImage) {
         postImageView.image = photo
-        let imageAspectRatio = photo.size.height / photo.size.width
+        let imageAspectRatio = ceil(photo.size.height) / ceil(photo.size.width)
         self.imageViewHeightConstraint.isActive = false
-        let heightConstraint = NSLayoutConstraint(item: postImageView, attribute: NSLayoutConstraint.Attribute.height, relatedBy: NSLayoutConstraint.Relation.equal, toItem: contentView, attribute: NSLayoutConstraint.Attribute.width, multiplier: imageAspectRatio, constant: 0)
+        let heightConstraint = NSLayoutConstraint(item: postImageView,
+                                                  attribute: NSLayoutConstraint.Attribute.height,
+                                                  relatedBy: NSLayoutConstraint.Relation.equal,
+                                                  toItem: contentView,
+                                                  attribute: NSLayoutConstraint.Attribute.width,
+                                                  multiplier: imageAspectRatio, constant: 0)
         self.imageViewHeightConstraint = heightConstraint
         self.imageViewHeightConstraint.isActive = true
-        self.layoutIfNeeded()
     }
     
-    func configureFooter(username: String, caption: String, likesCount: Int, postDate: Date) {
-        if !caption.isEmpty {
-            let attributedUsername = NSAttributedString(string: "\(username) ", attributes: [NSAttributedString.Key.font: UIFont.boldSystemFont(ofSize: 14), NSAttributedString.Key.foregroundColor: UIColor.label])
-            let attributedCaption = NSAttributedString(string: caption, attributes: [NSAttributedString.Key.font: UIFont.systemFont(ofSize: 14), NSAttributedString.Key.foregroundColor: UIColor.label])
-            
-            let usernameWithCaption = NSMutableAttributedString()
-            usernameWithCaption.append(attributedUsername)
-            usernameWithCaption.append(attributedCaption)
-            captionLabel.attributedText = usernameWithCaption
-            captionLabel.sizeToFit()
-            self.layoutIfNeeded()
-        }
+    private func configureFooter(username: String, caption: NSMutableAttributedString, likesTitle: String, timeSincePostedTitle: String) {
+
+        captionLabel.attributedText = caption
+        captionLabel.sizeToFit()
         
-        let formattedDate = postDate.formatted(date: .abbreviated, time: .omitted)
-        timeSincePostedLabel.text = "\(formattedDate)"
+        timeSincePostedLabel.text = timeSincePostedTitle
         
-        setLikes(likesCount: likesCount)
+        setLikesTitle(title: likesTitle)
     }
     
-    func configure(forPost post: UserPost, postIndex: Int) {
-        configureHeader(profilePhotoURL: URL(string: post.author.profilePhotoURL)!, username: post.author.username)
-        configureImageView(with: post.image!)
-        configureFooter(username: post.author.username, caption: post.caption, likesCount: post.likeCount, postDate: post.postedDate)
-        LikeSystemService.shared.getLikesCountForPost(id: post.postID) { likeCount in
-            self.setLikes(likesCount: likeCount)
-        }
-        post.checkIfLikedByCurrentUser { likeState in
-            self.configureLikeButton(likeState: likeState)
-        }
-        self.post = post
-        self.index = postIndex
+    func setLikesTitle(title: String) {
+        likesLabel.text = title
     }
     
-    func setLikes(likesCount: Int) {
-        if likesCount == 1 {
-            likesLabel.text = "\(likesCount) like"
-        } else {
-            likesLabel.text = "\(likesCount) likes"
-        }
+    func setCommentsTitle(title: String) {
+        viewCommentsButton.setTitle(title, for: .normal)
+        viewCommentsButton.isHidden = false
     }
     
     
     //MARK: Actions Setup
-    
     @objc func menuButtonTapped() {
-        guard let post = self.post, let index = index else {
+        guard let indexPath = indexPath else {
+            return
+        }
+        delegate?.menuButtonTapped(postIndex: indexPath)
+    }
+    
+    @objc func likeButtonTapped(isTriggeredByDoubleTap: Bool = false) {
+        guard let postIndex = indexPath else {
             return
         }
         
-        delegate?.menuButtonTapped(forPost: post.postID, atIndex: index)
-    }
-    
-    @objc func likeButtonTapped() {
-        guard let post = self.post else {
+        if isTriggeredByDoubleTap && likeButtonState == .liked {
             return
+        } else {
+            delegate?.didTapLikeButton(postIndex: postIndex) { [weak self] likeState in
+                self?.configureLikeButton(likeState: likeState, isUserInitiated: false)
+            }
+            
+            if likeButtonState == .notLiked || isTriggeredByDoubleTap {
+                likeHapticFeedbackGenerator.notificationOccurred(.success)
+            }
+            
+            switchLikeButton()
         }
-        delegate?.didTapLikeButton(postID: post.postID, postActionsCell: self)
     }
     
     @objc func commentButtonTapped() {
-        guard let post = self.post else {
+        guard let postIndex = indexPath else {
             return
         }
-        delegate?.didTapCommentButton(post: post)
+        delegate?.didTapCommentButton(postIndex: postIndex)
+    }
+    
+    @objc func bookmarkButtonTapped() {
+        guard let postIndex = indexPath else {
+            return
+        }
+        delegate?.didTapBookmarkButton(postIndex: postIndex) { [weak self] bookmarkState in
+            self?.setBookmarkButtonState(state: bookmarkState, animated: false)
+        }
+        switchBookmarkButton()
     }
     
     @objc func userTapped() {
-        guard let post = self.post, let index = index else {
+        guard let postIndex = indexPath else {
             return
         }
-        delegate?.didSelectUser(userID: post.author.userID, atIndex: index)
+        delegate?.didTapPostAuthor(postIndex: postIndex)
     }
     
-    //MARK: Additional Setup
+    //MARK: Gesture Recognizers Setup
     func addGestureRecognizers() {
         let userNameGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(userTapped))
         let profileImageGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(userTapped))
+        let postDoubleTapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(likeByDoubleTap))
+        postDoubleTapGestureRecognizer.numberOfTapsRequired = 2
         
         usernameLabel.isUserInteractionEnabled = true
         usernameLabel.addGestureRecognizer(userNameGestureRecognizer)
@@ -416,49 +399,46 @@ class PostTableViewCell: UITableViewCell {
         profilePhotoImageView.isUserInteractionEnabled = true
         profilePhotoImageView.addGestureRecognizer(profileImageGestureRecognizer)
         
+        postImageView.isUserInteractionEnabled = true
+        postImageView.addGestureRecognizer(postDoubleTapGestureRecognizer)
     }
 }
 
 
-
-// Like button methods
+//MARK: Like button methods
 extension PostTableViewCell {
     
-    func configureLikeButton(likeState: PostLikeState) {
-        self.likeButtonState = likeState
+    func configureLikeButton(likeState: LikeState, isUserInitiated: Bool) {
         switch likeState {
         case .liked:
-            showLikedButton(animated: false)
+            showLikedButton(animated: isUserInitiated)
         case .notLiked:
-            showLikeButton(animated: false)
+            showLikeButton(animated: isUserInitiated)
         }
     }
     
     func switchLikeButton() {
-        guard likeButtonState != nil else {
-            return
-        }
+        
         switch likeButtonState {
             
         case .liked:
+//            likesCount -= 1
             showLikeButton()
         case .notLiked:
+//            likesCount += 1
             showLikedButton()
-        case .none:
-            print("Like state isn't initialized")
-            return
         }
     }
     
     func showLikeButton(animated: Bool = true) {
         if animated {
-            UIView.animateKeyframes(withDuration: 0.2, delay: 0) {
-                UIView.addKeyframe(withRelativeStartTime: 0, relativeDuration: 0.5) {
-                    self.likeButton.transform = CGAffineTransform(scaleX: 0.9, y: 0.9)
-                }
-                UIView.addKeyframe(withRelativeStartTime: 0.5, relativeDuration: 0.5) {
+            
+            UIView.animate(withDuration: 0.1) {
+                self.likeButton.transform = CGAffineTransform(scaleX: 0.9, y: 0.9)
+            } completion: { _ in
+                self.likeButton.setImage(UIImage(systemName: "heart", withConfiguration: UIImage.SymbolConfiguration(pointSize: 29)), for: .normal)
+                UIView.animate(withDuration: 0.1) {
                     self.likeButton.transform = .identity
-                    self.likeButton.setImage(UIImage(systemName: "heart", withConfiguration: UIImage.SymbolConfiguration(pointSize: 29)), for: .normal)
                     self.likeButton.tintColor = .label
                 }
             }
@@ -471,13 +451,13 @@ extension PostTableViewCell {
     
     func showLikedButton(animated: Bool = true) {
         if animated {
-            UIView.animateKeyframes(withDuration: 0.2, delay: 0) {
-                UIView.addKeyframe(withRelativeStartTime: 0, relativeDuration: 0.5) {
-                    self.likeButton.transform = CGAffineTransform(scaleX: 0.9, y: 0.9)
-                }
-                UIView.addKeyframe(withRelativeStartTime: 0.5, relativeDuration: 0.5) {
+            
+            UIView.animate(withDuration: 0.1) {
+                self.likeButton.transform = CGAffineTransform(scaleX: 0.9, y: 0.9)
+            } completion: { _ in
+                self.likeButton.setImage(UIImage(systemName: "heart.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 29)), for: .normal)
+                UIView.animate(withDuration: 0.1) {
                     self.likeButton.transform = .identity
-                    self.likeButton.setImage(UIImage(systemName: "heart.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 29)), for: .normal)
                     self.likeButton.tintColor = .systemRed
                 }
             }
@@ -485,5 +465,77 @@ extension PostTableViewCell {
             likeButton.setImage(UIImage(systemName: "heart.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 29)), for: .normal)
             likeButton.tintColor = .systemRed
         }
+    }
+    
+    @objc func likeByDoubleTap() {
+        likeButtonTapped(isTriggeredByDoubleTap: true)
+        let heartImage = UIImage(systemName: "heart.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 70))
+        let likeImageView = UIImageView(image: heartImage)
+        likeImageView.translatesAutoresizingMaskIntoConstraints = false
+        likeImageView.tintColor = .white
+        likeImageView.sizeToFit()
+        
+        postImageView.addSubview(likeImageView)
+        NSLayoutConstraint.activate([
+            likeImageView.centerYAnchor.constraint(equalTo: postImageView.centerYAnchor),
+            likeImageView.centerXAnchor.constraint(equalTo: postImageView.centerXAnchor)
+        ])
+        likeImageView.transform = CGAffineTransform(scaleX: 0.4, y: 0.4)
+        UIView.animate(withDuration: 0.5, delay: 0, usingSpringWithDamping: 0.5, initialSpringVelocity: 0.5) {
+            likeImageView.transform = .identity
+        } completion: { _ in
+            UIView.animate(withDuration: 0.2, delay: 0.1) {
+                likeImageView.transform = CGAffineTransform(scaleX: 0.1, y: 0.1)
+            } completion: { _ in
+                likeImageView.removeFromSuperview()
+            }
+
+        }
+    }
+}
+
+//MARK: Bookmark button methods
+extension PostTableViewCell {
+    
+    func switchBookmarkButton() {
+        switch bookmarkButtonState {
+        case .bookmarked:
+            setBookmarkButtonState(state: .notBookmarked, animated: true)
+            bookmarkButtonState = .notBookmarked
+        case .notBookmarked:
+            setBookmarkButtonState(state: .bookmarked, animated: true)
+            bookmarkButtonState = .bookmarked
+        }
+    }
+    
+    func setBookmarkButtonState(state: BookmarkState, animated: Bool) {
+        if animated {
+            UIView.animate(withDuration: 0.1) {
+                self.bookmarkButton.transform = CGAffineTransform(scaleX: 0.9, y: 0.9)
+            } completion: { _ in
+                if state == .bookmarked {
+                    self.setBookmarkedState()
+                } else {
+                    self.setUnmarkedState()
+                }
+                UIView.animate(withDuration: 0.1) {
+                    self.bookmarkButton.transform = .identity
+                }
+            }
+        } else {
+            if state == .bookmarked {
+                setBookmarkedState()
+            } else {
+                setUnmarkedState()
+            }
+        }
+    }
+    
+    func setBookmarkedState() {
+        bookmarkButton.setImage(UIImage(systemName: "bookmark.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 29)), for: .normal)
+    }
+    
+    func setUnmarkedState() {
+        bookmarkButton.setImage(UIImage(systemName: "bookmark", withConfiguration: UIImage.SymbolConfiguration(pointSize: 29)), for: .normal)
     }
 }

@@ -13,8 +13,8 @@ protocol ProfileHeaderDelegate: AnyObject {
     func followingButtonTapped(_ header: ProfileHeaderReusableView)
     func followersButtonTapped(_ header: ProfileHeaderReusableView)
     func editProfileButtonTapped(_ header: ProfileHeaderReusableView)
-    func followButtonTapped(_ header: ProfileHeaderReusableView, followCompletion: @escaping (FollowStatus) -> Void)
-    func unfollowButtonTapped(_ header: ProfileHeaderReusableView, unfollowCompletion: @escaping (FollowStatus) -> Void)
+    func followButtonTapped(_ header: ProfileHeaderReusableView)
+    func unfollowButtonTapped(_ header: ProfileHeaderReusableView)
 }
 
 final class ProfileHeaderReusableView: UICollectionReusableView {
@@ -38,18 +38,21 @@ final class ProfileHeaderReusableView: UICollectionReusableView {
     private let postsButton: CustomButtonWithLabels = {
         let button = CustomButtonWithLabels()
         button.translatesAutoresizingMaskIntoConstraints = false
+        button.addTarget(self, action: #selector(didTapPostsButton), for: .touchUpInside)
         return button
     }()
     
     private let followingButton: CustomButtonWithLabels = {
         let button = CustomButtonWithLabels()
         button.translatesAutoresizingMaskIntoConstraints = false
+        button.addTarget(self, action: #selector(didTapFollowingButton), for: .touchUpInside)
         return button
     }()
     
     private let followersButton: CustomButtonWithLabels = {
         let button = CustomButtonWithLabels()
         button.translatesAutoresizingMaskIntoConstraints = false
+        button.addTarget(self, action: #selector(didTapFollowersButton), for: .touchUpInside)
         return button
     }()
     
@@ -62,6 +65,7 @@ final class ProfileHeaderReusableView: UICollectionReusableView {
         button.layer.borderWidth = 0.5
         button.layer.borderColor = UIColor.lightGray.cgColor
         button.layer.cornerRadius = 5
+        button.addTarget(self, action: #selector(didTapEditProfileButton), for: .touchUpInside)
         button.isHidden = true
         button.isEnabled = false
         return button
@@ -77,6 +81,7 @@ final class ProfileHeaderReusableView: UICollectionReusableView {
         button.layer.borderWidth = 0.5
         button.layer.borderColor = UIColor.lightGray.cgColor
         button.layer.cornerRadius = 5
+        button.addTarget(self, action: #selector(didTapFollowUnfollowButton), for: .touchUpInside)
         button.isHidden = true
         button.isEnabled = false
         return button
@@ -103,7 +108,6 @@ final class ProfileHeaderReusableView: UICollectionReusableView {
         super.init(frame: frame)
         addSubviews(profilePhotoImageView, postsButton, followingButton, followersButton, nameLabel, bioLabel, editProfileButton, followUnfollowButton)
         setupConstraints()
-        setupButtonActions()
         profilePhotoImageView.layer.cornerRadius = profilePhotoWidthHeight / 2
         clipsToBounds = true
     }
@@ -112,42 +116,45 @@ final class ProfileHeaderReusableView: UICollectionReusableView {
         fatalError("init(coder:) has not been implemented")
     }
     
-    private func setupButtonActions() {
-        postsButton.addTarget(self, action: #selector(didTapPostsButton), for: .touchUpInside)
-        followingButton.addTarget(self, action: #selector(didTapFollowingButton), for: .touchUpInside)
-        followersButton.addTarget(self, action: #selector(didTapFollowersButton), for: .touchUpInside)
-        editProfileButton.addTarget(self, action: #selector(didTapEditProfileButton), for: .touchUpInside)
-        followUnfollowButton.addTarget(self, action: #selector(didTapFollowUnfollowButton), for: .touchUpInside)
+    func configureWith(viewModel: UserProfileViewModel) {
+        let user = viewModel.user
+        self.followStatus = user.followStatus
+        profilePhotoImageView.image = user.profilePhoto ?? UIImage()
+        nameLabel.text = user.name
+        bioLabel.text = user.bio
+        postsButton.configureWith(labelText: "Posts", number: viewModel.postsCount)
+        followersButton.configureWith(labelText: "Followers", number: viewModel.followersCount)
+        followingButton.configureWith(labelText: "Following", number: viewModel.followingCount)
+        setupActionButton(isUserProfile: viewModel.isCurrentUserProfile, followStatus: user.followStatus)
     }
     
-    public func configure(name: String, bio: String, profilePicture: UIImage, postsCount: String, followersCount: String, followingCount: String, isFollowed: FollowStatus, isUserProfile: Bool) {
-        profilePhotoImageView.image = profilePicture
-        nameLabel.text = name
-        bioLabel.text = bio
-        postsButton.configureWith(labelText: "Posts", numberString: postsCount)
-        followersButton.configureWith(labelText: "Followers", numberString: followersCount)
-        followingButton.configureWith(labelText: "Following", numberString: followingCount)
-        setupActionButton(isUserProfile: isUserProfile, followStatus: isFollowed)
+    func changeFollowingCount(followingCount: Int) {
+        followingButton.configureWith(labelText: "Following", number: followingCount)
+    }
+    
+    func changeFollowersCount(followersCount: Int) {
+        followersButton.configureWith(labelText: "Following", number: followersCount)
     }
     
     func switchFollowUnfollowButton(followStatus: FollowStatus) {
+        self.followStatus = followStatus
         switch followStatus {
         case .notFollowing:
+            print("Showing follow button")
             showFollowButton()
         case .following:
+            print("Showing unfollow button")
             showUnfollowButton()
         }
     }
     
-    public func setupActionButton(isUserProfile: Bool, followStatus: FollowStatus) {
-        
+    private func setupActionButton(isUserProfile: Bool, followStatus: FollowStatus) {
         if isUserProfile {
             editProfileButton.isHidden = false
             editProfileButton.isEnabled = true
         } else {
             followUnfollowButton.isHidden = false
             followUnfollowButton.isEnabled = true
-            self.followStatus = followStatus
             switchFollowUnfollowButton(followStatus: followStatus)
         }
     }
@@ -165,47 +172,64 @@ final class ProfileHeaderReusableView: UICollectionReusableView {
     }
     
     private func setupConstraints() {
+        let followButtonBottomConstraint = followUnfollowButton.bottomAnchor.constraint(lessThanOrEqualTo: self.bottomAnchor)
+        followButtonBottomConstraint.priority = UILayoutPriority(999)
+        let followButtonTrailingConstraint = followUnfollowButton.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -15)
+        followButtonTrailingConstraint.priority = UILayoutPriority(990)
+        
+        let editButtonBottomConstraint = editProfileButton.bottomAnchor.constraint(lessThanOrEqualTo: self.bottomAnchor)
+        editButtonBottomConstraint.priority = UILayoutPriority(999)
+        let editButtonTrailingConstraint = editProfileButton.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -15)
+        editButtonTrailingConstraint.priority = UILayoutPriority(999)
+        
+        let followersButtonTrailingConstraint = followersButton.trailingAnchor.constraint(lessThanOrEqualTo: self.trailingAnchor, constant: -15)
+        followersButtonTrailingConstraint.priority = UILayoutPriority(995)
+        
+        
+
         NSLayoutConstraint.activate([
             profilePhotoImageView.heightAnchor.constraint(equalToConstant: profilePhotoWidthHeight),
             profilePhotoImageView.widthAnchor.constraint(equalToConstant: profilePhotoWidthHeight),
             profilePhotoImageView.topAnchor.constraint(equalTo: self.topAnchor, constant: 5),
             profilePhotoImageView.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: 15),
             
-            postsButton.centerYAnchor.constraint(equalTo: profilePhotoImageView.centerYAnchor),
+            postsButton.topAnchor.constraint(equalTo: profilePhotoImageView.topAnchor),
             postsButton.leadingAnchor.constraint(equalTo: profilePhotoImageView.trailingAnchor, constant: 15),
             postsButton.widthAnchor.constraint(equalToConstant: 70),
             postsButton.heightAnchor.constraint(equalToConstant: 45),
             
-            followingButton.centerYAnchor.constraint(equalTo: postsButton.centerYAnchor),
+            followingButton.topAnchor.constraint(equalTo: profilePhotoImageView.topAnchor),
             followingButton.leadingAnchor.constraint(equalTo: postsButton.trailingAnchor, constant: 10),
             followingButton.widthAnchor.constraint(equalToConstant: 70),
             followingButton.heightAnchor.constraint(equalToConstant: 45),
             
-            followersButton.centerYAnchor.constraint(equalTo: followingButton.centerYAnchor),
+            followersButton.topAnchor.constraint(equalTo: profilePhotoImageView.topAnchor),
             followersButton.leadingAnchor.constraint(equalTo: followingButton.trailingAnchor, constant: 15),
+            followersButtonTrailingConstraint,
             followersButton.widthAnchor.constraint(equalToConstant: 70),
             followersButton.heightAnchor.constraint(equalToConstant: 45),
             
             nameLabel.topAnchor.constraint(equalTo: profilePhotoImageView.bottomAnchor, constant: 10),
             nameLabel.leadingAnchor.constraint(equalTo: profilePhotoImageView.leadingAnchor),
-            nameLabel.trailingAnchor.constraint(lessThanOrEqualTo: self.trailingAnchor, constant: -15),
+            nameLabel.trailingAnchor.constraint(lessThanOrEqualTo: followersButton.trailingAnchor, constant: -15),
             nameLabel.heightAnchor.constraint(equalToConstant: 18),
             
             bioLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 5),
             bioLabel.leadingAnchor.constraint(equalTo: nameLabel.leadingAnchor),
             bioLabel.trailingAnchor.constraint(equalTo: followersButton.trailingAnchor),
+            bioLabel.heightAnchor.constraint(greaterThanOrEqualToConstant: 20),
             
             editProfileButton.topAnchor.constraint(equalTo: bioLabel.bottomAnchor, constant: 15),
             editProfileButton.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: 15),
-            editProfileButton.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -15),
+            editButtonTrailingConstraint,
             editProfileButton.heightAnchor.constraint(equalToConstant: 30),
-            editProfileButton.bottomAnchor.constraint(lessThanOrEqualTo: self.bottomAnchor),
-            
+            editButtonBottomConstraint,
+
             followUnfollowButton.topAnchor.constraint(equalTo: bioLabel.bottomAnchor, constant: 15),
             followUnfollowButton.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: 15),
-            followUnfollowButton.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -15),
+            followButtonTrailingConstraint,
             followUnfollowButton.heightAnchor.constraint(equalToConstant: 35),
-            followUnfollowButton.bottomAnchor.constraint(lessThanOrEqualTo: self.bottomAnchor),
+            followButtonBottomConstraint,
         ])
     }
     
@@ -222,20 +246,13 @@ final class ProfileHeaderReusableView: UICollectionReusableView {
         delegate?.editProfileButtonTapped(self)
     }
     @objc private func didTapFollowUnfollowButton() {
-        
         switch followStatus {
             
         case .notFollowing:
-            delegate?.followButtonTapped(self) { status in
-                self.followStatus = status
-                self.switchFollowUnfollowButton(followStatus: status)
-            }
+            delegate?.followButtonTapped(self)
             
         case .following:
-            delegate?.unfollowButtonTapped(self) { status in
-                self.followStatus = status
-                self.switchFollowUnfollowButton(followStatus: status)
-            }
+            delegate?.unfollowButtonTapped(self)
         }
     }
 }

@@ -27,15 +27,16 @@ class FollowListViewModel {
         }
     }
     
-    func followUser(uid: String, completion: @escaping (Bool) -> Void) {
-        FollowService.shared.followUser(uid: uid) { success in
-            completion(success)
+    func followUser(uid: String, completion: @escaping (FollowStatus) -> Void) {
+        FollowService.shared.followUser(uid: uid) { followStatus in
+            completion(followStatus)
         }
     }
     
-    func unfollowUser(uid: String, completion: @escaping (Bool) -> Void) {
-        FollowService.shared.unfollowUser(uid: uid) { success in
-            completion(success)
+    func unfollowUser(uid: String, completion: @escaping (FollowStatus) -> Void) {
+        FollowService.shared.unfollowUser(uid: uid) { followStatus in
+            ActivityService.shared.removeFollowEventForUser(userID: uid)
+            completion(followStatus)
         }
     }
     

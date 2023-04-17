@@ -31,9 +31,9 @@ class NewPostViewModel {
         followersRef.child("Followers/\(uid)").observe(.value) { self.followersSnap = $0 }
     }
     
-    func createPost(postType: UserPostType, caption: String) {
+    func createPost(caption: String) {
         let userUID = AuthenticationManager.shared.getCurrentUserUID()
-        let postUID = UserPostService.shared.createPostUID()
+        let postUID = UserPostsService.shared.createPostUID()
         post = UserPost(userID: userUID,
                         postID: postUID,
                         photoURL: "",
@@ -51,9 +51,8 @@ class NewPostViewModel {
         }
     }
     
-    func makeAPost(postType: UserPostType, caption: String, completion: @escaping (Bool) -> Void) {
-        
-        self.createPost(postType: postType, caption: caption)
+    func makeAPost(caption: String, completion: @escaping (Bool) -> Void) {
+        self.createPost(caption: caption)
         let fileName = "\(post.postID)_post.png"
         
         StorageManager.shared.uploadPostPhoto(photo: photo, fileName: fileName) { result in
@@ -61,16 +60,16 @@ class NewPostViewModel {
             switch result {
                 
             case .success(let photoURL):
-                self.post.photoURL = photoURL
+                self.post.photoURL = photoURL.absoluteString
                 
-                UserPostService.shared.insertNewPost(post: self.post) { result in
+                UserPostsService.shared.insertNewPost(post: self.post) { result in
                     
                     switch result {
                         
                     case .success(let message):
                         print(message)
                         
-                        UserPostService.shared.fanoutPost(uid: self.post.userID, followersSnapshot: self.followersSnap, post: self.post) {
+                        UserPostsService.shared.fanoutPost(post: self.post) {
                             completion(true)
                         }
                         

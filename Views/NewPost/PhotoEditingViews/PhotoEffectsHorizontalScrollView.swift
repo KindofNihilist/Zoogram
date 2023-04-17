@@ -12,7 +12,7 @@ struct editingButton {
     let effectIcon: UIImage
 }
 
-protocol PhotoEditingHorizontalScrollViewDelegate: AnyObject {
+protocol PhotoEffectsHorizontalScrollViewDelegate: AnyObject {
     func showExposureSlider()
     func showBrightnessSlider()
     func showContrastSlider()
@@ -24,9 +24,9 @@ protocol PhotoEditingHorizontalScrollViewDelegate: AnyObject {
     func showVignetteSlider()
 }
 
-class PhotoEditingHorizontalScrollView: UIView {
+class PhotoEffectsHorizontalScrollView: UIView {
     
-    public weak var delegate: PhotoEditingHorizontalScrollViewDelegate?
+    public weak var delegate: PhotoEffectsHorizontalScrollViewDelegate?
     
     private let scrollView: UIScrollView = {
         let scrollView = UIScrollView()

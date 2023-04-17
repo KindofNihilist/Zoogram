@@ -6,14 +6,27 @@
 //
 
 import Foundation
+import UIKit
+
+enum FollowStatus {
+    case following // Indicates the current user is following the other user
+    case notFollowing // Indicates the current user is not following the other user
+}
+
+enum Gender: String {
+    case male = "Male"
+    case female = "Female"
+    case other = "Other"
+}
 
 class ZoogramUser: Codable {
     
-    var isUserProfile = false
-    var isFollowed: FollowStatus!
+    var isCurrentUserProfile = false
+    var followStatus: FollowStatus!
     
     var userID: String
     var profilePhotoURL: String
+    var profilePhoto: UIImage?
     var email: String
     var phoneNumber: String?
     var username: String
@@ -37,7 +50,23 @@ class ZoogramUser: Codable {
         self.gender = gender
         self.posts = posts
         self.joinDate = joinDate
-        self.isUserProfile = checkIfCurrentUser(uid: userID)
+        self.isCurrentUserProfile = checkIfCurrentUser(uid: userID)
+    }
+    
+    init() {
+        self.userID = ""
+        self.profilePhotoURL = ""
+        self.email = ""
+        self.phoneNumber = ""
+        self.username = ""
+        self.name = ""
+        self.bio = ""
+        self.birthday = ""
+        self.gender = ""
+        self.posts = 0
+        self.joinDate = 0
+        self.followStatus = .notFollowing
+        self.isCurrentUserProfile = false
     }
     
     required init(from decoder: Decoder) throws {
@@ -53,7 +82,7 @@ class ZoogramUser: Codable {
         self.gender = try container.decodeIfPresent(String.self, forKey: .gender)
         self.posts = try container.decode(Int.self, forKey: .posts)
         self.joinDate = try container.decode(Double.self, forKey: .joinDate)
-        self.isUserProfile = checkIfCurrentUser(uid: userID)
+        self.isCurrentUserProfile = checkIfCurrentUser(uid: userID)
     }
     
     func createDictionary() -> [String: Any]? {
@@ -61,21 +90,13 @@ class ZoogramUser: Codable {
         return dictionary
     }
     
-    func checkIfCurrentUser(uid: String) -> Bool {
+    private func checkIfCurrentUser(uid: String) -> Bool {
         if uid == AuthenticationManager.shared.getCurrentUserUID() {
             return true
         } else {
             return false
         }
     }
-    
-//    func checkIfFollowedByCurrentUser(completion: @escaping () -> Void) {
-//        FollowService.shared.checkFollowStatus(for: userID) { followStatus in
-//            print("FOLLOW STATUS", followStatus)
-//            self.isFollowed = followStatus
-//            completion()
-//        }
-//    }
     
     enum CodingKeys: CodingKey {
         case userID

@@ -143,12 +143,12 @@ extension ProfileEdditingViewController: FormTableViewCellDelegate {
 extension ProfileEdditingViewController: ProfilePictureHeaderProtocol {
     
     func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
-        picker.dismiss(animated: true, completion: nil)
         if let selectedImage = info[UIImagePickerController.InfoKey.editedImage] as? UIImage {
             self.viewModel.newProfilePicture = selectedImage
             self.profilePictureHeaderView.configure(with: selectedImage)
             self.viewModel.hasChangedProfilePic = true
         }
+        picker.dismiss(animated: true, completion: nil)
     }
     
     func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {

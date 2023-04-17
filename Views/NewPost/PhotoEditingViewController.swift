@@ -10,7 +10,9 @@ import MetalKit
 
 class PhotoEditingViewController: UIViewController {
     
-    private var isAspectFit: Bool
+    let isWidthDominant: Bool
+    let ratio: CGFloat
+    var hasPrintedImageData: Bool = false
     
     //MARK: CoreImage resources
     let originalImage: UIImage
@@ -19,6 +21,7 @@ class PhotoEditingViewController: UIViewController {
     var ciImage: CIImage!
     var currentFilter: Filter!
     let colorSpace = CGColorSpaceCreateDeviceRGB()
+    
     
     //MARK: Metal resources
     var device: MTLDevice!
@@ -66,16 +69,18 @@ class PhotoEditingViewController: UIViewController {
         return imageView
     }()
     
-    private let editingOptionsHorizontalScrollView: PhotoEditingHorizontalScrollView = {
-        let scrollView = PhotoEditingHorizontalScrollView()
+    private let editingOptionsHorizontalScrollView: PhotoEffectsHorizontalScrollView = {
+        let scrollView = PhotoEffectsHorizontalScrollView()
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         return scrollView
     }()
     
-    init(photo: UIImage, isAspectFit: Bool) {
+    init(photo: UIImage, isWidthDominant: Bool, ratio: CGFloat) {
         self.originalImage = photo
         self.modifiedImage = photo
-        self.isAspectFit = isAspectFit
+        self.isWidthDominant = isWidthDominant
+        print("Is width dominant", isWidthDominant)
+        self.ratio = ratio
         photoEditingPreview.image = photo
         currentFilter = Filter(filterType: .exposure, filterName: "CIExposureAdjust", filterKey: kCIInputEVKey,  filterDefaultValue: 0, minimumValue: 0, maximumValue: 0)
         currentFilter.setInputImage(image: photo)
@@ -93,6 +98,10 @@ class PhotoEditingViewController: UIViewController {
         setupMetalPreview()
         editingOptionsHorizontalScrollView.delegate = self
         print("Loaded photo editing view")
+    }
+    
+    override var prefersStatusBarHidden: Bool {
+        return true
     }
     
     
@@ -118,7 +127,7 @@ class PhotoEditingViewController: UIViewController {
             print("Couldn't create a texture with chosen image")
         }
         
-        self.metalView.clearColor = MTLClearColor(red: 0.0, green: 0.0, blue: 0.0, alpha: 1)
+        self.metalView.clearColor = MTLClearColor(red: 1.0, green: 0.0, blue: 0.0, alpha: 1)
     }
     
     private func setupNavBar() {
@@ -134,10 +143,10 @@ class PhotoEditingViewController: UIViewController {
     
     private func setupViewsAndConstraints() {
         view.addSubviews(metalView, editingOptionsHorizontalScrollView)
-        
+        let viewHeight = view.frame.size.height
         NSLayoutConstraint.activate([
             metalView.widthAnchor.constraint(equalTo: view.widthAnchor),
-            metalView.heightAnchor.constraint(equalTo: view.widthAnchor),
+            metalView.heightAnchor.constraint(equalToConstant: viewHeight / 2),
             metalView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             metalView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             
@@ -176,7 +185,7 @@ class PhotoEditingViewController: UIViewController {
         sliderView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor).isActive = true
         sliderView.alpha = 0
         sliderView.delegate = self
-    
+        
         
         print("Created slider")
         
@@ -208,7 +217,7 @@ class PhotoEditingViewController: UIViewController {
     }
 }
 
-extension PhotoEditingViewController: PhotoEditingHorizontalScrollViewDelegate, PhotoEffectSliderDelegate {
+extension PhotoEditingViewController: PhotoEffectsHorizontalScrollViewDelegate, PhotoEffectSliderDelegate {
     
     //MARK: Initializing selected filters
     
@@ -295,14 +304,14 @@ extension PhotoEditingViewController: PhotoEditingHorizontalScrollViewDelegate, 
     
     
     func didChangeSliderValue(value: Float) {
-//        print("Slider value: \(value)")
+        //        print("Slider value: \(value)")
         
         
         switch currentFilter.filterType {
             
         case .warmth:
             self.filterValue = CIVector(x: CGFloat(value) + 6500, y: 0)
-            print(filterValue)
+//            print(filterValue)
         case .tint:
             self.filterValue = CIVector(x: 6500, y: 0 + CGFloat(value))
         default:
@@ -329,21 +338,44 @@ extension PhotoEditingViewController: MTKViewDelegate {
         let scaleX = view.drawableSize.width / inputImage.extent.width
         let scaleY = view.drawableSize.height / inputImage.extent.height
         var scale: CGFloat = 0
-        if isAspectFit {
-            scale = (scaleY > scaleX) ? scaleX : scaleY
+        var width: CGFloat = 0
+        var height: CGFloat = 0
+        var imageOriginYPoint: CGFloat = 0
+        var imageOriginXPoint: CGFloat = 0
+        
+        scale = (scaleY > scaleX) ? scaleX : scaleY
+        
+        width = inputImage.extent.width * scale
+        height = inputImage.extent.height * scale
+        
+        if isWidthDominant {
+            imageOriginYPoint = (bounds.maxY - height) / 2
         } else {
-            scale = (scaleY > scaleX) ? scaleY : scaleX
+            imageOriginXPoint = (bounds.maxX - width) / 2
         }
         
-        let width = inputImage.extent.width * scale
-        let height = inputImage.extent.height * scale
-        let originX = (bounds.width - width) / 2
-        let originY = (bounds.height - height) / 2
+        
+        let originX = (bounds.minX + imageOriginXPoint)
+        let originY = (bounds.minY + imageOriginYPoint)
+        
+        if !hasPrintedImageData {
+            print("Bounds width: \(bounds.width)")
+            print("Bounds height: \(bounds.height) \n")
+            print("inputImage height\(inputImage.extent.height)")
+            print("inputImage width: \(inputImage.extent.width) \n")
+            print("Scaled image height: \(height)")
+            print("Scaled image width: \(width) \n")
+            print("Mid X point: \(bounds.midX) \n")
+            print("Calculated X origin point: \(imageOriginXPoint)")
+            print("Calculated Y origin point: \(imageOriginYPoint) \n")
+            hasPrintedImageData = true
+        }
         
         if let filterOutput = currentFilter.getOutput() {
             var scaledImage = filterOutput
+            
 #if targetEnvironment(simulator)
-            scaledImage = scaledImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale)).transformed(by: CGAffineTransform(translationX: originX < 0 ? 0 : originX, y: originY < 0 ? 0 : originY))
+            scaledImage = scaledImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale)).transformed(by: CGAffineTransform(translationX: originX, y: originY < 0 ? 0 : originY))
 #else
             scaledImage = scaledImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale)).transformed(by: CGAffineTransform(translationX: originX < 0 ? 0 : originX, y: originY < 0 ? 0 : originY))
 #endif

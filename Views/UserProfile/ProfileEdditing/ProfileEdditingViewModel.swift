@@ -37,8 +37,7 @@ class ProfileEdditingViewModel {
     
     
     func getUserProfileData(completion: @escaping () -> Void) {
-        UserService.shared.getUser(for: AuthenticationManager.shared.getCurrentUserUID()) { user in
-            
+        UserService.shared.observeUser(for: AuthenticationManager.shared.getCurrentUserUID()) { user in
             self.name = user.name
             self.username = user.username
             self.bio = user.bio ?? ""
@@ -52,7 +51,7 @@ class ProfileEdditingViewModel {
     }
     
     func configureModels() {
-        print(name, username, bio, email)
+        models.removeAll()
         //name, username, website, bio
         let section1 = [EditProfileFormModel(label: "Name", placeholder: "Name", value: name, formKind: .name),
                         EditProfileFormModel(label: "Username", placeholder: "Username", value: username, formKind: .username),
@@ -68,7 +67,8 @@ class ProfileEdditingViewModel {
     
     func getProfilePicture(completion: @escaping (UIImage) -> Void) {
         print(name, username, bio, email)
-        SDWebImageManager.shared.loadImage(with: URL(string: profilePictureURL), options: [], progress: nil) { image, data, error, cache, bool, url in
+        let url = URL(string: profilePictureURL)
+        SDWebImageManager.shared.loadImage(with: url, options: [], progress: nil) { image, data, error, cache, bool, url in
             if let image = image {
                 completion(image)
             }

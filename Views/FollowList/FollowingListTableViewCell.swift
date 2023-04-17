@@ -48,24 +48,15 @@ class FollowingListTableViewCell: UITableViewCell {
         return label
     }()
     
-    private let followUnfollowButton: UIButton = {
-        let button = UIButton()
-        button.setTitle("Unfollow", for: .normal)
-        button.setTitleColor(.label, for: .normal)
-        button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 15)
-        button.backgroundColor = .systemBackground
-        button.clipsToBounds = true
+    private let followUnfollowButton: FollowUnfollowButton = {
+        let button = FollowUnfollowButton()
         button.translatesAutoresizingMaskIntoConstraints = false
-        button.layer.borderWidth = 0.5
-        button.layer.borderColor = UIColor.lightGray.cgColor
-        button.layer.cornerRadius = 5
         button.addTarget(self, action: #selector(didTapFollowUnfollowButton), for: .touchUpInside)
         return button
     }()
     
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
-        print("initializing cell")
         setupViewsAndConstraints()
         selectionStyle = .none
         
@@ -118,30 +109,11 @@ class FollowingListTableViewCell: UITableViewCell {
     private func switchFollowUnfollowButton(followStatus: FollowStatus) {
         switch followStatus {
         case .notFollowing:
-            showFollowButton()
+            followUnfollowButton.changeAppearenceToFollow()
         case .following:
-            showUnfollowButton()
+            followUnfollowButton.changeAppearenceToUnfollow()
         }
     }
-    
-    private func showFollowButton() {
-        followUnfollowButton.setTitle("Follow", for: .normal)
-        followUnfollowButton.backgroundColor = .systemBlue
-        followUnfollowButton.setTitleColor(.white, for: .normal)
-        followUnfollowButton.layer.borderWidth = 0
-        followUnfollowButton.layer.borderColor = .none
-    }
-    
-    
-    private func showUnfollowButton() {
-        followUnfollowButton.setTitle("Unfollow", for: .normal)
-        followUnfollowButton.backgroundColor = .systemBackground
-        followUnfollowButton.setTitleColor(.label, for: .normal)
-        followUnfollowButton.layer.borderWidth = 0.5
-        followUnfollowButton.layer.borderColor = UIColor.lightGray.cgColor
-    }
-    
-    
     
     @objc func didTapFollowUnfollowButton() {
         

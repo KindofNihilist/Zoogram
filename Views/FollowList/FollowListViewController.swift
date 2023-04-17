@@ -13,6 +13,10 @@ struct UserRelationship {
     let type: FollowStatus
 }
 
+enum FollowCellType {
+    case following, followers
+}
+
 class FollowListViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
     
     private let viewModel = FollowListViewModel()
@@ -149,28 +153,30 @@ class FollowListViewController: UIViewController, UITableViewDelegate, UITableVi
                 
             case .following:
                 let cell = tableView.dequeueReusableCell(withIdentifier: FollowingListTableViewCell.identifier, for: indexPath) as! FollowingListTableViewCell
+                let url = URL(string: user.profilePhotoURL)
                 cell.nameLabel.text = user.name
                 cell.usernameLabel.text = user.username
-                cell.profileImageView.sd_setImage(with: URL(string: user.profilePhotoURL))
-                print("USER FOLLOW STATUS:", user.isFollowed)
-                cell.configure(userID: user.userID ,followStatus: user.isFollowed)
+                cell.profileImageView.sd_setImage(with: url)
+                cell.configure(userID: user.userID ,followStatus: user.followStatus)
                 cell.delegate = self
                 return cell
                 
             case .followers:
                 let cell = tableView.dequeueReusableCell(withIdentifier: FollowersListTableViewCell.identifier, for: indexPath) as! FollowersListTableViewCell
+                let url = URL(string: user.profilePhotoURL)
                 cell.nameLabel.text = user.name
                 cell.usernameLabel.text = user.username
-                cell.profileImageView.sd_setImage(with: URL(string: user.profilePhotoURL))
-                cell.configure(userID: user.userID, followStatus: user.isFollowed)
+                cell.profileImageView.sd_setImage(with: url)
+                cell.configure(userID: user.userID, followStatus: user.followStatus)
                 cell.delegate = self
                 return cell
             }
         } else {
             let cell = tableView.dequeueReusableCell(withIdentifier: FollowingListTableViewCell.identifier, for: indexPath) as! FollowingListTableViewCell
+            let url = URL(string: user.profilePhotoURL)
             cell.nameLabel.text = user.name
             cell.usernameLabel.text = user.username
-            cell.profileImageView.sd_setImage(with: URL(string: user.profilePhotoURL))
+            cell.profileImageView.sd_setImage(with: url)
             cell.delegate = self
             return cell
         }
@@ -178,7 +184,7 @@ class FollowListViewController: UIViewController, UITableViewDelegate, UITableVi
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let user = viewModel.users[indexPath.row]
-        let vc = UserProfileViewController(for: user.userID, isUserProfile: user.isUserProfile, isFollowed: user.isFollowed)
+        let vc = UserProfileViewController(isTabBarItem: false)
         navigationController?.pushViewController(vc, animated: true)
     }
     
@@ -206,18 +212,14 @@ extension FollowListViewController: FollowListCellDelegate {
     }
     
     func followButtonTapped(userID: String, followCompletion: @escaping (FollowStatus) -> Void) {
-        viewModel.followUser(uid: userID) { success in
-            if success {
-                followCompletion(.following)
-            }
+        viewModel.followUser(uid: userID) { followStatus in
+            followCompletion(followStatus)
         }
     }
     
     func unfollowButtonTapped(userID: String, unfollowCompletion: @escaping (FollowStatus) -> Void) {
-        viewModel.unfollowUser(uid: userID) { success in
-            if success {
-                unfollowCompletion(.notFollowing)
-            }
+        viewModel.unfollowUser(uid: userID) { followStatus in
+            unfollowCompletion(followStatus)
         }
     }
 }

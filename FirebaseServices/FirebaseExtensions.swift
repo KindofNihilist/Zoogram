@@ -8,6 +8,10 @@
 import Foundation
 import FirebaseDatabase
 
+public typealias IsSuccessful = Bool
+
+public typealias LastRetrievedPostKey = String
+
 extension DataSnapshot {
     
     func decoded() throws -> ZoogramUser {

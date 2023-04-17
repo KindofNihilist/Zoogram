@@ -41,6 +41,7 @@ class DiscoverViewController: UIViewController {
         navigationController?.navigationBar.topItem?.titleView = searchBar
         tableView.delegate = self
         tableView.dataSource = self
+        tableView.keyboardDismissMode = .interactive
         searchBar.delegate = self
 //        navigationController?.navigationItem.rightBarButtonItem = UIBarButtonItem(image: UIImage(systemName: "gobackwards"), style: .plain, target: self, action: #selector(reloadTableView))
         
@@ -120,7 +121,8 @@ extension DiscoverViewController: UITableViewDelegate, UITableViewDataSource {
         
         cell.usernameLabel.text = user.username
         cell.nameLabel.text = user.name
-        cell.profileImageView.sd_setImage(with: URL(string: user.profilePhotoURL))
+        let url = URL(string: user.profilePhotoURL)
+        cell.profileImageView.sd_setImage(with: url)
         
         return cell
     }
@@ -132,7 +134,7 @@ extension DiscoverViewController: UITableViewDelegate, UITableViewDataSource {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let user = viewModel.foundUsers[indexPath.row]
         print("USER SELECTED:", user.username)
-        let userProfileViewController = UserProfileViewController(for: user.userID, isUserProfile: user.isUserProfile, isFollowed: user.isFollowed)
+        let userProfileViewController = UserProfileViewController(isTabBarItem: false)
         userProfileViewController.title = user.username
         self.navigationController?.pushViewController(userProfileViewController, animated: true)
     }

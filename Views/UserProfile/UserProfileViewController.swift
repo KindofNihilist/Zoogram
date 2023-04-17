@@ -13,20 +13,24 @@ import AVFoundation
 
 final class UserProfileViewController: UIViewController {
     
-    private var collectionView: UICollectionView!
+    var service: UserProfileServiceAPIAdapter!
     
-    private var viewModel: UserProfileViewModel
+    private var viewModel = UserProfileViewModel()
+    
+    private var collectionView: UICollectionView!
     
     private var headerHeight: CGFloat = 0
     
     private var postTableViewController: PostViewController!
     
+    private var profileHeaderView: ProfileHeaderReusableView?
+    
     private lazy var spinnerView = UIActivityIndicatorView()
     
     let settingsButton: UIBarButtonItem = {
-        let barButtonItem = UIBarButtonItem(image: UIImage(systemName: "gearshape"),
+        let barButtonItem = UIBarButtonItem(image: UIImage(systemName: "line.3.horizontal"),
                                             style: .done,
-                                            target: UserProfileViewController.self,
+                                            target: self,
                                             action: #selector(didTapSettingsButton))
         barButtonItem.tintColor = .label
         return barButtonItem
@@ -39,64 +43,40 @@ final class UserProfileViewController: UIViewController {
         return label
     }()
     
-    lazy var collectionViewPlaceholder: UIView = {
-        let view = UIView()
-        view.translatesAutoresizingMaskIntoConstraints = false
-        return view
-    }()
-    
-    override func viewDidLoad() {
-        setupCollectionView()
-        
-        setupBindings()
-        
-        NotificationCenter.default.addObserver(self, selector: #selector(postDeleted), name: Notification.Name("PostDeleted"), object: nil)
-        
-    }
-    
-    init(for userID: String, isUserProfile: Bool, isFollowed: FollowStatus) {
-        viewModel = UserProfileViewModel(for: userID, followStatus: isFollowed, isUserProfile: isUserProfile)
+    init(isTabBarItem: Bool) {
         super.init(nibName: nil, bundle: nil)
+        
+        if isTabBarItem {
+            self.configureNavigationBar()
+        }
     }
     
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
     
-    private func setupBindings() {
-        viewModel.user.bind { user in
-            print("USER INSIDE BINDING:", user?.username)
-            if self.viewModel.isUserProfile {
-                self.configureNavigationBar()
-            }
+    override func viewDidLoad() {
+        setupCollectionView()
+        self.postTableViewController = PostViewController(posts: viewModel.posts)
+    
+        NotificationCenter.default.addObserver(self, selector: #selector(postDeleted), name: Notification.Name("PostDeleted"), object: nil)
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        service.getUserProfileViewModel { viewModel in
+            print("inside user profile get profile view model")
+            self.viewModel = viewModel
             self.collectionView.reloadData()
         }
         
-        viewModel.userPosts.bind { _ in
-            guard let posts = self.viewModel.userPosts.value else {
-                print("failed to get posts")
-                return
-            }
-            print("inside posts binding")
-            self.postTableViewController = PostViewController(posts: posts, isUserProfile: self.viewModel.isUserProfile)
-            self.collectionView.reloadData()
-        }
-        
-        viewModel.postsCount.bind { _ in
-            print("binded posts count")
-            self.collectionView.reloadData()
-        }
-        
-        viewModel.followersCount.bind { _ in
-            print("binded followers count")
-            self.collectionView.reloadData()
-        }
-        
-        viewModel.followingCount.bind { _ in
-            print("binded following count")
+        service.getPosts { posts in
+            print("inside User Profile get posts")
+            print("Posts retrived for profile: \(posts.count)")
+            self.viewModel.posts = posts
             self.collectionView.reloadData()
         }
     }
+    
     
     private func configureNavigationBar() {
         settingsButton.target = self
@@ -107,60 +87,23 @@ final class UserProfileViewController: UIViewController {
     }
     
     private func setUserNickname() {
-        userNicknameLabel.text = viewModel.user.value?.username
+        userNicknameLabel.text = viewModel.user.username
     }
     
-    private func atachSpinnerView(to collectionViewHeader: UIView) {
-        spinnerView.translatesAutoresizingMaskIntoConstraints = false
-        collectionViewPlaceholder.addSubview(spinnerView)
-        NSLayoutConstraint.activate([
-            collectionViewPlaceholder.topAnchor.constraint(equalTo: collectionViewHeader.bottomAnchor),
-            collectionViewPlaceholder.bottomAnchor.constraint(equalTo: collectionView.bottomAnchor),
-            collectionViewPlaceholder.widthAnchor.constraint(equalTo: collectionView.widthAnchor),
-            
-            spinnerView.heightAnchor.constraint(equalToConstant: 25),
-            spinnerView.widthAnchor.constraint(equalToConstant: 25),
-            spinnerView.topAnchor.constraint(equalTo: collectionViewPlaceholder.topAnchor),
-            spinnerView.bottomAnchor.constraint(equalTo: collectionViewPlaceholder.bottomAnchor),
-            spinnerView.centerXAnchor.constraint(equalTo: collectionViewPlaceholder.centerXAnchor)
-        ])
-        spinnerView.startAnimating()
-    }
     
-    private func createNoPostsView() {
-        spinnerView.removeFromSuperview()
-        let noPostsAlert = NoPostsAlertView()
-        noPostsAlert.translatesAutoresizingMaskIntoConstraints = false
-        collectionViewPlaceholder.addSubview(noPostsAlert)
-        NSLayoutConstraint.activate([
-            noPostsAlert.topAnchor.constraint(equalTo: collectionViewPlaceholder.topAnchor),
-            noPostsAlert.bottomAnchor.constraint(equalTo: collectionViewPlaceholder.bottomAnchor),
-            noPostsAlert.widthAnchor.constraint(equalTo: collectionViewPlaceholder.widthAnchor)
-        ])
-    }
-    
+    //MARK: CollectionView Setup
     private func setupCollectionView() {
-        let availableWidth = view.frame.width - 3
-        let cellWidth = availableWidth / 3
-        
-        let layout = UICollectionViewFlowLayout()
-        layout.scrollDirection = .vertical
-        layout.minimumLineSpacing = 1
-        layout.minimumInteritemSpacing = 1
-        layout.sectionInsetReference = .fromSafeArea
-        layout.itemSize = CGSize(width: cellWidth, height: cellWidth)
+        let layout = (viewModel.postsCount > 0) ? createCollectionViewLayoutFor(numberOfCells: 3) : createCollectionViewLayoutFor(numberOfCells: 1)
         
         collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
         collectionView?.delegate = self
         collectionView?.dataSource = self
         
-        //Register Cell
         collectionView?.register(PhotoCollectionViewCell.self, forCellWithReuseIdentifier: PhotoCollectionViewCell.identifier)
-        
-        //Register Headers
         collectionView?.register(ProfileHeaderReusableView.self, forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader, withReuseIdentifier: ProfileHeaderReusableView.identifier)
-        
         collectionView?.register(ProfileTabsReusableView.self, forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader, withReuseIdentifier: ProfileTabsReusableView.identifier)
+        collectionView?.register(UICollectionViewCell.self, forCellWithReuseIdentifier: "NoPostsCell")
+        collectionView?.register(UICollectionViewCell.self, forCellWithReuseIdentifier: "SpinnerViewCell")
         
         guard let collectionView = collectionView else {
             return
@@ -174,62 +117,80 @@ final class UserProfileViewController: UIViewController {
             collectionView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             collectionView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
             collectionView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
-            collectionView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
-        collectionView.addSubview(collectionViewPlaceholder)
     }
     
-    @objc private func postDeleted(_ notification: Notification) {
-        guard let index = notification.object as? Int else {
-            print("couldn't cast notification object to Int type or object is nil")
-            return
-        }
-        viewModel.userPosts.value?.remove(at: index)
-        collectionView.reloadData()
+    private func createFooterSpinnerView() -> UIView {
+        let footerView = UIView(frame: CGRect(x: 0, y: 0, width: self.view.frame.width, height: 70))
+        footerView.backgroundColor = .systemCyan
+        let spinner = UIActivityIndicatorView(style: .medium)
+        footerView.addSubview(spinner)
+        spinner.center = footerView.center
+        spinner.startAnimating()
+        return footerView
     }
-    //
-    //    @objc private func onDataReceive() {
-    //        print("DATA RECEIVED RELOADING TABLE VIEW")
-    //        self.postTableViewController = PostViewController(posts: self.viewModel.userPosts, isUserProfile: viewModel.isUserProfile)
-    //        collectionView.reloadData()
-    //    }
+    
+    private func createSpinnerViewFor(collectionView: UICollectionView, at indexPath: IndexPath) -> UICollectionViewCell {
+        let spinnerCell = collectionView.dequeueReusableCell(withReuseIdentifier: "SpinnerViewCell", for: indexPath)
+        spinnerView.translatesAutoresizingMaskIntoConstraints = false
+        spinnerCell.addSubview(spinnerView)
+        NSLayoutConstraint.activate([
+            spinnerView.heightAnchor.constraint(equalToConstant: 25),
+            spinnerView.widthAnchor.constraint(equalToConstant: 25),
+            spinnerView.topAnchor.constraint(equalTo: spinnerCell.topAnchor, constant: 25),
+            spinnerView.centerXAnchor.constraint(equalTo: spinnerCell.centerXAnchor)
+        ])
+        spinnerView.startAnimating()
+        return spinnerCell
+    }
+    
+    private func createCollectionViewLayoutFor(numberOfCells: Int) -> UICollectionViewFlowLayout {
+        let availableWidth = view.frame.width - CGFloat(numberOfCells)
+        let cellWidth = availableWidth / CGFloat(numberOfCells)
+        
+        let layout = UICollectionViewFlowLayout()
+        layout.scrollDirection = .vertical
+        layout.minimumLineSpacing = 1
+        layout.minimumInteritemSpacing = 1
+        layout.sectionInsetReference = .fromSafeArea
+        layout.itemSize = CGSize(width: cellWidth, height: cellWidth)
+        return layout
+    }
+    
+    private func createNoPostsViewCellFor(collectionView: UICollectionView, indexPath: IndexPath) -> UICollectionViewCell {
+        spinnerView.removeFromSuperview()
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "NoPostsCell", for: indexPath)
+//        cell.backgroundColor = .systemCyan
+        let noPostsAlert = PlaceholderView(imageName: "camera", text: "No Posts Yet")
+        noPostsAlert.translatesAutoresizingMaskIntoConstraints = false
+        cell.contentView.addSubview(noPostsAlert)
+        NSLayoutConstraint.activate([
+            noPostsAlert.centerYAnchor.constraint(equalTo: cell.contentView.centerYAnchor),
+            noPostsAlert.heightAnchor.constraint(equalToConstant: 150),
+            noPostsAlert.widthAnchor.constraint(equalTo: cell.contentView.widthAnchor)
+        ])
+        return cell
+    }
+
     
     // MARK: Profile header setup
     func createProfileHeader(for collectionView: UICollectionView, ofKind: String, for indexPath: IndexPath) -> UICollectionReusableView {
+        
         let profileHeader = collectionView.dequeueReusableSupplementaryView(ofKind: ofKind, withReuseIdentifier: ProfileHeaderReusableView.identifier, for: indexPath) as! ProfileHeaderReusableView
         profileHeader.delegate = self
         
-        if let user = viewModel.user.value {
-            profileHeader.configure(name: user.name,
-                                    bio: user.bio!,
-                                    profilePicture: viewModel.profilePhoto.value!,
-                                    postsCount: viewModel.postsCount.value!,
-                                    followersCount: viewModel.followersCount.value!,
-                                    followingCount: viewModel.followingCount.value!,
-                                    isFollowed: viewModel.isFollowed,
-                                    isUserProfile: viewModel.isUserProfile)
-        }
+        profileHeader.configureWith(viewModel: self.viewModel)
         
         self.headerHeight = profileHeader.frame.height
+        self.profileHeaderView = profileHeader
         return profileHeader
     }
     
     func createTabsHeader(for collectionView: UICollectionView, ofKind: String, for indexPath: IndexPath) -> UICollectionReusableView {
         let profileTabsHeader = collectionView.dequeueReusableSupplementaryView(ofKind: ofKind, withReuseIdentifier: ProfileTabsReusableView.identifier, for: indexPath) as! ProfileTabsReusableView
         
-        
         profileTabsHeader.delegate = self
-        
-        if viewModel.isInitialized && !viewModel.userPosts.value!.isEmpty {
-            print("inside remove placeholder")
-            collectionViewPlaceholder.removeFromSuperview()
-        } else if !viewModel.isInitialized {
-            print("inside spinner view placeholder")
-            atachSpinnerView(to: profileTabsHeader)
-        } else {
-            print("inside no posts placeholder")
-            createNoPostsView()
-        }
         
         return profileTabsHeader
     }
@@ -238,11 +199,20 @@ final class UserProfileViewController: UIViewController {
         self.collectionView.setContentOffset(CGPointZero, animated: true)
     }
     
-    @objc func didTapSettingsButton() {
+    @objc private func didTapSettingsButton() {
         let vc = SettingsViewController()
         vc.hidesBottomBarWhenPushed = true
         vc.title = "Settings"
         self.navigationController?.pushViewController(vc, animated: true)
+    }
+    
+    @objc private func postDeleted(_ notification: Notification) {
+        guard let index = notification.object as? Int else {
+            print("couldn't cast notification object to Int type or object is nil")
+            return
+        }
+        viewModel.posts.remove(at: index)
+        collectionView.reloadData()
     }
 }
 
@@ -257,34 +227,41 @@ extension UserProfileViewController: UICollectionViewDelegate, UICollectionViewD
     }
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        guard let posts = viewModel.userPosts.value else {
-            return 0
-        }
         if section == 0 {
             return 0
         }
-        return posts.count
+        
+        //if posts hasn't downloaded yet but posts count is bigger than 0 - returns 12 blank cells, otherwise returns 0
+        guard viewModel.posts.isEmpty != true else {
+            return viewModel.postsCount > 0 ? 12 : 0
+        }
+        
+        return viewModel.posts.count
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        guard let posts = viewModel.userPosts.value else {
-            return UICollectionViewCell()
+        guard viewModel.posts.isEmpty != true else {
+            if viewModel.postsCount == 0 {
+                return createNoPostsViewCellFor(collectionView: collectionView, indexPath: indexPath)
+            } else {
+                return createSpinnerViewFor(collectionView: collectionView, at: indexPath)
+            }
+            
         }
         
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: PhotoCollectionViewCell.identifier, for: indexPath) as! PhotoCollectionViewCell
         
-        let post = posts[indexPath.row]
+        let post = viewModel.posts[indexPath.row]
         
-        cell.photoImageView.sd_setImage(with: URL(string: post.photoURL)) { image, _, _, _  in
-            if let downloadedImage = image {
-                self.viewModel.userPosts.value?[indexPath.row].image = downloadedImage
-            }
-        }
+        cell.photoImageView.image = post.postImage
+
         return cell
     }
     
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-        //        collectionView.deselectItem(at: indexPath, animated: true)
+        guard viewModel.posts.isEmpty != true else {
+            return
+        }
         postTableViewController.focusTableViewOnPostWith(index: indexPath)
         navigationController?.pushViewController(postTableViewController, animated: true)
     }
@@ -310,28 +287,17 @@ extension UserProfileViewController: UICollectionViewDelegate, UICollectionViewD
             return CGSize(width: collectionView.frame.width, height: 45)
         }
         
-        if section == 0 {
-            let headerView = self.collectionView(collectionView, viewForSupplementaryElementOfKind: UICollectionView.elementKindSectionHeader, at: IndexPath(row: 0, section: section))
-            
-            return headerView.systemLayoutSizeFitting(CGSize(width: collectionView.frame.width, height: UIView.layoutFittingCompressedSize.height), withHorizontalFittingPriority: .required, verticalFittingPriority: .fittingSizeLevel)
-        }
-        
-        return CGSize(width: 0, height: 0)
-        
+        let headerView = self.collectionView(collectionView, viewForSupplementaryElementOfKind: UICollectionView.elementKindSectionHeader, at: IndexPath(row: 0, section: section))
+
+        return headerView.systemLayoutSizeFitting(CGSize(width: collectionView.frame.width, height: UIView.layoutFittingCompressedSize.height), withHorizontalFittingPriority: .required, verticalFittingPriority: .fittingSizeLevel)
     }
     
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
         let position = scrollView.contentOffset.y
         
         if position > (collectionView.contentSize.height - 100 - scrollView.frame.size.height) {
-            guard !viewModel.isPaginating else {
-                //we already fetching more data
-                return
-            }
-            viewModel.getMoreUserPosts { paginatedPosts in
-                print("Paginated posts")
-                self.collectionView.reloadData()
-                self.postTableViewController.addPaginatedPosts(posts: paginatedPosts)
+            service.getMorePosts { paginatedPosts in
+                self.viewModel.posts.append(contentsOf: paginatedPosts)
             }
         }
     }
@@ -340,40 +306,22 @@ extension UserProfileViewController: UICollectionViewDelegate, UICollectionViewD
 // MARK: ProfileHeaderDelegate
 extension UserProfileViewController: ProfileHeaderDelegate {
     
-    func followButtonTapped(_ header: ProfileHeaderReusableView, followCompletion: @escaping (FollowStatus) -> Void) {
-        guard viewModel.isInitialized else {
-            return
-        }
-        print("Follow tapped")
-        viewModel.followUser { success in
-            if success {
-                print("Succesfully followed")
-                followCompletion(.following)
-            } else {
-                print("Unnable to follow, try again later")
-            }
-            
+    func followButtonTapped(_ header: ProfileHeaderReusableView) {
+        service.followUser { followStatus in
+            self.viewModel.user.followStatus = followStatus
+            header.switchFollowUnfollowButton(followStatus: followStatus)
         }
     }
     
-    func unfollowButtonTapped(_ header: ProfileHeaderReusableView, unfollowCompletion: @escaping (FollowStatus) -> Void) {
-        guard viewModel.isInitialized else {
-            return
-        }
-        print("Unfollow tapped")
-        viewModel.unfollowUser { success in
-            if success {
-                print("Succesfully unfollowed")
-                unfollowCompletion(.notFollowing)
-            } else {
-                print("Unnable to unfollow, try again later")
-            }
+    func unfollowButtonTapped(_ header: ProfileHeaderReusableView) {
+        service.unfollowUser { followStatus in
+            self.viewModel.user.followStatus = followStatus
+            header.switchFollowUnfollowButton(followStatus: followStatus)
         }
     }
     
     func postsButtonTapped(_ header: ProfileHeaderReusableView) {
-        guard let posts = viewModel.userPosts.value,
-              !posts.isEmpty else {
+        guard viewModel.posts.isEmpty != true else {
             return
         }
         // center view on the posts section
@@ -381,31 +329,27 @@ extension UserProfileViewController: ProfileHeaderDelegate {
     }
     
     func followingButtonTapped(_ header: ProfileHeaderReusableView) {
-        guard let user = viewModel.user.value else {
-            return
-        }
+        let user = viewModel.user
         // open tableview of people user follows
-        let vc = FollowListViewController(for: user.userID, isUserProfile: viewModel.isUserProfile , viewKind: .following)
+        let vc = FollowListViewController(for: user.userID, isUserProfile: viewModel.isCurrentUserProfile , viewKind: .following)
         vc.title = "Following"
         navigationController?.pushViewController(vc, animated: true)
     }
     
     func followersButtonTapped(_ header: ProfileHeaderReusableView) {
-        guard let user = viewModel.user.value else {
-            return
-        }
+        let user = viewModel.user
         // open viewcontroller with tableview of people following user
-        let vc = FollowListViewController(for: user.userID, isUserProfile: viewModel.isUserProfile, viewKind: .followers)
+        let vc = FollowListViewController(for: user.userID, isUserProfile: viewModel.isCurrentUserProfile, viewKind: .followers)
         vc.title = "Followers"
         navigationController?.pushViewController(vc, animated: true)
     }
     
     func editProfileButtonTapped(_ header: ProfileHeaderReusableView) {
-        guard viewModel.isInitialized else {
+        guard let photo = viewModel.user.profilePhoto else {
             return
         }
         // navigate to ProfileEdditingViewController
-        let vc = ProfileEdditingViewController(profileImage: viewModel.profilePhoto.value!)
+        let vc = ProfileEdditingViewController(profileImage: photo)
         present(UINavigationController(rootViewController: vc), animated: true)
     }
 }

@@ -10,16 +10,36 @@ import UIKit
 
 class TabBarController: UITabBarController {
     
-    var tabBarHeight: CGFloat = 55
+    let homeVC = HomeViewController()
+    let discoverVC = DiscoverViewController()
+    let cameraRollVC = CameraRollViewController()
+    let activityVC = ActivityViewController()
+    let userProfileVC: UserProfileViewController = {
+        let vc = UserProfileViewController(isTabBarItem: true)
+        let service = UserProfileServiceAPIAdapter(
+            userID: currentUserID(),
+            followService: FollowService.shared,
+            userPostsService: UserPostsService.shared,
+            userService: UserService.shared,
+            likeSystemService: LikeSystemService.shared,
+            bookmarksService: BookmarksService.shared)
+        vc.service = service
+        return vc
+    }()
     
     var previousViewController: UIViewController?
+    
+    var events = [ActivityEvent]()
     
     override func viewWillAppear(_ animated: Bool) {
         loadTabBar()
     }
-
+    
     override func viewDidLoad() {
         delegate = self
+        activityVC.delegate = self
+        listenToActivityEvents()
+//        addTestingButton()
     }
     
     init(showAppearAnimation: Bool = false) {
@@ -27,7 +47,7 @@ class TabBarController: UITabBarController {
         if showAppearAnimation {
             view.alpha = 0
             view.transform = CGAffineTransform(scaleX: 0.1, y: 0.1)
-//            animateAppearing()
+            //            animateAppearing()
         }
     }
     
@@ -36,8 +56,7 @@ class TabBarController: UITabBarController {
     }
     
     func loadTabBar() {
-        let uid = AuthenticationManager.shared.getCurrentUserUID()
-        let tabItems: [UIViewController] = [HomeViewController(), DiscoverViewController(), NewPostViewController(), ActivityViewController(), UserProfileViewController(for: uid, isUserProfile: true, isFollowed: .notFollowing)]
+        let tabItems: [UIViewController] = [homeVC, discoverVC, cameraRollVC, activityVC, userProfileVC]
         let tabIcons: [TabItem] = [.home, .discover, .makeAPost, .activity, .myProfile]
         self.setupTabBar(tabItems) { (controllers) in
             self.view.layoutIfNeeded()
@@ -50,7 +69,7 @@ class TabBarController: UITabBarController {
             item.image = tabIcons[index].icon
             item.selectedImage = tabIcons[index].selectedIcon
         }
-//        tabBar.isTranslucent = false
+        
         tabBar.configureTabBarColor(with: .systemBackground)
         tabBar.tintColor = .label
     }
@@ -65,7 +84,7 @@ class TabBarController: UITabBarController {
             navController.navigationBar.configureNavigationBarColor(with: .systemBackground)
             controllers.append(navController)
         }
-        completion(controllers) 
+        completion(controllers)
     }
     
     private func animateAppearing() {
@@ -75,19 +94,62 @@ class TabBarController: UITabBarController {
         }
     }
     
+    private func listenToActivityEvents() {
+        ActivityService.shared.observeActivityEvents() { events in
+            self.events = events
+            self.activityVC.updateEvents(events)
+            let hasUnseenEvents = events.filter({$0.seen == false}).count > 0
+            if hasUnseenEvents {
+                self.addNotificationBadge()
+            } else {
+                self.removeNotificationBadge()
+            }
+        }
+    }
+    
+    private func addNotificationBadge() {
+        let barActivityItem = tabBar.items?[3]
+        barActivityItem?.badgeValue = "●"
+        
+    }
+    
+    private func removeNotificationBadge() {
+        let barActivityItem = tabBar.items?[3]
+        barActivityItem?.badgeValue = nil
+    }
+    
+    private func addTestingButton() {
+        let testButton = UIButton()
+        testButton.translatesAutoresizingMaskIntoConstraints = false
+        testButton.layer.masksToBounds = false
+        testButton.layer.cornerRadius = 15
+        testButton.backgroundColor = .systemRed
+        testButton.addTarget(self, action: #selector(markAllEventsUnseen), for: .touchUpInside)
+        tabBar.addSubview(testButton)
+        print("TEsting button added")
+        NSLayoutConstraint.activate([
+            testButton.leadingAnchor.constraint(equalTo: tabBar.leadingAnchor, constant: 5),
+            testButton.bottomAnchor.constraint(equalTo: tabBar.bottomAnchor, constant: -5),
+            testButton.heightAnchor.constraint(equalToConstant: 30),
+            testButton.widthAnchor.constraint(equalToConstant: 30)
+        ])
+    }
+    
+    @objc private func markAllEventsUnseen() {
+        ActivityService.shared.updateActivityEventsSeenStatusToFalse(events: self.events) {
+            print("Marked all events as unseen")
+        }
+    }
 }
 
 extension TabBarController: UITabBarControllerDelegate {
     func tabBarController(_ tabBarController: UITabBarController, shouldSelect viewController: UIViewController) -> Bool {
         
         if let navigationController = viewController as? UINavigationController,
-           navigationController.viewControllers.contains(where: {$0 is NewPostViewController}) {
+           navigationController.viewControllers.contains(where: {$0 is CameraRollViewController}) {
             
-            let vc = UINavigationController(rootViewController: NewPostViewController())
+            let vc = UINavigationController(rootViewController: CameraRollViewController())
             vc.modalPresentationStyle = .fullScreen
-//            vc.navigationBar.isTranslucent = true
-//            vc.navigationBar.configureNavigationBarColor(with: .black)
-//            vc.navigationBar.barStyle = .black
             present(vc, animated: true)
             return false
         } else {
@@ -105,12 +167,18 @@ extension TabBarController: UITabBarControllerDelegate {
                     vc.setTopTableViewVisibleContent()
                 }
             } else if let navVC = viewController as? UINavigationController, let vc = navVC.viewControllers.first as? UserProfileViewController {
-               
+                
                 if vc.isViewLoaded && (vc.view.window != nil) {
                     vc.setTopCollectionViewVisibleContent()
                 }
             }
         }
         previousViewController = viewController
+    }
+}
+
+extension TabBarController: ActivityViewUnseenEventsProtocol {
+    func userHasSeenAllActivityEvents() {
+        self.removeNotificationBadge()
     }
 }

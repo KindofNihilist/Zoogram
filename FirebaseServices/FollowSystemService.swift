@@ -14,22 +14,24 @@ class FollowService {
     
     private let databaseRef = Database.database(url: "https://catogram-58487-default-rtdb.europe-west1.firebasedatabase.app").reference()
     
-    func getFollowersNumber(for uid: String, completion: @escaping (Int) -> Void) {
+    typealias FollowersNumber = Int
+    
+    typealias FollowingNumber = Int
+    
+    func getFollowersNumber(for uid: String, completion: @escaping (FollowersNumber) -> Void) {
         
         let databaseKey =  "Followers/\(uid)"
         
-        databaseRef.child(databaseKey).observe( .value) { snapshot in
+        databaseRef.child(databaseKey).observeSingleEvent(of: .value) { snapshot in
             completion(Int(snapshot.childrenCount))
         }
-        
-        
     }
     
-    func getFollowingNumber(for uid: String, completion: @escaping (Int) -> Void) {
+    func getFollowingNumber(for uid: String, completion: @escaping (FollowingNumber) -> Void) {
         
         let databaseKey =  "Following/\(uid)"
         
-        databaseRef.child(databaseKey).observe( .value) { snapshot in
+        databaseRef.child(databaseKey).observeSingleEvent(of: .value) { snapshot in
             completion(Int(snapshot.childrenCount))
         }
     }
@@ -53,7 +55,7 @@ class FollowService {
                     return
                 }
                 dispatchGroup.enter()
-                UserService.shared.getUser(for: userID) { follower in
+                UserService.shared.observeUser(for: userID) { follower in
                     followers.append(follower)
                     dispatchGroup.leave()
                 }
@@ -83,7 +85,7 @@ class FollowService {
                     return
                 }
                 dispatchGroup.enter()
-                UserService.shared.getUser(for: userID) { followed in
+                UserService.shared.observeUser(for: userID) { followed in
                     followedUsers.append(followed)
                     dispatchGroup.leave()
                 }
@@ -99,16 +101,14 @@ class FollowService {
         let query = databaseRef.child("Following/\(currentUserID)").queryOrdered(byChild: "userID").queryEqual(toValue: uid)
         query.observeSingleEvent(of: .value) { snapshot in
             if snapshot.exists() {
-                print("User is followed:", snapshot)
                 completion(.following)
             } else {
-                print("User isn't followed:", snapshot)
                 completion(.notFollowing)
             }
         }
     }
     
-    func followUser(uid: String, completion: @escaping (Bool) -> Void) {
+    func followUser(uid: String, completion: @escaping (FollowStatus) -> Void) {
         let currentUserUID = AuthenticationManager.shared.getCurrentUserUID()
         
         let databaseKey = "Following/\(currentUserUID)/\(uid)"
@@ -116,16 +116,19 @@ class FollowService {
         databaseRef.child(databaseKey).setValue(["userID": uid]) { error, _ in
             if error == nil {
                 self.insertFollower(with: currentUserUID, to: uid) {
-                    completion(true)
+                    completion(.following)
                 }
+                let eventID = ActivityService.shared.createEventUID()
+                let activityEvent = ActivityEvent(eventType: .followed, userID: currentUserUID, eventID: eventID, date: Date())
+                ActivityService.shared.addEventToUserActivity(event: activityEvent, userID: uid)
             } else {
-                completion(false)
+                print(error)
             }
         }
         
     }
     
-    func unfollowUser(uid: String, completion: @escaping (Bool) -> Void) {
+    func unfollowUser(uid: String, completion: @escaping (FollowStatus) -> Void) {
         let currentUserUID = AuthenticationManager.shared.getCurrentUserUID()
         
         let databaseKey = "Following/\(currentUserUID)/\(uid)"
@@ -133,10 +136,10 @@ class FollowService {
         databaseRef.child(databaseKey).removeValue { error, _ in
             if error == nil {
                 self.removeFollower(with: currentUserUID, from: uid) {
-                    completion(true)
+                    completion(.notFollowing)
                 }
             } else {
-                completion(false)
+                print(error)
             }
         }
     }
@@ -163,7 +166,7 @@ class FollowService {
         }
     }
     
-    func forcefullyRemoveFollower(uid: String, completion: @escaping (Bool) -> Void) {
+    func forcefullyRemoveFollower(uid: String, completion: @escaping (IsSuccessful) -> Void) {
         let currentUserUID = AuthenticationManager.shared.getCurrentUserUID()
         
         let databaseKey = "Following/\(uid)/\(currentUserUID)"
@@ -177,7 +180,7 @@ class FollowService {
         }
     }
     
-    func undoForcefullRemoval(ofUser uid: String, completion: @escaping (Bool) -> Void) {
+    func undoForcefullRemoval(ofUser uid: String, completion: @escaping (IsSuccessful) -> Void) {
         let currentUserUID = AuthenticationManager.shared.getCurrentUserUID()
         
         let databaseKey = "Following/\(uid)/\(currentUserUID)"

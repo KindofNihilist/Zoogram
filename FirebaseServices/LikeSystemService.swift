@@ -14,13 +14,16 @@ class LikeSystemService {
     
     private let databaseRef = Database.database(url: "https://catogram-58487-default-rtdb.europe-west1.firebasedatabase.app").reference()
     
-    func checkIfPostIsLiked(postID: String, completion: @escaping (PostLikeState) -> Void) {
+    typealias LikesCount = Int
+    
+    typealias ResultBlock = (Result<String, Error>) -> Void
+    
+    func checkIfPostIsLiked(postID: String, completion: @escaping (LikeState) -> Void) {
         let userID = AuthenticationManager.shared.getCurrentUserUID()
         
         let databaseKey = "PostsLikes/\(postID)/"
         
         let query = databaseRef.child(databaseKey).queryOrdered(byChild: "userID").queryEqual(toValue: userID)
-        print("inside like check", databaseKey)
         
         query.observeSingleEvent(of: .value) { snapshot in
             if snapshot.exists() {
@@ -31,11 +34,11 @@ class LikeSystemService {
         }
     }
     
-    func getLikesCountForPost(id: String, completion: @escaping (Int) -> Void) {
+    func getLikesCountForPost(id: String, completion: @escaping (LikesCount) -> Void) {
         
         let databaseKey = "PostsLikes/\(id)"
         
-        databaseRef.child(databaseKey).observe(.value) { snapshot in
+        databaseRef.child(databaseKey).observeSingleEvent(of: .value) { snapshot in
             completion(Int(snapshot.childrenCount))
         }
     }
@@ -44,7 +47,7 @@ class LikeSystemService {
         
     }
     
-    func likePost(postID: String, completion: @escaping (Result<String, Error>) -> Void) {
+    func likePost(postID: String, completion: @escaping ResultBlock) {
         let userID = AuthenticationManager.shared.getCurrentUserUID()
         
         let databaseKey = "PostsLikes/\(postID)/\(userID)"
@@ -59,7 +62,7 @@ class LikeSystemService {
         }
     }
     
-    func removePostLike(postID: String, completion: @escaping (Result<String,Error>) -> Void) {
+    func removePostLike(postID: String, completion: @escaping ResultBlock) {
         let userID = AuthenticationManager.shared.getCurrentUserUID()
         
         let databaseKey = "PostsLikes/\(postID)/\(userID)"

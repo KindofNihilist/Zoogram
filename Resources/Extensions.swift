@@ -8,6 +8,44 @@
 import UIKit
 import SwiftUI
 
+extension Date {
+    func timeAgoDisplay() -> String {
+        let secondsAgo = Int(Date().timeIntervalSince(self))
+        
+        let minute = 60
+        let hour = 60 * minute
+        let day = 24 * hour
+        let week = 7 * day
+        let month = 4 * week
+        
+        let quotient: Int
+        let unit: String
+        if secondsAgo < minute {
+            quotient = secondsAgo
+            unit = "second"
+        } else if secondsAgo < hour {
+            quotient = secondsAgo / minute
+            unit = "min"
+        } else if secondsAgo < day {
+            quotient = secondsAgo / hour
+            unit = "hour"
+        } else if secondsAgo < week {
+            quotient = secondsAgo / day
+            unit = "day"
+        } else if secondsAgo < month {
+            quotient = secondsAgo / week
+            unit = "week"
+        } else {
+            quotient = secondsAgo / month
+            unit = "month"
+        }
+        
+        return "\(quotient) \(unit)\(quotient == 1 ? "" : "s") ago"
+        
+    }
+}
+
+
 extension UIDevice {
     var hasNotch: Bool {
             if #available(iOS 13.0, *) {
@@ -43,13 +81,22 @@ extension UIFont {
     }
 }
 
-public extension UIView {
+extension UIView {
     func addSubviews(_ views: UIView...) {
         for view in views {
             addSubview(view)
         }
     }
 }
+
+extension UIStackView {
+    func addArrangedSubviews(_ views: UIView...) {
+        for view in views {
+            addArrangedSubview(view)
+        }
+    }
+}
+
 
 extension String {
     func safeDatabaseKey() -> String {
@@ -88,12 +135,18 @@ extension UINavigationBar {
 
 extension UITabBar {
     func configureTabBarColor(with color: UIColor) {
-        let appearence = UITabBarAppearance()
-        appearence.configureWithDefaultBackground()
-        appearence.backgroundColor = color
-        appearence.shadowColor = .clear
-        self.standardAppearance = appearence
-        self.scrollEdgeAppearance = appearence
+        let tabItemAppearence = UITabBarItemAppearance(style: .stacked)
+        tabItemAppearence.normal.badgeBackgroundColor = .clear
+        tabItemAppearence.normal.badgeTextAttributes = [.foregroundColor: UIColor.systemRed]
+        let barAppearence = UITabBarAppearance()
+        barAppearence.configureWithDefaultBackground()
+        barAppearence.backgroundColor = color
+        barAppearence.shadowColor = .clear
+        barAppearence.stackedLayoutAppearance = tabItemAppearence
+        barAppearence.compactInlineLayoutAppearance = tabItemAppearence
+        barAppearence.inlineLayoutAppearance = tabItemAppearence
+        self.standardAppearance = barAppearence
+        self.scrollEdgeAppearance = barAppearence
     }
 }
 
@@ -138,6 +191,14 @@ extension UIImage {
         print("Compressed image size in KB: %f", Double(jpegData!.count).rounded())
         let compressedImage = UIImage(data: jpegData!)
         return compressedImage
+    }
+    
+    func ratio() -> CGFloat {
+        return self.size.width / self.size.height
+    }
+    
+    func isWidthDominant() -> Bool {
+        return self.size.width / self.size.height > 1
     }
 }
 

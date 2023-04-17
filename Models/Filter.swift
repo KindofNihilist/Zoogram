@@ -38,7 +38,6 @@ class Filter {
         self.maximumValue = maximumValue
         
         if filterName == "CITemperatureAndTint" {
-            print("inside if filterName statement")
             self.filter.setValue(CIVector(x: 6500, y: 0), forKey: filterKey)
         } else {
             self.filter.setValue(filterDefaultValue, forKey: filterKey)

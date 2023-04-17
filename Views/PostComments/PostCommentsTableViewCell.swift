@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import SDWebImage
 
 class PostCommentsTableViewCell: UITableViewCell {
     
@@ -13,19 +14,27 @@ class PostCommentsTableViewCell: UITableViewCell {
     
     private let profilePhotoImageView: UIImageView = {
         let imageView = UIImageView()
-        imageView.layer.masksToBounds = true
         imageView.translatesAutoresizingMaskIntoConstraints = false
-        imageView.contentMode = .scaleAspectFit
+        imageView.clipsToBounds = true
+        imageView.contentMode = .scaleAspectFill
         imageView.backgroundColor = .secondarySystemBackground
         return imageView
+    }()
+    
+    private let usernameLabel: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.font = UIFont.boldSystemFont(ofSize: 13)
+        label.text = "username"
+        return label
     }()
     
     private let messageLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
         label.textColor = .label
-        label.font = UIFont.systemFont(ofSize: 13)
-        label.text = "Wow what a cool post!"
+        label.font = UIFont.systemFont(ofSize: 14)
+        label.numberOfLines = 0
         return label
     }()
     
@@ -48,31 +57,52 @@ class PostCommentsTableViewCell: UITableViewCell {
         fatalError("init(coder:) has not been implemented")
     }
     
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        profilePhotoImageView.layer.cornerRadius = 35 / 2
+    }
+    
     public func configure(with comment: PostComment) {
-        
+        messageLabel.text = comment.commentText
+        messageLabel.sizeToFit()
+        timePassedLabel.text = comment.datePosted.timeAgoDisplay()
+        timePassedLabel.sizeToFit()
+        usernameLabel.text = comment.author.username
+        usernameLabel.sizeToFit()
+        let url = URL(string: comment.author.profilePhotoURL)
+        profilePhotoImageView.sd_setImage(with: url)
+    }
+    
+    public func configurePostCaption(caption: String, postAuthorUsername: String, postAuthorProfilePhoto: UIImage, timeSincePostedTitle: String) {
+        messageLabel.text = caption
+        messageLabel.sizeToFit()
+        timePassedLabel.text = timeSincePostedTitle
+        timePassedLabel.sizeToFit()
+        usernameLabel.text = postAuthorUsername
+        usernameLabel.sizeToFit()
+        profilePhotoImageView.image = postAuthorProfilePhoto
     }
     
     private func setupViewsAndConstraints() {
-        contentView.addSubviews(profilePhotoImageView, messageLabel, timePassedLabel)
+        contentView.addSubviews(profilePhotoImageView, usernameLabel, messageLabel, timePassedLabel)
         
         NSLayoutConstraint.activate([
             profilePhotoImageView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 15),
             profilePhotoImageView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 10),
-            profilePhotoImageView.heightAnchor.constraint(equalToConstant: 30),
-            profilePhotoImageView.widthAnchor.constraint(equalToConstant: 30),
+            profilePhotoImageView.heightAnchor.constraint(equalToConstant: 35),
+            profilePhotoImageView.widthAnchor.constraint(equalToConstant: 35),
             
-            messageLabel.topAnchor.constraint(equalTo: profilePhotoImageView.topAnchor),
-            messageLabel.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor),
+            usernameLabel.topAnchor.constraint(equalTo: profilePhotoImageView.topAnchor),
+            usernameLabel.leadingAnchor.constraint(equalTo: profilePhotoImageView.trailingAnchor, constant: 10),
+            
+            messageLabel.topAnchor.constraint(equalTo: usernameLabel.bottomAnchor, constant: 5),
             messageLabel.leadingAnchor.constraint(equalTo: profilePhotoImageView.trailingAnchor, constant: 10),
-            messageLabel.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor),
+            messageLabel.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -30),
             
             timePassedLabel.leadingAnchor.constraint(equalTo: messageLabel.leadingAnchor),
-            timePassedLabel.topAnchor.constraint(equalTo: messageLabel.bottomAnchor, constant: 5),
-            timePassedLabel.heightAnchor.constraint(equalToConstant: 10),
-            timePassedLabel.widthAnchor.constraint(equalToConstant: 20),
+            timePassedLabel.topAnchor.constraint(equalTo:  messageLabel.bottomAnchor, constant: 5),
+            timePassedLabel.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -5)
         ])
-        
-        profilePhotoImageView.layer.cornerRadius = 15
     }
 }
- 
+

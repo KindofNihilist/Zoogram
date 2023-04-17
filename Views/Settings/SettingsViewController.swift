@@ -40,6 +40,9 @@ final class SettingsViewController: UIViewController {
             SettingsCellModel(title: "Edit Profile", color: .label) { [weak self] in
                 self?.didTapEditProfile()
             },
+            SettingsCellModel(title: "Bookmarks", color: .label, handler: {
+                self.didTapBookmarks()
+            }),
             SettingsCellModel(title: "Invite Friends", color: .label) { [weak self] in
                 self?.didTapInviteFriends()
             },
@@ -70,6 +73,11 @@ final class SettingsViewController: UIViewController {
 //        let navVC = UINavigationController(rootViewController: ProfileEdditingViewController())
 //        navVC.modalPresentationStyle = .fullScreen
 //        present(navVC, animated: true)
+    }
+    
+    private func didTapBookmarks() {
+        let bookmarksVC = BookmarkedTableViewController()
+        navigationController?.pushViewController(bookmarksVC, animated: true)
     }
     
     private func didTapInviteFriends() {

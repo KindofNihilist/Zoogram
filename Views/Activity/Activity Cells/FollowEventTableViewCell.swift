@@ -8,8 +8,9 @@
 import SDWebImage
 import UIKit
 
-protocol FollowEventTableViewCellDelegate: AnyObject {
-    func didTapFollowUnfollowButton(model: UserActivity)
+protocol FollowEventTableViewCellDelegate: ActivityViewCellActionsDelegate, AnyObject {
+    func followUserTapped(user: ZoogramUser, followCompletion: @escaping (FollowStatus) -> Void)
+    func unfollowUserTapped(user: ZoogramUser, unfollowCompletion: @escaping (FollowStatus) -> Void)
 }
 
 class FollowEventTableViewCell: UITableViewCell {
@@ -18,9 +19,9 @@ class FollowEventTableViewCell: UITableViewCell {
     
     weak var delegate: FollowEventTableViewCellDelegate?
     
-    private var model: UserActivity?
+    private var event: ActivityEvent?
     
-    private let profileImageViewSize: CGFloat = 55
+    private let profileImageViewSize: CGFloat = 45
     
     private let profileImageView: UIImageView = {
         let imageView = UIImageView()
@@ -38,17 +39,9 @@ class FollowEventTableViewCell: UITableViewCell {
         return label
     }()
     
-    private let followUnfollowButton: UIButton = {
-        let button = UIButton()
-        button.setTitle("Unfollow", for: .normal)
-        button.setTitleColor(.label, for: .normal)
-        button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 15)
-        button.backgroundColor = .systemBackground
-        button.clipsToBounds = true
+    private let followUnfollowButton: FollowUnfollowButton = {
+        let button = FollowUnfollowButton()
         button.translatesAutoresizingMaskIntoConstraints = false
-        button.layer.borderWidth = 0.5
-        button.layer.borderColor = UIColor.lightGray.cgColor
-        button.layer.cornerRadius = 5
         button.addTarget(self, action: #selector(didTapFollowUnfollowButton), for: .touchUpInside)
         return button
     }()
@@ -56,33 +49,21 @@ class FollowEventTableViewCell: UITableViewCell {
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         setupViewsAndConstraints()
+        let tapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(didTapUserProfile))
+        self.addGestureRecognizer(tapGestureRecognizer)
     }
     
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
     
-    public func configure(with model: UserActivity) {
-        self.model = model
-        switch model.type {
-        case .liked(_):
-//            likedPostPhotoImageView.sd_setImage(with: post.thumbnailImage, completed: nil)
-            break
-        case .followed(let state):
-            switch state {
-            case .following:
-                showUnfollowButton()
-            case .notFollowing:
-                showFollowButton()
-            }
-            break
-        case .commented:
-            break
-        }
+    public func configure(with event: ActivityEvent) {
+        self.event = event
+        switchFollowUnfollowButton(followStatus: event.user?.followStatus)
         
-        let attributedUsername = NSAttributedString(string: "\(model.user.username) ", attributes: [NSAttributedString.Key.font: UIFont.boldSystemFont(ofSize: 14), NSAttributedString.Key.foregroundColor: UIColor.label])
+        let attributedUsername = NSAttributedString(string: "\(event.user!.username) ", attributes: [NSAttributedString.Key.font: UIFont.boldSystemFont(ofSize: 14), NSAttributedString.Key.foregroundColor: UIColor.label])
         let attributedEventMessage = NSAttributedString(string: "started following you. ", attributes: [NSAttributedString.Key.font: UIFont.systemFont(ofSize: 14), NSAttributedString.Key.foregroundColor: UIColor.label])
-        let attributedTimeStamp = NSAttributedString(string: "10h", attributes: [NSAttributedString.Key.font: UIFont.systemFont(ofSize: 14), NSAttributedString.Key.foregroundColor: UIColor.secondaryLabel])
+        let attributedTimeStamp = NSAttributedString(string: event.date.timeAgoDisplay(), attributes: [NSAttributedString.Key.font: UIFont.systemFont(ofSize: 14), NSAttributedString.Key.foregroundColor: UIColor.secondaryLabel])
         
         let wholeMessage = NSMutableAttributedString()
         wholeMessage.append(attributedUsername)
@@ -95,21 +76,29 @@ class FollowEventTableViewCell: UITableViewCell {
         wholeMessage.addAttribute(NSAttributedString.Key.paragraphStyle, value: paragraphStyle, range: NSMakeRange(0, wholeMessage.length))
         
         activityMessageLabel.attributedText = wholeMessage
-        profileImageView.sd_setImage(with: URL(string: model.user.profilePhotoURL), completed: nil)
         
+        let url = URL(string: event.user!.profilePhotoURL)
+        profileImageView.sd_setImage(with: url, completed: nil)
+        
+        if event.seen == false {
+            self.contentView.backgroundColor = ColorScheme.activityUnseenEventLightBlue
+        } else {
+            self.contentView.backgroundColor = .systemBackground
+        }
     }
     
     private func setupViewsAndConstraints() {
         contentView.addSubviews(profileImageView, activityMessageLabel, followUnfollowButton)
         
         NSLayoutConstraint.activate([
+            profileImageView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 10),
             profileImageView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 15),
             profileImageView.heightAnchor.constraint(equalToConstant: profileImageViewSize),
             profileImageView.widthAnchor.constraint(equalToConstant: profileImageViewSize),
-            profileImageView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+            profileImageView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -10),
             
             activityMessageLabel.leadingAnchor.constraint(equalTo: profileImageView.trailingAnchor, constant: 15),
-            activityMessageLabel.trailingAnchor.constraint(equalTo: followUnfollowButton.leadingAnchor, constant: -5),
+            activityMessageLabel.trailingAnchor.constraint(equalTo: followUnfollowButton.leadingAnchor, constant: -10),
             activityMessageLabel.topAnchor.constraint(equalTo: profileImageView.topAnchor, constant: 5),
             activityMessageLabel.bottomAnchor.constraint(lessThanOrEqualTo: profileImageView.bottomAnchor),
             
@@ -122,29 +111,49 @@ class FollowEventTableViewCell: UITableViewCell {
         profileImageView.layer.cornerRadius = profileImageViewSize / 2
     }
     
-    private func showFollowButton() {
-        followUnfollowButton.setTitle("Follow", for: .normal)
-        followUnfollowButton.backgroundColor = .systemBlue
-        followUnfollowButton.setTitleColor(.white, for: .normal)
-        followUnfollowButton.layer.borderWidth = 0
-        followUnfollowButton.layer.borderColor = .none
-    }
-    
-    
-    private func showUnfollowButton() {
-        followUnfollowButton.setTitle("Unfollow", for: .normal)
-        followUnfollowButton.backgroundColor = .systemBackground
-        followUnfollowButton.setTitleColor(.label, for: .normal)
-        followUnfollowButton.layer.borderWidth = 0.5
-        followUnfollowButton.layer.borderColor = UIColor.lightGray.cgColor
+    private func switchFollowUnfollowButton(followStatus: FollowStatus?) {
+        guard let followStatus = followStatus else {
+            return
+        }
+        switch followStatus {
+        case .notFollowing:
+            followUnfollowButton.changeAppearenceToFollow()
+        case .following:
+            followUnfollowButton.changeAppearenceToUnfollow()
+        }
     }
     
     @objc func didTapFollowUnfollowButton() {
-        guard let model = model else {
+        guard let user = event?.user else {
             return
         }
-        delegate?.didTapFollowUnfollowButton(model: model)
+        
+        switch user.followStatus {
+            
+        case .notFollowing:
+            delegate?.followUserTapped(user: user) { followStatus in
+                self.event?.user?.followStatus = followStatus
+                self.switchFollowUnfollowButton(followStatus: followStatus)
+            }
+            
+        case .following:
+            delegate?.unfollowUserTapped(user: user) { followStatus in
+                self.event?.user?.followStatus = followStatus
+                self.switchFollowUnfollowButton(followStatus: followStatus)
+            }
+            
+        case .none: return
+        }
     }
+    
+    @objc func didTapUserProfile() {
+        guard let user = self.event?.user else {
+            return
+        }
+        delegate?.didSelectUser(user: user)
+    }
+    
+    
     
 }
 

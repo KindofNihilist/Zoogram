@@ -7,6 +7,7 @@
 
 import Foundation
 import FirebaseDatabase
+import SDWebImage
 
 class UserService {
     
@@ -14,7 +15,9 @@ class UserService {
     
     private let databaseRef = Database.database(url: "https://catogram-58487-default-rtdb.europe-west1.firebasedatabase.app").reference()
     
-    func insertNewUser(with user: ZoogramUser, completion: @escaping (Bool) -> Void) {
+    typealias IsSuccessful = Bool
+    
+    func insertNewUser(with user: ZoogramUser, completion: @escaping (IsSuccessful) -> Void) {
         let userID = AuthenticationManager.shared.getCurrentUserUID()
         
         let userDictionary = user.createDictionary()
@@ -58,7 +61,7 @@ class UserService {
                     let decodedUser = try JSONDecoder().decode(ZoogramUser.self, from: jsonData)
                     FollowService.shared.checkFollowStatus(for: decodedUser.userID) { followStatus in
     
-                        decodedUser.isFollowed = followStatus
+                        decodedUser.followStatus = followStatus
                         foundUsers.append(decodedUser)
                         dispatchGroup.leave()
                     }
@@ -72,7 +75,7 @@ class UserService {
         }
     }
     
-    func getUser(for userID: String, completion: @escaping (ZoogramUser) -> Void) {
+    func observeUser(for userID: String, completion: @escaping (ZoogramUser) -> Void) {
         
         let path = storageKeys.users.rawValue + userID
         
@@ -86,7 +89,7 @@ class UserService {
                 let json = try JSONSerialization.data(withJSONObject: value as Any)
                 let decodedUser = try JSONDecoder().decode(ZoogramUser.self, from: json)
                 FollowService.shared.checkFollowStatus(for: userID) { followStatus in
-                    decodedUser.isFollowed = followStatus
+                    decodedUser.followStatus = followStatus
                     completion(decodedUser)
                 }
             } catch {
@@ -96,7 +99,58 @@ class UserService {
         }
     }
     
-    func checkIfUsernameIsAvailable(username: String, completion: @escaping (Bool) -> Void) {
+    func getUser(for userID: String, completion: @escaping (ZoogramUser) -> Void) {
+        
+        let path = storageKeys.users.rawValue + userID
+        
+        self.databaseRef.child(path).observeSingleEvent(of: .value) { snapshot in
+            
+            guard let value = snapshot.value as? [String: Any] else {
+                return
+            }
+            
+            do {
+                let json = try JSONSerialization.data(withJSONObject: value as Any)
+                let decodedUser = try JSONDecoder().decode(ZoogramUser.self, from: json)
+                FollowService.shared.checkFollowStatus(for: userID) { followStatus in
+                    decodedUser.followStatus = followStatus
+                    completion(decodedUser)
+                }
+            } catch {
+                print(error)
+            }
+            
+        }
+    }
+    
+    
+    
+    func getUserProfilePicture(for userID: String, completion: @escaping (UIImage?) -> Void) {
+        let path = storageKeys.users.rawValue + userID + "/profilePhotoURL"
+        let groupDispatch = DispatchGroup()
+        var imageURL: URL?
+        
+        groupDispatch.enter()
+        self.databaseRef.child(path).observeSingleEvent(of: .value) { snapshot in
+            guard let snapshotValue = snapshot.value as? String else {
+                print(snapshot.value)
+                print("Wrong value")
+                return
+            }
+            imageURL = URL(string: snapshotValue)
+            groupDispatch.leave()
+        }
+        
+        groupDispatch.notify(queue: .main) {
+            SDWebImageManager.shared.loadImage(with: imageURL, progress: .none) { image, _, _, _, _, _ in
+                completion(image)
+            }
+        }
+    }
+    
+    typealias IsAvailable = Bool
+    
+    func checkIfUsernameIsAvailable(username: String, completion: @escaping (IsAvailable) -> Void) {
         let query = databaseRef.child("Users").queryOrdered(byChild: "username").queryEqual(toValue: username)
         query.observe( .value) { snapshot in
             if snapshot.exists() {
@@ -128,8 +182,10 @@ class UserService {
             switch result {
                 
             case .success(let pictureURL):
-                self?.databaseRef.child("Users/\(uid)").updateChildValues(["profilePhotoURL" : pictureURL])
-                completion()
+                self?.databaseRef.child("Users/\(uid)").updateChildValues(["profilePhotoURL" : pictureURL.absoluteString])
+                AuthenticationManager.shared.updateUserProfileURL(profilePhotoURL: pictureURL) {
+                    completion()
+                }
                 return
                 
             case .failure(let error):

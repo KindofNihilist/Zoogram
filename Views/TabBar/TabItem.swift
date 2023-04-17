@@ -17,21 +17,21 @@ enum TabItem: String, CaseIterable {
     
     var icon: UIImage {
         switch self {
-        case .home: return UIImage(systemName: "house")!
-        case .discover: return UIImage(systemName: "magnifyingglass")!
-        case .makeAPost: return UIImage(systemName: "plus")!
-        case .activity: return UIImage(systemName: "heart")!
-        case .myProfile: return UIImage(systemName: "person.crop.circle")!
+        case .home: return UIImage(systemName: "house")!.imageWithoutBaseline()
+        case .discover: return UIImage(systemName: "magnifyingglass")!.imageWithoutBaseline()
+        case .makeAPost: return UIImage(systemName: "plus")!.imageWithoutBaseline()
+        case .activity: return UIImage(systemName: "heart")!.imageWithoutBaseline()
+        case .myProfile: return UIImage(systemName: "person.crop.circle")!.imageWithoutBaseline()
         }
     }
     
     var selectedIcon: UIImage {
         switch self {
-        case .home: return UIImage(systemName: "house.fill")!
-        case .discover: return UIImage(systemName: "magnifyingglass")!
-        case .makeAPost: return UIImage(systemName: "plus")!
-        case .activity: return UIImage(systemName: "heart.fill")!
-        case .myProfile: return UIImage(systemName: "person.crop.circle.fill")!
+        case .home: return UIImage(systemName: "house.fill")!.imageWithoutBaseline()
+        case .discover: return UIImage(systemName: "magnifyingglass")!.imageWithoutBaseline()
+        case .makeAPost: return UIImage(systemName: "plus")!.imageWithoutBaseline()
+        case .activity: return UIImage(systemName: "heart.fill")!.imageWithoutBaseline()
+        case .myProfile: return UIImage(systemName: "person.crop.circle.fill")!.imageWithoutBaseline()
         }
     }
 }

@@ -30,9 +30,6 @@ class NewPostViewController: UIViewController {
         collectionView.contentInsetAdjustmentBehavior = .always
         collectionView.register(UICollectionViewCell.self, forCellWithReuseIdentifier: "cell")
         collectionView.backgroundColor = .black
-        collectionView.register(CameraRollHeader.self, forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader, withReuseIdentifier: CameraRollHeader.identifier)
-        collectionView.register(CameraRollPreviewHeader.self, forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader, withReuseIdentifier: CameraRollPreviewHeader.identifier)
-        collectionView.register(PhotoCollectionViewCell.self, forCellWithReuseIdentifier: PhotoCollectionViewCell.identifier)
         return collectionView
     }()
     
@@ -130,7 +127,8 @@ class NewPostViewController: UIViewController {
         guard let photo = selectedPhoto, selectedPhoto != nil else {
             return
         }
-        let editingVC = PhotoEditingViewController(photo: photo, isAspectFit: isAspectFit)
+//        let editingVC = PhotoEditingViewController(photo: photo, isAspectFit: isAspectFit)
+        let editingVC = PhotoEditingViewController(photo: photo)
         navigationController?.pushViewController(editingVC, animated: true)
     }
     
@@ -178,22 +176,20 @@ extension NewPostViewController: UICollectionViewDelegate, UICollectionViewDataS
         return cell
     }
     
-    func collectionView(_ collectionView: UICollectionView, viewForSupplementaryElementOfKind kind: String, at indexPath: IndexPath) -> UICollectionReusableView {
-        guard kind == UICollectionView.elementKindSectionHeader else {
-            return UICollectionReusableView()
-        }
-        if indexPath.section == 0 {
-            let cameraRollPreview = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: CameraRollPreviewHeader.identifier, for: indexPath) as! CameraRollPreviewHeader
-            cameraRollPreview.update(with: selectedPhoto ?? UIImage())
-            cameraRollPreview.delegate = self
-            self.photoPreviewView = cameraRollPreview
-            return cameraRollPreview
-        } else {
-            let cameraRollHeader = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: CameraRollHeader.identifier, for: indexPath) as! CameraRollHeader
-            cameraRollHeader.delegate = self
-            return cameraRollHeader
-        }
-    }
+//    func collectionView(_ collectionView: UICollectionView, viewForSupplementaryElementOfKind kind: String, at indexPath: IndexPath) -> UICollectionReusableView {
+//        guard kind == UICollectionView.elementKindSectionHeader else {
+//            return UICollectionReusableView()
+//        }
+//        if indexPath.section == 0 {
+//            let cameraRollPreview = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: CameraRollPreviewHeader.identifier, for: indexPath) as! CameraRollPreviewHeader
+//            cameraRollPreview.update(with: selectedPhoto ?? UIImage())
+//            cameraRollPreview.delegate = self
+//            self.photoPreviewView = cameraRollPreview
+//            return cameraRollPreview
+//        } else {
+//            return UICollect
+//        }
+//    }
     
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         selectPhotoAsPreview(at: indexPath.row) {
@@ -242,7 +238,7 @@ extension NewPostViewController: UICollectionViewDelegate, UICollectionViewDataS
 
 extension NewPostViewController: CameraRollPreviewHeaderDelegate, CameraRollHeaderDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
     
-    func didTapCameraButton(_ header: CameraRollHeader) {
+    func didTapCameraButton(_ header: CameraRollHeaderView) {
         let picker = UIImagePickerController()
         picker.sourceType = .camera
         picker.cameraCaptureMode = .photo

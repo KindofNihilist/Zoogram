@@ -10,7 +10,13 @@ public class AuthenticationManager {
     
     static let shared = AuthenticationManager()
     
-    public func createNewUser(email: String, password: String, completion: @escaping (Bool, String, String) -> Void) {
+    typealias IsSuccessful = Bool
+    
+    typealias UserID = String
+    
+    typealias ErrorDescription = String
+    
+    func createNewUser(email: String, password: String, completion: @escaping (IsSuccessful, UserID, String) -> Void) {
         Auth.auth().createUser(withEmail: email, password: password) { authResult, error in
             if let error = error as? NSError {
                 switch AuthErrorCode.Code(rawValue: error.code) {
@@ -31,7 +37,16 @@ public class AuthenticationManager {
         }
     }
     
-    public func signInUsing(email: String, password: String, completion: @escaping (Bool, String) -> Void) {
+    func updateUserProfileURL(profilePhotoURL: URL, completion: @escaping () -> Void) {
+       let changeRequest = Auth.auth().currentUser?.createProfileChangeRequest()
+        changeRequest?.photoURL = profilePhotoURL
+        changeRequest?.commitChanges(completion: { _ in
+            completion()
+        })
+    }
+
+    
+    func signInUsing(email: String, password: String, completion: @escaping (IsSuccessful, ErrorDescription) -> Void) {
         Auth.auth().signIn(withEmail: email, password: password) { authResult, error in
             if let error = error as? NSError {
                 switch AuthErrorCode.Code(rawValue: error.code) {
@@ -49,13 +64,13 @@ public class AuthenticationManager {
                     print(error.localizedDescription)
                 }
             } else {
-                completion(true, "Succesfully logged in")
+                completion(true, "Successfully signed in")
             }
 
         }
     }
     
-    public func checkIfEmailIsAvailable(email: String, completion: @escaping (Bool, String) -> Void) {
+    func checkIfEmailIsAvailable(email: String, completion: @escaping (Bool, String) -> Void) {
         Auth.auth().fetchSignInMethods(forEmail: email) { signInMethods, error in
             if signInMethods == nil {
                 completion(true, "Email is available")
@@ -65,13 +80,17 @@ public class AuthenticationManager {
         }
     }
     
+    func getCurrentUserProfilePhotoURL() -> URL? {
+        return Auth.auth().currentUser?.photoURL
+    }
     
-    public func getCurrentUserUID() -> String {
+    
+    func getCurrentUserUID() -> String {
         return Auth.auth().currentUser!.uid
     }
     
     
-    public func signOut(completion: (Bool) -> Void) {
+    func signOut(completion: (IsSuccessful) -> Void) {
         do {
             try Auth.auth().signOut()
             completion(true)
@@ -82,3 +101,16 @@ public class AuthenticationManager {
     }
 }
 
+enum storageKeys: String {
+    case users = "Users/"
+    case posts = "Posts/"
+    case postsLikes = "PostsLikes/"
+    case profilePictures = "/ProfilePictues/"
+    case images = "Images/"
+}
+
+enum storageError: Error {
+    case errorObtainingSnapshot
+    case couldNotMapSnapshotValue
+    case errorCreatingAPost
+}
