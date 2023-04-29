@@ -8,7 +8,7 @@
 import Foundation
 
 class UserProfileServiceAPIAdapter: UserProfileService {
-    
+
     var userID: String
     
     let followService: FollowService
@@ -45,16 +45,19 @@ class UserProfileServiceAPIAdapter: UserProfileService {
     }
     
     func getPostsCount(completion: @escaping (Int) -> Void) {
-        userPostsService.observePostCount(for: userID) { postsCount in
+        userPostsService.getPostCount(for: userID) { postsCount in
             completion(postsCount)
         }
     }
     
     func getUserData(completion: @escaping (ZoogramUser) -> Void) {
-        userService.observeUser(for: userID) { user in
+        userService.getUser(for: userID) { user in
             let url = URL(string: user.profilePhotoURL)
-            user.profilePhoto  = getImageForURL(url!)
-            completion(user)
+            getImageForURL(url!) { retrievedImage in
+                user.profilePhoto = retrievedImage
+                completion(user)
+            }
+            
         }
     }
     
@@ -65,7 +68,7 @@ class UserProfileServiceAPIAdapter: UserProfileService {
             self?.lastReceivedPostKey = lastObtainedPostKey
             print("got user profile posts")
             print(posts)
-            self?.getAdditionalPostDataFor(postsOfMultipleUsers: posts) { postsWithAdditionalData in
+            self?.getAdditionalPostDataFor(postsOfSingleUser: posts) { postsWithAdditionalData in
                 print("got additional data for profile posts")
                 print("posts count: \(postsWithAdditionalData.count)")
                 completion(postsWithAdditionalData.map { post in
@@ -76,7 +79,7 @@ class UserProfileServiceAPIAdapter: UserProfileService {
     }
     
     func getMorePosts(completion: @escaping ([PostViewModel]) -> Void) {
-        guard lastReceivedPostKey != "" else {
+        guard isAlreadyPaginating == false, lastReceivedPostKey != "" else {
             return
         }
         
@@ -88,9 +91,11 @@ class UserProfileServiceAPIAdapter: UserProfileService {
                 print("Hit the end of user posts")
                 return
             }
+            print("got more posts for user")
             self?.lastReceivedPostKey = lastDownloadedPostKey
-            self?.isAlreadyPaginating = false
             self?.getAdditionalPostDataFor(postsOfSingleUser: posts) { postsWithAdditionalData in
+                print("got additional post data for single user")
+                self?.isAlreadyPaginating = false
                 completion(postsWithAdditionalData.map({ post in
                     PostViewModel(post: post)
                 }))
@@ -143,25 +148,36 @@ class UserProfileServiceAPIAdapter: UserProfileService {
         }
     }
     
-    func deletePost(post: PostViewModel, at indexPath: IndexPath, completion: @escaping () -> Void) {
-        userPostsService.deletePost(post: post) {
-            NotificationCenter.default.post(name: Notification.Name("PostDeleted"), object: indexPath.row)
+    func deletePost(postModel: PostViewModel, completion: @escaping () -> Void) {
+        print("inside service adapter delete post method")
+        userPostsService.deletePost(postID: postModel.postID, postImageURL: postModel.postImageURL) {
             completion()
         }
+    }
+    
+    func bookmarkPost(postID: String, authorID: String, bookmarkState: BookmarkState, completion: @escaping (BookmarkState) -> Void) {
+        switch bookmarkState {
+        case .bookmarked:
+            bookmarksService.removeBookmark(postID: postID) { bookmarkState in
+                completion(bookmarkState)
+                print("Successfully removed a bookmark")
+            }
+        case .notBookmarked:
+            bookmarksService.bookmarkPost(postID: postID, authorID: authorID) { bookmarkState in
+                completion(bookmarkState)
+                print("Successfully bookmarked a post")
+            }
+        }
+        
+    }
+}
 
-    }
-    
-    func bookmarkPost(postID: String, authorID: String) {
-        bookmarksService.bookmarkPost(postID: postID, authorID: authorID) {
-            print("Successfully bookmarked a post")
-        }
-    }
-    
-    func removeBookmark(postID: String) {
-        bookmarksService.removeBookmark(postID: postID) {
-            print("Successfully removed bookmark")
-        }
-    }
-    
- 
+
+func createUserProfileDefaultServiceFor(userID: String) -> UserProfileServiceAPIAdapter {
+    UserProfileServiceAPIAdapter(userID: userID,
+                                 followService: FollowService.shared,
+                                 userPostsService: UserPostsService.shared,
+                                 userService: UserService.shared,
+                                 likeSystemService: LikeSystemService.shared,
+                                 bookmarksService: BookmarksService.shared)
 }

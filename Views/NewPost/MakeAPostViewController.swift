@@ -7,9 +7,16 @@
 
 import UIKit
 
+protocol NewPostProtocol {
+    func shouldUpdateHomeFeed()
+    func shouldUpdateUserProfilePosts()
+}
+
 class MakeAPostViewController: UIViewController {
     
     let viewModel = NewPostViewModel()
+    
+    var delegate: NewPostProtocol?
     
     let captionTextViewPlaceholder = "Write a caption..."
     
@@ -127,6 +134,10 @@ class MakeAPostViewController: UIViewController {
        viewModel.makeAPost(caption: caption) { isSuccesfull in
            if isSuccesfull {
                print("Made a post")
+//               self.delegate?.shouldUpdateHomeFeed()
+//               self.delegate?.shouldUpdateUserProfilePosts()
+               sendNotificationToUpdateUserFeed()
+               sendNotificationToUpdateUserProfile()
                self.view.window?.rootViewController?.dismiss(animated: true)
            } else {
                self.showAlert()

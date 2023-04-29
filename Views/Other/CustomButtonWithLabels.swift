@@ -32,9 +32,11 @@ class CustomButtonWithLabels: UIButton {
         setupViewsAndConstraints()
     }
     
-    public func configureWith(labelText: String, number: Int) {
+    public func configureWith(labelText: String, number: Int?) {
         label.text = labelText
-        numberLabel.text = "\(number)"
+        if let unwrappedNumber = number {
+            numberLabel.text = "\(unwrappedNumber)"
+        }
     }
     
     required init?(coder: NSCoder) {

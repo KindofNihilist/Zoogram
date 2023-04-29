@@ -10,6 +10,8 @@ import MetalKit
 
 class PhotoEditingViewController: UIViewController {
     
+    var delegate: NewPostProtocol?
+    
     let isWidthDominant: Bool
     let ratio: CGFloat
     var hasPrintedImageData: Bool = false
@@ -213,7 +215,9 @@ class PhotoEditingViewController: UIViewController {
     }
     
     @objc private func didFinishEditingPhoto() {
-        navigationController?.pushViewController(MakeAPostViewController(photo: self.modifiedImage), animated: true)
+        let makePostVC = MakeAPostViewController(photo: self.modifiedImage)
+        makePostVC.delegate = delegate
+        navigationController?.pushViewController(makePostVC, animated: true)
     }
 }
 

@@ -148,6 +148,25 @@ class UserService {
         }
     }
     
+    func changeHasPostsStatus(hasPostsStatus: Bool, completion: @escaping () -> Void) {
+        let userID = AuthenticationManager.shared.getCurrentUserUID()
+        
+        let databaseKey = "Users/\(userID)/hasPosts"
+        
+        print("inside changeHasPostsStatus method")
+        databaseRef.child(databaseKey).setValue(hasPostsStatus) { error, _ in
+            if error == nil {
+                // succeeded
+                print("changed hasPosts status")
+                completion()
+            } else {
+                // failed
+                print("failed to change hasPosts status: \(error)")
+                completion()
+            }
+        }
+    }
+    
     typealias IsAvailable = Bool
     
     func checkIfUsernameIsAvailable(username: String, completion: @escaping (IsAvailable) -> Void) {

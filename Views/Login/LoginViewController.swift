@@ -123,7 +123,20 @@ class LoginViewController: UIViewController {
         view.backgroundColor = .systemBackground
         view.addSubviews(headerView, usernameEmailField, passwordField, forgottenPasswordButton, loginButton, createAccountButton, termsButton, privacyButton)
         headerView.addSubviews(logo, logoImage)
+        setNavigationBarAppearence()
         setupConstraints()
+    }
+    
+    func setNavigationBarAppearence() {
+        let navBarAppearance = UINavigationBarAppearance()
+        navBarAppearance.configureWithOpaqueBackground()
+        navBarAppearance.titleTextAttributes = [.foregroundColor: UIColor.label]
+        navBarAppearance.largeTitleTextAttributes = [.foregroundColor: UIColor.label]
+        navBarAppearance.backgroundColor = ColorScheme.lightYellowBackground
+        navBarAppearance.shadowColor = .clear
+        self.navigationController?.navigationBar.standardAppearance = navBarAppearance
+        self.navigationController?.navigationBar.scrollEdgeAppearance = navBarAppearance
+        self.navigationController?.navigationBar.tintColor = .label
     }
     
     func setupConstraints() {

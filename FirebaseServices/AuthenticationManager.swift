@@ -32,7 +32,7 @@ public class AuthenticationManager {
                     print("Error: \(error.localizedDescription)")
                 }
             } else {
-                completion(true, self.getCurrentUserUID(), "User signed up successfully")
+                completion(true, authResult!.user.uid, "User signed up successfully")
             }
         }
     }

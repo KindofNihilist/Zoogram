@@ -15,7 +15,6 @@ class TabBarController: UITabBarController {
     let cameraRollVC = CameraRollViewController()
     let activityVC = ActivityViewController()
     let userProfileVC: UserProfileViewController = {
-        let vc = UserProfileViewController(isTabBarItem: true)
         let service = UserProfileServiceAPIAdapter(
             userID: currentUserID(),
             followService: FollowService.shared,
@@ -23,7 +22,8 @@ class TabBarController: UITabBarController {
             userService: UserService.shared,
             likeSystemService: LikeSystemService.shared,
             bookmarksService: BookmarksService.shared)
-        vc.service = service
+        let vc = UserProfileViewController(service: service, isTabBarItem: true)
+        
         return vc
     }()
     
@@ -37,8 +37,12 @@ class TabBarController: UITabBarController {
     
     override func viewDidLoad() {
         delegate = self
+        cameraRollVC.delegate = self
         activityVC.delegate = self
         listenToActivityEvents()
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(refreshUserFeed), name: NSNotification.Name("UpdateUserFeed"), object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(refreshUserProfile), name: NSNotification.Name("UpdateUserProfile"), object: nil)
 //        addTestingButton()
     }
     
@@ -47,7 +51,7 @@ class TabBarController: UITabBarController {
         if showAppearAnimation {
             view.alpha = 0
             view.transform = CGAffineTransform(scaleX: 0.1, y: 0.1)
-            //            animateAppearing()
+            animateAppearing()
         }
     }
     
@@ -163,7 +167,6 @@ extension TabBarController: UITabBarControllerDelegate {
             if let navVC = viewController as? UINavigationController, let vc = navVC.viewControllers.first as? HomeViewController {
                 
                 if vc.isViewLoaded && (vc.view.window != nil) {
-                    
                     vc.setTopTableViewVisibleContent()
                 }
             } else if let navVC = viewController as? UINavigationController, let vc = navVC.viewControllers.first as? UserProfileViewController {
@@ -175,10 +178,33 @@ extension TabBarController: UITabBarControllerDelegate {
         }
         previousViewController = viewController
     }
+    
+    @objc func refreshUserProfile() {
+        print("refreshUserprofile called inside tab bar")
+        userProfileVC.refreshProfileData()
+    }
+    
+    @objc func refreshUserFeed() {
+        homeVC.tableView.refreshUserFeed()
+    }
 }
 
 extension TabBarController: ActivityViewUnseenEventsProtocol {
     func userHasSeenAllActivityEvents() {
         self.removeNotificationBadge()
     }
+}
+
+extension TabBarController: NewPostProtocol {
+    func shouldUpdateHomeFeed() {
+        print("should update feed")
+        homeVC.tableView.refreshUserFeed()
+    }
+    
+    func shouldUpdateUserProfilePosts() {
+        print("should update userProfile")
+        userProfileVC.refreshProfileData()
+    }
+    
+    
 }

@@ -243,6 +243,7 @@ final class ProfileHeaderReusableView: UICollectionReusableView {
         delegate?.followersButtonTapped(self)
     }
     @objc private func didTapEditProfileButton() {
+        print("eddit button tapped")
         delegate?.editProfileButtonTapped(self)
     }
     @objc private func didTapFollowUnfollowButton() {

@@ -10,14 +10,14 @@ import SDWebImage
 
 class UserProfileViewModel {
     
-    let user: ZoogramUser
+    var user: ZoogramUser
     var isCurrentUserProfile: Bool = false
 
-    var postsCount: Int
-    var followersCount: Int
-    var followingCount: Int
+    var postsCount: Int?
+    var followersCount: Int?
+    var followingCount: Int?
     
-    var posts: [PostViewModel] = [PostViewModel]()
+    var posts: Observable = Observable([PostViewModel]())
     
     init(user: ZoogramUser, postsCount: Int, followersCount: Int, followingCount: Int, isCurrentUserProfile: Bool) {
         self.user = user
@@ -29,9 +29,16 @@ class UserProfileViewModel {
     
     init() {
         self.user = ZoogramUser()
-        self.postsCount = 0
-        self.followersCount = 0
-        self.followingCount = 0
+        self.postsCount = nil
+        self.followersCount = nil
+        self.followingCount = nil
         self.isCurrentUserProfile = false
+    }
+    
+    func insertUserIfPreviouslyObtained(user: ZoogramUser?) {
+        guard let obtainedUser = user else {
+            return
+        }
+        self.user = obtainedUser
     }
 }

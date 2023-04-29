@@ -234,7 +234,13 @@ extension ActivityViewController: UITableViewDelegate, UITableViewDataSource {
 //MARK: Cell actions Delegate
 extension ActivityViewController: ActivityViewCellActionsDelegate {
     func didSelectUser(user: ZoogramUser) {
-        let userProfileViewController = UserProfileViewController(isTabBarItem: false)
+        let service = UserProfileServiceAPIAdapter(userID: user.userID,
+                                                   followService: FollowService.shared,
+                                                   userPostsService: UserPostsService.shared,
+                                                   userService: UserService.shared,
+                                                   likeSystemService: LikeSystemService.shared,
+                                                   bookmarksService: BookmarksService.shared)
+        let userProfileViewController = UserProfileViewController(service: service, isTabBarItem: false)
         userProfileViewController.title = user.username
         userProfileViewController.hidesBottomBarWhenPushed = true
         self.navigationController?.pushViewController(userProfileViewController, animated: true)

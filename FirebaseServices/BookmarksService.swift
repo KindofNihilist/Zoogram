@@ -26,16 +26,16 @@ class BookmarksService {
     private let currentUserID = AuthenticationManager.shared.getCurrentUserUID()
     
     
-    func bookmarkPost(postID: String, authorID: String, completion: @escaping () -> Void) {
+    func bookmarkPost(postID: String, authorID: String, completion: @escaping (BookmarkState) -> Void) {
         let bookmarkUID = databaseRef.child("Bookmarks").childByAutoId().key
         let path = "Bookmarks/\(currentUserID)/\(bookmarkUID!)"
         
         databaseRef.child(path).setValue(["postID" : postID, "authorID" : authorID]) { error, _ in
-            completion()
+            completion(.bookmarked)
         }
     }
     
-    func removeBookmark(postID: String, completion: @escaping () -> Void) {
+    func removeBookmark(postID: String, completion: @escaping (BookmarkState) -> Void) {
         let path = "Bookmarks/\(currentUserID)"
         
         let query = databaseRef.child(path).queryOrdered(byChild: "postID").queryEqual(toValue: postID)
@@ -46,7 +46,7 @@ class BookmarksService {
                     return
                 }
                 snapChild.ref.removeValue()
-                completion()
+                completion(.notBookmarked)
             }
         }
     }

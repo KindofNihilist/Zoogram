@@ -46,14 +46,14 @@ class UserPostsService {
         
         databaseRef.child("Followers/\(uid)").observeSingleEvent(of: .value) { followersSnapshot in
             
-            let followersData = followersSnapshot.value as! [String: AnyObject]
-            let followers = followersData.keys
-            let postDictionary = post.createDictionary()
-            print("Followers keys:", followers)
             var fanoutObj = [String : Any]()
-            // write to each follower's timeline
-            followers.forEach { follower in
-                fanoutObj["/Timelines/\(follower)/\(post.postID)"] = postDictionary
+            let postDictionary = post.createDictionary()
+            
+            if let followersData = followersSnapshot.value as? [String: AnyObject] {
+                let followers = followersData.keys
+                followers.forEach { follower in
+                    fanoutObj["/Timelines/\(follower)/\(post.postID)"] = postDictionary
+                }
             }
             
             fanoutObj["/Timelines/\(uid)/\(post.postID)"] = postDictionary
@@ -92,12 +92,12 @@ class UserPostsService {
     
     //MARK: Delete Post
     
-    func deletePost(post: PostViewModel, completion: @escaping () -> Void) {
+    func deletePost(postID: String, postImageURL: String, completion: @escaping () -> Void) {
         let userID = AuthenticationManager.shared.getCurrentUserUID()
         let dispatchGroup = DispatchGroup()
-        
+        print("inside UserPostsService delete method")
         dispatchGroup.enter()
-        databaseRef.child("Posts/\(userID)/\(post.postID)").removeValue { error, _ in
+        databaseRef.child("Posts/\(userID)/\(postID)").removeValue { error, _ in
             if let error = error {
                 print(error.localizedDescription)
             } else {
@@ -106,7 +106,7 @@ class UserPostsService {
         }
         
         dispatchGroup.enter()
-        databaseRef.child("PostComments/\(post.postID)").removeValue { error, _ in
+        databaseRef.child("PostComments/\(postID)").removeValue { error, _ in
             if let error = error {
                 print(error.localizedDescription)
             } else {
@@ -115,7 +115,7 @@ class UserPostsService {
         }
         
         dispatchGroup.enter()
-        databaseRef.child("PostsLikes/\(post.postID)").removeValue { error, _ in
+        databaseRef.child("PostsLikes/\(postID)").removeValue { error, _ in
             if let error = error {
                 
                 print(error.localizedDescription)
@@ -125,7 +125,7 @@ class UserPostsService {
         
         dispatchGroup.enter()
         
-        StorageManager.shared.deletePostPhoto(photoURL: post.postImageURL) { result in
+        StorageManager.shared.deletePostPhoto(photoURL: postImageURL) { result in
             switch result {
             case .success(_):
                 print("Successfully deleted post photo")
@@ -136,7 +136,7 @@ class UserPostsService {
         }
         
         dispatchGroup.enter()
-        deletePostFromFollowersTimeline(postID: post.postID) { error in
+        deletePostFromFollowersTimeline(postID: postID) { error in
             if let error = error {
                 print("Couldn't delete post from timelines", error.localizedDescription)
             } else {
@@ -145,9 +145,21 @@ class UserPostsService {
         }
         
         dispatchGroup.enter()
-        ActivityService.shared.removePostRelatedActivityEvents(postID: post.postID) {
+        ActivityService.shared.removePostRelatedActivityEvents(postID: postID) {
             print("Removed related activity events")
             dispatchGroup.leave()
+        }
+        
+        dispatchGroup.enter()
+        getPostCount(for: userID) { postsCount in
+            print("got posts count on deletion. Count: \(postsCount)")
+            if postsCount == 0 {
+                UserService.shared.changeHasPostsStatus(hasPostsStatus: false) {
+                    dispatchGroup.leave()
+                }
+            } else {
+                dispatchGroup.leave()
+            }
         }
         
         dispatchGroup.notify(queue: .main) {
@@ -160,21 +172,21 @@ class UserPostsService {
         let followersRef = Database.database(url: "https://catogram-58487-default-rtdb.europe-west1.firebasedatabase.app").reference()
         
         followersRef.child("Followers/\(uid)").observeSingleEvent(of: .value) { followersSnapshot in
-            let followersDictionary = followersSnapshot.value as! [String: AnyObject]
-            let followers = followersDictionary.keys
             var postsToDelete = [String: Any]()
             
-            followers.forEach { follower in
-                postsToDelete["/Timelines/\(follower)/\(postID)"] = NSNull()
+            if let followersDictionary = followersSnapshot.value as? [String: AnyObject] {
+                let followers = followersDictionary.keys
+                followers.forEach { follower in
+                    postsToDelete["/Timelines/\(follower)/\(postID)"] = NSNull()
+                }
             }
-            
+        
             postsToDelete["/Timelines/\(uid)/\(postID)"] = NSNull()
             
             self.databaseRef.updateChildValues(postsToDelete) { error, _ in
                 if let error = error {
                     completion(error)
                 } else {
-                    print(followers)
                     print("Posts removed from followers timelines")
                     completion(nil)
                 }
@@ -209,10 +221,10 @@ class UserPostsService {
     
     
     
-    func observePostCount(for userID: String, completion: @escaping (PostCount) -> Void) {
+    func getPostCount(for userID: String, completion: @escaping (PostCount) -> Void) {
         let databaseKey = "Posts/\(userID)/"
         
-        databaseRef.child(databaseKey).observe(.value) { snapshot in
+        databaseRef.child(databaseKey).observeSingleEvent(of: .value) { snapshot in
             completion(Int(snapshot.childrenCount))
         }
     }

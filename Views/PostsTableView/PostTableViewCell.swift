@@ -302,8 +302,10 @@ class PostTableViewCell: UITableViewCell {
     
     private func configureImageView(with photo: UIImage) {
         postImageView.image = photo
+        print("Photo height: \(photo.size.height) Photo width: \(photo.size.width)")
         let imageAspectRatio = ceil(photo.size.height) / ceil(photo.size.width)
         self.imageViewHeightConstraint.isActive = false
+        print("imageAspectRatio: ", imageAspectRatio)
         let heightConstraint = NSLayoutConstraint(item: postImageView,
                                                   attribute: NSLayoutConstraint.Attribute.height,
                                                   relatedBy: NSLayoutConstraint.Relation.equal,
@@ -344,6 +346,7 @@ class PostTableViewCell: UITableViewCell {
     
     @objc func likeButtonTapped(isTriggeredByDoubleTap: Bool = false) {
         guard let postIndex = indexPath else {
+            print("no post index: ", indexPath)
             return
         }
         
@@ -351,14 +354,13 @@ class PostTableViewCell: UITableViewCell {
             return
         } else {
             delegate?.didTapLikeButton(postIndex: postIndex) { [weak self] likeState in
-                self?.configureLikeButton(likeState: likeState, isUserInitiated: false)
+                self?.configureLikeButton(likeState: likeState, isUserInitiated: true)
+                self?.likeButtonState = likeState
             }
             
             if likeButtonState == .notLiked || isTriggeredByDoubleTap {
                 likeHapticFeedbackGenerator.notificationOccurred(.success)
             }
-            
-            switchLikeButton()
         }
     }
     
@@ -376,7 +378,6 @@ class PostTableViewCell: UITableViewCell {
         delegate?.didTapBookmarkButton(postIndex: postIndex) { [weak self] bookmarkState in
             self?.setBookmarkButtonState(state: bookmarkState, animated: false)
         }
-        switchBookmarkButton()
     }
     
     @objc func userTapped() {

@@ -18,6 +18,8 @@ class CameraRollViewController: UIViewController {
         }
     }
     
+    var delegate: NewPostProtocol?
+    
     var userPhotos: PHFetchResult<PHAsset>?
     let cellsPerRow: CGFloat = 4
     let interItemSpacing: CGFloat = 1
@@ -193,6 +195,7 @@ class CameraRollViewController: UIViewController {
             return
         }
         let editingVC = PhotoEditingViewController(photo: photo, isWidthDominant: photo.isWidthDominant(), ratio: photo.ratio())
+        editingVC.delegate = delegate
         navigationController?.pushViewController(editingVC, animated: true)
     }
     

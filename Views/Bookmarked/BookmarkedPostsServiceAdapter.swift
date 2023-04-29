@@ -1,42 +1,41 @@
 //
-//  Adapters.swift
+//  BookmarkedPostsServiceAdapter.swift
 //  Zoogram
 //
-//  Created by Artem Dolbiiev on 07.04.2023.
+//  Created by Artem Dolbiiev on 12.04.2023.
 //
 
 import Foundation
 
-class HomeFeedPostsAPIServiceAdapter: PostsService {
+
+class BookmarkedPostsServiceAdapter: PostsService {
     
-    let homeFeedService: HomeFeedService
-    let likeSystemService: LikeSystemService
-    let userPostService: UserPostsService
     let bookmarksService: BookmarksService
+    let likeSystemService: LikeSystemService
+    let userPostsService: UserPostsService
+    
+    var listOfBookmarks = ListOfBookmarks()
     
     var lastReceivedPostKey: String = ""
     var isAlreadyPaginating: Bool = false
     var hasHitTheEndOfPosts: Bool = false
     
-    init(homeFeedService: HomeFeedService, likeSystemService: LikeSystemService, userPostService: UserPostsService, bookmarksService: BookmarksService) {
-        
-        self.homeFeedService = homeFeedService
-        self.likeSystemService = likeSystemService
-        self.userPostService = userPostService
+    init(bookmarksService: BookmarksService, likeSystemService: LikeSystemService, userPostsService: UserPostsService) {
         self.bookmarksService = bookmarksService
+        self.likeSystemService = likeSystemService
+        self.userPostsService = userPostsService
+        self.bookmarksService.getListOfBookmarkedPosts { listOfBookmarks in
+            self.listOfBookmarks = listOfBookmarks
+        }
     }
     
     func getPosts(completion: @escaping ([PostViewModel]) -> Void) {
-        homeFeedService.getPostsForTimeline { [weak self] posts, lastPostKey in
-            guard posts.isEmpty != true else {
-                completion([PostViewModel]())
-                return
-            }
-            print("Downloaded posts, last post key: \(lastPostKey)")
-            self?.lastReceivedPostKey = lastPostKey
-            self?.getAdditionalPostDataFor(postsOfMultipleUsers: posts) { postsWithAditionalData in
-                print("Got additional posts data")
-                completion(postsWithAditionalData.map({ post in
+        bookmarksService.getBookmarkedPosts(numberOfPostsToGet: 21) { posts, lastRetrievedPostKey in
+            print("got bookmarked posts")
+            self.lastReceivedPostKey = lastRetrievedPostKey
+            self.getAdditionalPostDataFor(postsOfMultipleUsers: posts) { postsWithAdditionalData in
+                print("got additional data for bookmarked posts")
+                completion(postsWithAdditionalData.map({ post in
                     PostViewModel(post: post)
                 }))
             }
@@ -44,27 +43,13 @@ class HomeFeedPostsAPIServiceAdapter: PostsService {
     }
     
     func getMorePosts(completion: @escaping ([PostViewModel]) -> Void) {
-        guard isAlreadyPaginating == false, lastReceivedPostKey != "" else {
-            return
-        }
-        
-        isAlreadyPaginating = true
-        
-        homeFeedService.getMorePostsForTimeline(after: lastReceivedPostKey) { [weak self] posts, lastPostKey in
-            guard posts.isEmpty != true, lastPostKey != self?.lastReceivedPostKey else {
-                print("Hit the end of user posts")
-                self?.hasHitTheEndOfPosts = true
-                completion([PostViewModel]())
-                return
-            }
-            print("Downloaded feed posts with last post key: \(lastPostKey)")
-            self?.lastReceivedPostKey = lastPostKey
-            self?.getAdditionalPostDataFor(postsOfMultipleUsers: posts) { postsWithAdditionalData in
-                self?.isAlreadyPaginating = false
+        bookmarksService.getMoreBookmarkedPosts(after: lastReceivedPostKey, numberOfPostsToGet: 21) { posts, lastRetrievedPostKey in
+            self.lastReceivedPostKey = lastRetrievedPostKey
+            self.getAdditionalPostDataFor(postsOfMultipleUsers: posts) { postsWithAdditionalData in
                 completion(postsWithAdditionalData.map({ post in
                     PostViewModel(post: post)
                 }))
-            } 
+            }
         }
     }
     
@@ -101,7 +86,7 @@ class HomeFeedPostsAPIServiceAdapter: PostsService {
     }
     
     func deletePost(postModel: PostViewModel, completion: @escaping () -> Void) {
-        userPostService.deletePost(postID: postModel.postID, postImageURL: postModel.postImageURL) {
+        userPostsService.deletePost(postID: postModel.postID, postImageURL: postModel.postImageURL) {
             completion()
         }
     }
@@ -119,40 +104,6 @@ class HomeFeedPostsAPIServiceAdapter: PostsService {
                 print("Successfully bookmarked a post")
             }
         }
-        
-    }
-}
-
-
-class UserPostsAPIServiceAdapter: PostsService {
-    
-    
-    var lastReceivedPostKey: String = ""
-    
-    var isAlreadyPaginating: Bool = false
-    var hasHitTheEndOfPosts: Bool = false
-    
-    func likePost(postID: String, likeState: LikeState, postAuthorID: String, completion: @escaping (LikeState) -> Void) {
-        
-    }
-    
-    func deletePost(postModel: PostViewModel, completion: @escaping () -> Void) {
-        
-    }
-    
-    func bookmarkPost(postID: String, authorID: String, bookmarkState: BookmarkState, completion: @escaping (BookmarkState) -> Void) {
-        
-    }
-    
-    func removeBookmark(postID: String) {
-        
-    }
-    
-    func getPosts(completion: @escaping ([PostViewModel]) -> Void) {
-        
-    }
-    
-    func getMorePosts(completion: @escaping ([PostViewModel]) -> Void) {
         
     }
 }

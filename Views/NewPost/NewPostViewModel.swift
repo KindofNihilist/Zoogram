@@ -55,11 +55,14 @@ class NewPostViewModel {
         self.createPost(caption: caption)
         let fileName = "\(post.postID)_post.png"
         
+        let dispatchGroup = DispatchGroup()
+        
         StorageManager.shared.uploadPostPhoto(photo: photo, fileName: fileName) { result in
             
             switch result {
                 
             case .success(let photoURL):
+                
                 self.post.photoURL = photoURL.absoluteString
                 
                 UserPostsService.shared.insertNewPost(post: self.post) { result in
@@ -69,15 +72,32 @@ class NewPostViewModel {
                     case .success(let message):
                         print(message)
                         
+                        dispatchGroup.enter()
                         UserPostsService.shared.fanoutPost(post: self.post) {
+                            dispatchGroup.leave()
+                        }
+                        
+                        dispatchGroup.enter()
+                        UserPostsService.shared.getPostCount(for: currentUserID()) { postsCount in
+                            print("got posts count on post creation. Post count: \(postsCount)")
+                            if postsCount == 1 {
+                                UserService.shared.changeHasPostsStatus(hasPostsStatus: true) {
+                                    dispatchGroup.leave()
+                                }
+                            } else {
+                                dispatchGroup.leave()
+                            }
+                        }
+                        
+                        dispatchGroup.notify(queue: .main) {
                             completion(true)
                         }
+                        
                         
                     case .failure(let error):
                         print(error)
                     }
                 }
-                
             case .failure(let error):
                 completion(false)
                 print(error)

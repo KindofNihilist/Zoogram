@@ -29,8 +29,8 @@ class ProfileEdditingViewController: UIViewController {
         return tableView
     }()
     
-    init(profileImage: UIImage) {
-        self.profileImage = profileImage
+    init(userProfileViewModel: UserProfileViewModel) {
+        self.profileImage = userProfileViewModel.user.profilePhoto ?? UIImage()
         super.init(nibName: nil, bundle: nil)
     }
     
@@ -83,9 +83,9 @@ class ProfileEdditingViewController: UIViewController {
     @objc func didTapSave() {
         viewModel.saveChanges {
             print("saved changes")
+            
             self.dismiss(animated: true)
         }
-        
     }
     
     @objc func didTapCancel() {

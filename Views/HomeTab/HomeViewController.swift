@@ -10,8 +10,6 @@ import UIKit
 
 class HomeViewController: UIViewController {
     
-    private let viewModel = HomeViewModel()
-    
     let tableView: PostsTableView = {
         let service = HomeFeedPostsAPIServiceAdapter(
             homeFeedService: HomeFeedService.shared,
@@ -20,6 +18,7 @@ class HomeViewController: UIViewController {
             bookmarksService: BookmarksService.shared)
         
         let tableView = PostsTableView(service: service)
+        tableView.setupRefreshControl()
         tableView.allowsSelection = false
         tableView.separatorStyle = .none
         return tableView
@@ -56,6 +55,7 @@ class HomeViewController: UIViewController {
 }
 
 extension HomeViewController: PostsTableViewProtocol {
+    
     func didTapCommentButton(viewModel: PostViewModel) {
         let commentsViewController = CommentsTableViewController(viewModel: viewModel)
         commentsViewController.hidesBottomBarWhenPushed = true
@@ -63,8 +63,7 @@ extension HomeViewController: PostsTableViewProtocol {
     }
     
     func didSelectUser(userID: String, indexPath: IndexPath) {
-        let userProfileVC = UserProfileViewController(isTabBarItem: false)
-        userProfileVC.service = UserProfileServiceAPIAdapter(
+        let service = UserProfileServiceAPIAdapter(
             userID: userID,
             followService: FollowService.shared,
             userPostsService: UserPostsService.shared,
@@ -72,27 +71,26 @@ extension HomeViewController: PostsTableViewProtocol {
             likeSystemService: LikeSystemService.shared,
             bookmarksService: BookmarksService.shared)
         
+        let userProfileVC = UserProfileViewController(service: service, isTabBarItem: false)
+        
         self.navigationController?.pushViewController(userProfileVC, animated: true)
     }
     
-    func didTapMenuButton(postID: String, indexPath: IndexPath) {
-        guard let post = viewModel.posts.value?[indexPath.row] else {
-            return
-        }
+    func didTapMenuButton(postModel: PostViewModel, indexPath: IndexPath) {
         let actionSheet = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
         actionSheet.view.backgroundColor = .systemBackground
         actionSheet.view.layer.masksToBounds = true
         actionSheet.view.layer.cornerRadius = 15
         
-        if post.isMadeByCurrentUser {
+        if postModel.isMadeByCurrentUser {
             let deleteAction = UIAlertAction(title: "Delete", style: .destructive) { [weak self] _ in
-                self?.tableView.deletePost(post: post, indexPath: indexPath)
+                self?.tableView.deletePost(at: indexPath)
             }
             actionSheet.addAction(deleteAction)
         }
         
         let shareAction = UIAlertAction(title: "Share", style: .cancel) { [weak self] _ in
-            print("shared post", postID)
+            print("shared post", postModel.postID)
         }
         
         actionSheet.addAction(shareAction)

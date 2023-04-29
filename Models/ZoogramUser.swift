@@ -22,6 +22,7 @@ enum Gender: String {
 class ZoogramUser: Codable {
     
     var isCurrentUserProfile = false
+    var hasPosts: Bool = false
     var followStatus: FollowStatus!
     
     var userID: String
@@ -82,6 +83,7 @@ class ZoogramUser: Codable {
         self.gender = try container.decodeIfPresent(String.self, forKey: .gender)
         self.posts = try container.decode(Int.self, forKey: .posts)
         self.joinDate = try container.decode(Double.self, forKey: .joinDate)
+        self.hasPosts = try container.decode(Bool.self, forKey: .hasPosts)
         self.isCurrentUserProfile = checkIfCurrentUser(uid: userID)
     }
     
@@ -110,5 +112,6 @@ class ZoogramUser: Codable {
         case gender
         case posts
         case joinDate
+        case hasPosts
     }
 }

@@ -184,7 +184,13 @@ class FollowListViewController: UIViewController, UITableViewDelegate, UITableVi
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let user = viewModel.users[indexPath.row]
-        let vc = UserProfileViewController(isTabBarItem: false)
+        let service = UserProfileServiceAPIAdapter(userID: user.userID,
+                                                   followService: FollowService.shared,
+                                                   userPostsService: UserPostsService.shared,
+                                                   userService: UserService.shared,
+                                                   likeSystemService: LikeSystemService.shared,
+                                                   bookmarksService: BookmarksService.shared)
+        let vc = UserProfileViewController(service: service, isTabBarItem: false)
         navigationController?.pushViewController(vc, animated: true)
     }
     

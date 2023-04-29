@@ -134,7 +134,8 @@ extension DiscoverViewController: UITableViewDelegate, UITableViewDataSource {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let user = viewModel.foundUsers[indexPath.row]
         print("USER SELECTED:", user.username)
-        let userProfileViewController = UserProfileViewController(isTabBarItem: false)
+        let service = createUserProfileDefaultServiceFor(userID: user.userID)
+        let userProfileViewController = UserProfileViewController(service: service, isTabBarItem: false)
         userProfileViewController.title = user.username
         self.navigationController?.pushViewController(userProfileViewController, animated: true)
     }

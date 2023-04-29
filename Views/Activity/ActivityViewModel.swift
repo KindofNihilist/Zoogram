@@ -57,6 +57,7 @@ class ActivityViewModel {
         
         dispatchGroup.notify(queue: .main) {
             self.events = events
+            print("dispatch group is not notified")
             print("events with data", self.events)
             completion()
         }

@@ -13,7 +13,7 @@ class RegistrationViewModel {
     private var newUser: ZoogramUser!
     
     func fillInBasicZoogramUserModel(userID: String, email: String, username: String) {
-        newUser = ZoogramUser(userID: "",
+        newUser = ZoogramUser(userID: userID,
                               profilePhotoURL: "",
                               email: email,
                               username: username,
@@ -21,7 +21,6 @@ class RegistrationViewModel {
                               birthday: "",
                               posts: 0,
                               joinDate: Date().timeIntervalSince1970)
-        
     }
     
     func registerNewUserWith(email: String, username: String, password: String, completion: @escaping (Bool, String) -> Void) {
@@ -29,6 +28,7 @@ class RegistrationViewModel {
         AuthenticationManager.shared.createNewUser(email: email, password: password) { success, userID, errorDescription in
             if success {
                 self.fillInBasicZoogramUserModel(userID: userID, email: email, username: username)
+                
                 UserService.shared.insertNewUser(with: self.newUser) { success in
                     if success {
                         completion(true, "")

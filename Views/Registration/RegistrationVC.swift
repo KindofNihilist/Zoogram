@@ -283,6 +283,7 @@ class RegistrationVC: UIViewController {
             }
         } completion: { _ in
             self.view.window?.rootViewController = TabBarController(showAppearAnimation: true)
+            self.view.window?.makeKeyAndVisible()
         }
     }
     
