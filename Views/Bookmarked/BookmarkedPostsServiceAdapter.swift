@@ -7,19 +7,18 @@
 
 import Foundation
 
-
 class BookmarkedPostsServiceAdapter: PostsService {
-    
+
     let bookmarksService: BookmarksService
     let likeSystemService: LikeSystemService
     let userPostsService: UserPostsService
-    
+
     var listOfBookmarks = ListOfBookmarks()
-    
+
     var lastReceivedPostKey: String = ""
     var isAlreadyPaginating: Bool = false
     var hasHitTheEndOfPosts: Bool = false
-    
+
     init(bookmarksService: BookmarksService, likeSystemService: LikeSystemService, userPostsService: UserPostsService) {
         self.bookmarksService = bookmarksService
         self.likeSystemService = likeSystemService
@@ -28,7 +27,7 @@ class BookmarkedPostsServiceAdapter: PostsService {
             self.listOfBookmarks = listOfBookmarks
         }
     }
-    
+
     func getPosts(completion: @escaping ([PostViewModel]) -> Void) {
         bookmarksService.getBookmarkedPosts(numberOfPostsToGet: 21) { posts, lastRetrievedPostKey in
             print("got bookmarked posts")
@@ -41,8 +40,8 @@ class BookmarkedPostsServiceAdapter: PostsService {
             }
         }
     }
-    
-    func getMorePosts(completion: @escaping ([PostViewModel]) -> Void) {
+
+    func getMorePosts(completion: @escaping ([PostViewModel]?) -> Void) {
         bookmarksService.getMoreBookmarkedPosts(after: lastReceivedPostKey, numberOfPostsToGet: 21) { posts, lastRetrievedPostKey in
             self.lastReceivedPostKey = lastRetrievedPostKey
             self.getAdditionalPostDataFor(postsOfMultipleUsers: posts) { postsWithAdditionalData in
@@ -52,14 +51,14 @@ class BookmarkedPostsServiceAdapter: PostsService {
             }
         }
     }
-    
+
     func likePost(postID: String, likeState: LikeState, postAuthorID: String, completion: @escaping (LikeState) -> Void) {
         switch likeState {
         case .liked:
             likeSystemService.removePostLike(postID: postID) { result in
                 switch result {
                 case .success(let description):
-                    ActivityService.shared.removeLikeEventForPost(postID: postID, postAuthorID: postAuthorID)
+                    ActivitySystemService.shared.removeLikeEventForPost(postID: postID, postAuthorID: postAuthorID)
                     print(description)
                     completion(.notLiked)
                 case .failure(let error):
@@ -72,9 +71,9 @@ class BookmarkedPostsServiceAdapter: PostsService {
                 switch result {
                 case .success(let description):
                     let currentUserID = AuthenticationManager.shared.getCurrentUserUID()
-                    let eventID = ActivityService.shared.createEventUID()
+                    let eventID = ActivitySystemService.shared.createEventUID()
                     let activityEvent = ActivityEvent(eventType: .postLiked, userID: currentUserID, postID: postID, eventID: eventID, date: Date())
-                    ActivityService.shared.addEventToUserActivity(event: activityEvent, userID: postAuthorID)
+                    ActivitySystemService.shared.addEventToUserActivity(event: activityEvent, userID: postAuthorID)
                     print(description)
                     completion(.liked)
                 case .failure(let error):
@@ -84,13 +83,13 @@ class BookmarkedPostsServiceAdapter: PostsService {
             }
         }
     }
-    
+
     func deletePost(postModel: PostViewModel, completion: @escaping () -> Void) {
         userPostsService.deletePost(postID: postModel.postID, postImageURL: postModel.postImageURL) {
             completion()
         }
     }
-    
+
     func bookmarkPost(postID: String, authorID: String, bookmarkState: BookmarkState, completion: @escaping (BookmarkState) -> Void) {
         switch bookmarkState {
         case .bookmarked:
@@ -104,6 +103,6 @@ class BookmarkedPostsServiceAdapter: PostsService {
                 print("Successfully bookmarked a post")
             }
         }
-        
+
     }
 }

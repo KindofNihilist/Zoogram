@@ -8,13 +8,13 @@
 import UIKit
 
 enum TabItem: String, CaseIterable {
-    
+
     case home = "home"
     case discover = "discover"
     case makeAPost = "makeAPost"
     case activity = "activity"
     case myProfile = "myProfile"
-    
+
     var icon: UIImage {
         switch self {
         case .home: return UIImage(systemName: "house")!.imageWithoutBaseline()
@@ -24,7 +24,7 @@ enum TabItem: String, CaseIterable {
         case .myProfile: return UIImage(systemName: "person.crop.circle")!.imageWithoutBaseline()
         }
     }
-    
+
     var selectedIcon: UIImage {
         switch self {
         case .home: return UIImage(systemName: "house.fill")!.imageWithoutBaseline()

@@ -20,11 +20,11 @@ enum Gender: String {
 }
 
 class ZoogramUser: Codable {
-    
+
     var isCurrentUserProfile = false
     var hasPosts: Bool = false
     var followStatus: FollowStatus!
-    
+
     var userID: String
     var profilePhotoURL: String
     var profilePhoto: UIImage?
@@ -37,7 +37,7 @@ class ZoogramUser: Codable {
     var gender: String?
     var posts: Int
     var joinDate: Double //TimeInterval
-    
+
 
     init(userID: String, profilePhotoURL: String, email: String, phoneNumber: String? = nil, username: String, name: String, bio: String? = nil, birthday: String, gender: String? = nil, posts: Int, joinDate: Double) {
         self.userID = userID
@@ -53,7 +53,7 @@ class ZoogramUser: Codable {
         self.joinDate = joinDate
         self.isCurrentUserProfile = checkIfCurrentUser(uid: userID)
     }
-    
+
     init() {
         self.userID = ""
         self.profilePhotoURL = ""
@@ -69,7 +69,7 @@ class ZoogramUser: Codable {
         self.followStatus = .notFollowing
         self.isCurrentUserProfile = false
     }
-    
+
     required init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.userID = try container.decode(String.self, forKey: .userID)
@@ -86,12 +86,12 @@ class ZoogramUser: Codable {
         self.hasPosts = try container.decode(Bool.self, forKey: .hasPosts)
         self.isCurrentUserProfile = checkIfCurrentUser(uid: userID)
     }
-    
+
     func createDictionary() -> [String: Any]? {
         guard let dictionary = self.dictionary else { return nil }
         return dictionary
     }
-    
+
     private func checkIfCurrentUser(uid: String) -> Bool {
         if uid == AuthenticationManager.shared.getCurrentUserUID() {
             return true
@@ -99,7 +99,7 @@ class ZoogramUser: Codable {
             return false
         }
     }
-    
+
     enum CodingKeys: CodingKey {
         case userID
         case profilePhotoURL

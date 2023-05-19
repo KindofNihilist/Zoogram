@@ -8,17 +8,17 @@
 import UIKit
 
 class FollowingListTableViewCell: UITableViewCell {
-    
+
     static let identifier = "FollowingListTableViewCell"
-    
+
     private var followStatus: FollowStatus!
-    
+
     private var userID: String!
-    
+
     weak var delegate: FollowListCellDelegate?
-    
+
     private let profileImageViewSize: CGFloat = 55
-    
+
     let profileImageView: UIImageView = {
         let imageView = UIImageView()
         imageView.translatesAutoresizingMaskIntoConstraints = false
@@ -27,7 +27,7 @@ class FollowingListTableViewCell: UITableViewCell {
         imageView.backgroundColor = .secondarySystemBackground
         return imageView
     }()
-    
+
     let usernameLabel: UILabel = {
         let label = UILabel()
 //        label.text = "Пухляш220_🐈"
@@ -37,7 +37,7 @@ class FollowingListTableViewCell: UITableViewCell {
         label.numberOfLines = 1
         return label
     }()
-    
+
     let nameLabel: UILabel = {
         let label = UILabel()
 //        label.text = "Пухляш :3"
@@ -47,53 +47,53 @@ class FollowingListTableViewCell: UITableViewCell {
         label.numberOfLines = 1
         return label
     }()
-    
+
     private let followUnfollowButton: FollowUnfollowButton = {
         let button = FollowUnfollowButton()
         button.translatesAutoresizingMaskIntoConstraints = false
         button.addTarget(self, action: #selector(didTapFollowUnfollowButton), for: .touchUpInside)
         return button
     }()
-    
+
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         setupViewsAndConstraints()
         selectionStyle = .none
-        
+
     }
-    
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-    
+
     private func setupViewsAndConstraints() {
         contentView.addSubviews(profileImageView, followUnfollowButton, usernameLabel, nameLabel)
-        
+
         NSLayoutConstraint.activate([
             profileImageView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 15),
             profileImageView.heightAnchor.constraint(equalToConstant: profileImageViewSize),
             profileImageView.widthAnchor.constraint(equalToConstant: profileImageViewSize),
             profileImageView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
-            
+
             followUnfollowButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -15),
             followUnfollowButton.heightAnchor.constraint(equalToConstant: 30),
             followUnfollowButton.widthAnchor.constraint(equalToConstant: 80),
             followUnfollowButton.topAnchor.constraint(equalTo: usernameLabel.topAnchor),
-            
+
             usernameLabel.leadingAnchor.constraint(equalTo: profileImageView.trailingAnchor, constant: 15),
             usernameLabel.trailingAnchor.constraint(lessThanOrEqualTo: followUnfollowButton.leadingAnchor),
             usernameLabel.heightAnchor.constraint(equalToConstant: 15),
             usernameLabel.bottomAnchor.constraint(equalTo: profileImageView.centerYAnchor, constant: -5),
-            
+
             nameLabel.leadingAnchor.constraint(equalTo: profileImageView.trailingAnchor, constant: 15),
             nameLabel.trailingAnchor.constraint(equalTo: usernameLabel.trailingAnchor),
             nameLabel.heightAnchor.constraint(equalToConstant: 15),
             nameLabel.topAnchor.constraint(equalTo: profileImageView.centerYAnchor),
         ])
-        
+
         profileImageView.layer.cornerRadius = profileImageViewSize / 2
     }
-    
+
     func configure(userID: String, followStatus: FollowStatus) {
         guard userID != AuthenticationManager.shared.getCurrentUserUID() else {
             followUnfollowButton.isHidden = true
@@ -102,10 +102,10 @@ class FollowingListTableViewCell: UITableViewCell {
         }
         self.userID = userID
         self.followStatus = followStatus
-    
+
         switchFollowUnfollowButton(followStatus: followStatus)
     }
-    
+
     private func switchFollowUnfollowButton(followStatus: FollowStatus) {
         switch followStatus {
         case .notFollowing:
@@ -114,17 +114,17 @@ class FollowingListTableViewCell: UITableViewCell {
             followUnfollowButton.changeAppearenceToUnfollow()
         }
     }
-    
+
     @objc func didTapFollowUnfollowButton() {
-        
+
         switch followStatus {
-            
+
         case .notFollowing:
             delegate?.followButtonTapped(userID: self.userID) { status in
                 self.followStatus = status
                 self.switchFollowUnfollowButton(followStatus: status)
             }
-            
+
         case .following:
             delegate?.unfollowButtonTapped(userID: self.userID) { status in
                 self.followStatus = status
@@ -134,8 +134,8 @@ class FollowingListTableViewCell: UITableViewCell {
             return
         }
     }
-    
-    
+
+
 }
 
- 
+

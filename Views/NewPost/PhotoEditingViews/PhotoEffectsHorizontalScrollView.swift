@@ -7,7 +7,7 @@
 
 import UIKit
 
-struct editingButton {
+struct EditingButton {
     let effectName: String
     let effectIcon: UIImage
 }
@@ -25,16 +25,16 @@ protocol PhotoEffectsHorizontalScrollViewDelegate: AnyObject {
 }
 
 class PhotoEffectsHorizontalScrollView: UIView {
-    
-    public weak var delegate: PhotoEffectsHorizontalScrollViewDelegate?
-    
+
+    weak var delegate: PhotoEffectsHorizontalScrollViewDelegate?
+
     private let scrollView: UIScrollView = {
         let scrollView = UIScrollView()
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.showsHorizontalScrollIndicator = false
         return scrollView
     }()
-    
+
     private let stackView: UIStackView = {
         let stackview = UIStackView()
         stackview.translatesAutoresizingMaskIntoConstraints = false
@@ -44,8 +44,8 @@ class PhotoEffectsHorizontalScrollView: UIView {
         stackview.distribution = .equalSpacing
         return stackview
     }()
-    
-    private let exposureButton: PhotoEffectButton = {
+
+    private lazy var exposureButton: PhotoEffectButton = {
         let button = PhotoEffectButton()
         button.translatesAutoresizingMaskIntoConstraints = false
         button.configure(effectIcon: UIImage(systemName: "plusminus")!, effectName: "Exposure")
@@ -53,8 +53,8 @@ class PhotoEffectsHorizontalScrollView: UIView {
         button.layer.masksToBounds = true
         return button
     }()
-    
-    private let brightnessButton: PhotoEffectButton = {
+
+    private lazy var brightnessButton: PhotoEffectButton = {
         let button = PhotoEffectButton()
         button.translatesAutoresizingMaskIntoConstraints = false
         button.configure(effectIcon: UIImage(systemName: "sun.max")!, effectName: "Brightness")
@@ -62,8 +62,8 @@ class PhotoEffectsHorizontalScrollView: UIView {
         button.layer.masksToBounds = true
         return button
     }()
-    
-    private let contrastButton: PhotoEffectButton = {
+
+    private lazy var contrastButton: PhotoEffectButton = {
         let button = PhotoEffectButton()
         button.translatesAutoresizingMaskIntoConstraints = false
         button.configure(effectIcon: UIImage(systemName: "circle.lefthalf.filled")!, effectName: "Contrast")
@@ -71,8 +71,8 @@ class PhotoEffectsHorizontalScrollView: UIView {
         button.layer.masksToBounds = true
         return button
     }()
-    
-    private let saturationButton: PhotoEffectButton = {
+
+    private lazy var saturationButton: PhotoEffectButton = {
         let button = PhotoEffectButton()
         button.translatesAutoresizingMaskIntoConstraints = false
         button.configure(effectIcon: UIImage(systemName: "drop")!, effectName: "Saturation")
@@ -80,8 +80,8 @@ class PhotoEffectsHorizontalScrollView: UIView {
         button.layer.masksToBounds = true
         return button
     }()
-    
-    private let warmthButton: PhotoEffectButton = {
+
+    private lazy var warmthButton: PhotoEffectButton = {
         let button = PhotoEffectButton()
         button.translatesAutoresizingMaskIntoConstraints = false
         button.configure(effectIcon: UIImage(systemName: "thermometer.sun")!, effectName: "Warmth")
@@ -89,8 +89,8 @@ class PhotoEffectsHorizontalScrollView: UIView {
         button.layer.masksToBounds = true
         return button
     }()
-    
-    private let tintButton: PhotoEffectButton = {
+
+    private lazy var tintButton: PhotoEffectButton = {
         let button = PhotoEffectButton()
         button.translatesAutoresizingMaskIntoConstraints = false
         button.configure(effectIcon: UIImage(systemName: "eyedropper.halffull")!, effectName: "Tint")
@@ -98,8 +98,8 @@ class PhotoEffectsHorizontalScrollView: UIView {
         button.layer.masksToBounds = true
         return button
     }()
-    
-    private let highLightsButton: PhotoEffectButton = {
+
+    private lazy var highLightsButton: PhotoEffectButton = {
         let button = PhotoEffectButton()
         button.translatesAutoresizingMaskIntoConstraints = false
         button.configure(effectIcon: UIImage(systemName: "circle.fill")!, effectName: "Highlights")
@@ -107,8 +107,8 @@ class PhotoEffectsHorizontalScrollView: UIView {
         button.layer.masksToBounds = true
         return button
     }()
-    
-    private let shadowsButton: PhotoEffectButton = {
+
+    private lazy var shadowsButton: PhotoEffectButton = {
         let button = PhotoEffectButton()
         button.translatesAutoresizingMaskIntoConstraints = false
         button.configure(effectIcon: UIImage(systemName: "circle.fill")!, effectName: "Shadows")
@@ -116,8 +116,8 @@ class PhotoEffectsHorizontalScrollView: UIView {
         button.layer.masksToBounds = true
         return button
     }()
-    
-    private let vignetteButton: PhotoEffectButton = {
+
+    private lazy var vignetteButton: PhotoEffectButton = {
         let button = PhotoEffectButton()
         button.translatesAutoresizingMaskIntoConstraints = false
         button.configure(effectIcon: UIImage(systemName: "smallcircle.filled.circle")!, effectName: "Vignette")
@@ -125,7 +125,7 @@ class PhotoEffectsHorizontalScrollView: UIView {
         button.layer.masksToBounds = true
         return button
     }()
-    
+
     private let filterButton: UIButton = {
         let button = UIButton()
         button.translatesAutoresizingMaskIntoConstraints = false
@@ -134,7 +134,7 @@ class PhotoEffectsHorizontalScrollView: UIView {
         button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 16)
         return button
     }()
-    
+
     private let editButton: UIButton = {
         let button = UIButton()
         button.translatesAutoresizingMaskIntoConstraints = false
@@ -143,7 +143,7 @@ class PhotoEffectsHorizontalScrollView: UIView {
         button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 16)
         return button
     }()
-    
+
     override init(frame: CGRect) {
         super.init(frame: frame)
         backgroundColor = .black
@@ -152,11 +152,11 @@ class PhotoEffectsHorizontalScrollView: UIView {
         setupConstraints()
         setupScrollViewButtons()
     }
-    
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-    
+
     public func setupScrollViewButtons() {
             let buttons = [exposureButton, brightnessButton, contrastButton, saturationButton, warmthButton, tintButton, highLightsButton, shadowsButton, vignetteButton]
             for button in buttons {
@@ -165,71 +165,71 @@ class PhotoEffectsHorizontalScrollView: UIView {
                 stackView.addArrangedSubview(button)
             }
     }
-    
+
     private func setupConstraints() {
         NSLayoutConstraint.activate([
             scrollView.topAnchor.constraint(equalTo: self.topAnchor),
             scrollView.leadingAnchor.constraint(equalTo: self.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: self.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: filterButton.topAnchor),
-            
+
             stackView.topAnchor.constraint(equalTo: scrollView.topAnchor, constant: 40),
             stackView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
             stackView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
             stackView.bottomAnchor.constraint(lessThanOrEqualTo: scrollView.bottomAnchor),
-            
+
             filterButton.leadingAnchor.constraint(equalTo: self.leadingAnchor),
             filterButton.trailingAnchor.constraint(equalTo: self.centerXAnchor),
             filterButton.bottomAnchor.constraint(equalTo: self.bottomAnchor),
             filterButton.heightAnchor.constraint(equalToConstant: 50),
-            
+
             editButton.leadingAnchor.constraint(equalTo: self.centerXAnchor),
             editButton.trailingAnchor.constraint(equalTo: self.trailingAnchor),
             editButton.bottomAnchor.constraint(equalTo: self.bottomAnchor),
             editButton.heightAnchor.constraint(equalTo: filterButton.heightAnchor),
         ])
     }
-    
+
     @objc private func didSelectExposureSetting() {
         print("button tapped")
         self.delegate?.showExposureSlider()
     }
-    
+
     @objc private func didSelectBrightnessSetting() {
         print("button tapped")
         self.delegate?.showBrightnessSlider()
     }
-    
+
     @objc private func didSelectContrastSetting() {
         print("button tapped")
         self.delegate?.showContrastSlider()
     }
-    
+
     @objc private func didSelectSaturationSetting() {
         print("button tapped")
         self.delegate?.showSaturationSlider()
     }
-    
+
     @objc private func didSelectWarmthSetting() {
         print("button tapped")
         self.delegate?.showWarmthSlider()
     }
-    
+
     @objc private func didSelectTintSetting() {
         print("button tapped")
         self.delegate?.showTintSlider()
     }
-    
+
     @objc private func didSelectHighlightsSetting() {
         print("button tapped")
         self.delegate?.showHighlightsSlider()
     }
-    
+
     @objc private func didSelectShadowsSetting() {
         print("button tapped")
         self.delegate?.showShadowsSlider()
     }
-    
+
     @objc private func didSelectVignetteSetting() {
         print("button tapped")
         self.delegate?.showVignetteSlider()

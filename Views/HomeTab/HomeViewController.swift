@@ -9,22 +9,30 @@ import FirebaseAuth
 import UIKit
 
 class HomeViewController: UIViewController {
-    
-    let tableView: PostsTableView = {
-        let service = HomeFeedPostsAPIServiceAdapter(
-            homeFeedService: HomeFeedService.shared,
-            likeSystemService: LikeSystemService.shared,
-            userPostService: UserPostsService.shared,
-            bookmarksService: BookmarksService.shared)
-        
-        let tableView = PostsTableView(service: service)
-        tableView.setupRefreshControl()
-        tableView.allowsSelection = false
-        tableView.separatorStyle = .none
-        return tableView
-    }()
-    
-    
+
+    let service: HomeFeedService
+
+    let tableView: PostsTableView
+
+    private var notificationView: UIView?
+    private var notificationViewTopAnchor: NSLayoutConstraint!
+
+    init(service: HomeFeedService!) {
+        self.service = service
+        self.tableView = {
+            let tableView = PostsTableView(service: service)
+            tableView.setupRefreshControl()
+            tableView.allowsSelection = false
+            tableView.separatorStyle = .none
+            return tableView
+        }()
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
         view = tableView
@@ -33,69 +41,90 @@ class HomeViewController: UIViewController {
         tableView.refreshUserFeed()
         view.backgroundColor = .systemBackground
     }
-    
+
     func setNavigationBarTitle() {
-        
         let navigationBarTitleLabel = UILabel()
         navigationBarTitleLabel.text = "Zoogram"
         navigationBarTitleLabel.font = UIFont(name: "Noteworthy-Bold", size: 24)
         navigationBarTitleLabel.sizeToFit()
-        
+
         let leftItem = UIBarButtonItem(customView: navigationBarTitleLabel)
         navigationItem.leftBarButtonItem = leftItem
     }
-    
+
+    func showMakingNewPostNotificationViewFor(username: String, with postImage: UIImage?) {
+        notificationView = MakingNewPostNotificationView(photo: postImage, username: username)
+        notificationView?.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(notificationView!)
+        notificationViewTopAnchor = notificationView!.topAnchor.constraint(equalTo: view.topAnchor)
+        tableView.insertBlankCell()
+        tableView.isUserInteractionEnabled = false
+        NSLayoutConstraint.activate([
+            notificationViewTopAnchor,
+            notificationView!.leadingAnchor.constraint(equalTo: tableView.leadingAnchor),
+            notificationView!.widthAnchor.constraint(equalTo: view.widthAnchor),
+            notificationView!.heightAnchor.constraint(equalToConstant: PostTableViewCell.headerHeight)
+        ])
+    }
+
+    func updateProgressBar(progress: Progress?) {
+        guard let notificationView = self.notificationView as? MakingNewPostNotificationView else {
+            return
+        }
+        notificationView.setProgressToProgressBar(progress: progress)
+    }
+
+    func animateInsertionOfCreatedPost(post: UserPost) {
+        guard let notificationView = self.notificationView as? MakingNewPostNotificationView else {
+            return
+        }
+        let postViewModel = PostViewModel(post: post)
+        tableView.replaceBlankCellWithNewlyCreatedPost(postViewModel: postViewModel)
+        UIView.animate(withDuration: 0.7) {
+            notificationView.expand()
+        } completion: { _ in
+            self.tableView.makeNewlyCreatedPostVisible(at: IndexPath(row: 0, section: 0)) {
+                self.notificationView?.removeFromSuperview()
+                self.tableView.isUserInteractionEnabled = true
+            }
+        }
+
+    }
+
+    func handlePostCreationError(error: Error) {
+        self.show(error: error)
+        self.tableView.isUserInteractionEnabled = true
+    }
+
     func focusTableViewOnPostWith(index: IndexPath) {
         tableView.scrollToRow(at: index, at: .top, animated: false)
     }
-    
-    func setTopTableViewVisibleContent() {
-        tableView.setContentOffset(CGPointZero, animated: true)
+
+    func setTableViewVisibleContentToTop(animated: Bool) {
+        tableView.setContentOffset(CGPoint.zero, animated: animated)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            self.tableView.setContentOffset(CGPoint.zero, animated: animated)
+        }
     }
 }
 
 extension HomeViewController: PostsTableViewProtocol {
-    
+
     func didTapCommentButton(viewModel: PostViewModel) {
         let commentsViewController = CommentsTableViewController(viewModel: viewModel)
         commentsViewController.hidesBottomBarWhenPushed = true
         navigationController?.pushViewController(commentsViewController, animated: true)
     }
-    
-    func didSelectUser(userID: String, indexPath: IndexPath) {
-        let service = UserProfileServiceAPIAdapter(
-            userID: userID,
-            followService: FollowService.shared,
-            userPostsService: UserPostsService.shared,
-            userService: UserService.shared,
-            likeSystemService: LikeSystemService.shared,
-            bookmarksService: BookmarksService.shared)
-        
-        let userProfileVC = UserProfileViewController(service: service, isTabBarItem: false)
-        
-        self.navigationController?.pushViewController(userProfileVC, animated: true)
+
+    func didSelectUser(user: ZoogramUser) {
+        showProfile(of: user)
     }
-    
+
     func didTapMenuButton(postModel: PostViewModel, indexPath: IndexPath) {
-        let actionSheet = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
-        actionSheet.view.backgroundColor = .systemBackground
-        actionSheet.view.layer.masksToBounds = true
-        actionSheet.view.layer.cornerRadius = 15
-        
-        if postModel.isMadeByCurrentUser {
-            let deleteAction = UIAlertAction(title: "Delete", style: .destructive) { [weak self] _ in
-                self?.tableView.deletePost(at: indexPath)
+        showMenuForPost(postViewModel: postModel, onDelete: {
+            self.tableView.deletePost(at: indexPath) {
+                sendNotificationToUpdateUserProfile()
             }
-            actionSheet.addAction(deleteAction)
-        }
-        
-        let shareAction = UIAlertAction(title: "Share", style: .cancel) { [weak self] _ in
-            print("shared post", postModel.postID)
-        }
-        
-        actionSheet.addAction(shareAction)
-        present(actionSheet, animated: true)
+        })
     }
 }
-
-

@@ -8,7 +8,7 @@
 import UIKit
 
 class PhotoEffectButton: UIButton {
-    
+
     private let roundBackgroundView: UIView = {
         let view = UIView()
         view.translatesAutoresizingMaskIntoConstraints = false
@@ -19,7 +19,7 @@ class PhotoEffectButton: UIButton {
         view.isUserInteractionEnabled = false
         return view
     }()
-    
+
     private let effectIcon: UIImageView = {
         let imageView = UIImageView()
         imageView.translatesAutoresizingMaskIntoConstraints = false
@@ -27,8 +27,8 @@ class PhotoEffectButton: UIButton {
         imageView.tintColor = .white
         return imageView
     }()
-    
-    
+
+
     private let effectLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -43,36 +43,36 @@ class PhotoEffectButton: UIButton {
         roundBackgroundView.addSubview(effectIcon)
         setupConstraints()
     }
-    
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-    
+
     private func setupConstraints() {
         NSLayoutConstraint.activate([
             effectLabel.topAnchor.constraint(equalTo: self.topAnchor),
             effectLabel.leadingAnchor.constraint(equalTo: self.leadingAnchor),
             effectLabel.trailingAnchor.constraint(equalTo: self.trailingAnchor),
             effectLabel.bottomAnchor.constraint(lessThanOrEqualTo: roundBackgroundView.topAnchor),
-            
+
             roundBackgroundView.bottomAnchor.constraint(equalTo: self.bottomAnchor),
             roundBackgroundView.centerXAnchor.constraint(equalTo: self.centerXAnchor),
             roundBackgroundView.widthAnchor.constraint(equalTo: self.widthAnchor),
             roundBackgroundView.heightAnchor.constraint(equalTo: self.heightAnchor, constant: -25),
-            
+
             effectIcon.centerXAnchor.constraint(equalTo: roundBackgroundView.centerXAnchor),
             effectIcon.centerYAnchor.constraint(equalTo: roundBackgroundView.centerYAnchor),
             effectIcon.widthAnchor.constraint(equalToConstant: 45),
             effectIcon.heightAnchor.constraint(equalToConstant: 45),
         ])
-        
+
     }
-    
+
     public func configure(effectIcon: UIImage, effectName: String) {
         self.effectIcon.image = effectIcon
         self.effectLabel.text = effectName
         print(self.frame.width)
     }
-    
-    
+
+
 }

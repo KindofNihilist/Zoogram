@@ -4,18 +4,18 @@
 //
 //  Created by Artem Dolbiev on 17.01.2022.
 //
-import FirebaseAuth 
+import FirebaseAuth
 
 public class AuthenticationManager {
-    
+
     static let shared = AuthenticationManager()
-    
+
     typealias IsSuccessful = Bool
-    
+
     typealias UserID = String
-    
+
     typealias ErrorDescription = String
-    
+
     func createNewUser(email: String, password: String, completion: @escaping (IsSuccessful, UserID, String) -> Void) {
         Auth.auth().createUser(withEmail: email, password: password) { authResult, error in
             if let error = error as? NSError {
@@ -36,7 +36,7 @@ public class AuthenticationManager {
             }
         }
     }
-    
+
     func updateUserProfileURL(profilePhotoURL: URL, completion: @escaping () -> Void) {
        let changeRequest = Auth.auth().currentUser?.createProfileChangeRequest()
         changeRequest?.photoURL = profilePhotoURL
@@ -45,7 +45,7 @@ public class AuthenticationManager {
         })
     }
 
-    
+
     func signInUsing(email: String, password: String, completion: @escaping (IsSuccessful, ErrorDescription) -> Void) {
         Auth.auth().signIn(withEmail: email, password: password) { authResult, error in
             if let error = error as? NSError {
@@ -69,9 +69,9 @@ public class AuthenticationManager {
 
         }
     }
-    
+
     func checkIfEmailIsAvailable(email: String, completion: @escaping (Bool, String) -> Void) {
-        Auth.auth().fetchSignInMethods(forEmail: email) { signInMethods, error in
+        Auth.auth().fetchSignInMethods(forEmail: email) { signInMethods, _ in
             if signInMethods == nil {
                 completion(true, "Email is available")
             } else {
@@ -79,17 +79,15 @@ public class AuthenticationManager {
             }
         }
     }
-    
+
     func getCurrentUserProfilePhotoURL() -> URL? {
         return Auth.auth().currentUser?.photoURL
     }
-    
-    
+
     func getCurrentUserUID() -> String {
         return Auth.auth().currentUser!.uid
     }
-    
-    
+
     func signOut(completion: (IsSuccessful) -> Void) {
         do {
             try Auth.auth().signOut()
@@ -101,7 +99,7 @@ public class AuthenticationManager {
     }
 }
 
-enum storageKeys: String {
+enum StorageKeys: String {
     case users = "Users/"
     case posts = "Posts/"
     case postsLikes = "PostsLikes/"
@@ -109,7 +107,7 @@ enum storageKeys: String {
     case images = "Images/"
 }
 
-enum storageError: Error {
+enum StorageError: Error {
     case errorObtainingSnapshot
     case couldNotMapSnapshotValue
     case errorCreatingAPost

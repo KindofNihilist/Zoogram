@@ -14,7 +14,7 @@ enum ActivityEventType: String, Codable {
 }
 
 class ActivityEvent: Codable, Hashable {
-    
+
     let eventType: ActivityEventType
     let userID: String
     let postID: String?
@@ -24,11 +24,11 @@ class ActivityEvent: Codable, Hashable {
     let commentID: String?
     let referenceString: String?
     var seen: Bool
-    
-    //Used locally
-    var user: ZoogramUser? //User who followed, liked or commented
+
+    // Used locally
+    var user: ZoogramUser?
     var post: UserPost?
-    
+
     init(eventType: ActivityEventType, userID: String, postID: String? = nil, eventID: String, date: Date, text: String? = nil, seen: Bool = false, commentID: String? = nil) {
         self.eventType = eventType
         self.userID = userID
@@ -47,7 +47,7 @@ class ActivityEvent: Codable, Hashable {
             self.referenceString = "\(eventType.rawValue)_\(userID)"
         }
     }
-    
+
     required public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.eventType = try container.decode(ActivityEventType.self, forKey: .eventType)
@@ -60,15 +60,40 @@ class ActivityEvent: Codable, Hashable {
         self.seen = try container.decode(Bool.self, forKey: .seen)
         self.referenceString = nil
     }
-    
+
+    static func createActivityEventFor(comment: PostComment, postID: String) -> ActivityEvent {
+        let eventID = ActivitySystemService.shared.createEventUID()
+
+        return ActivityEvent(eventType: .postCommented,
+                      userID: comment.authorID,
+                      postID: postID,
+                      eventID: eventID,
+                      date: Date(),
+                      text: comment.commentText,
+                      commentID: comment.commentID
+        )
+    }
+
+    static func createActivityEventFor(likedPostID: String) -> ActivityEvent {
+        let currentUserID = AuthenticationManager.shared.getCurrentUserUID()
+        let eventID = ActivitySystemService.shared.createEventUID()
+
+        return ActivityEvent(
+            eventType: .postLiked,
+            userID: currentUserID,
+            postID: likedPostID,
+            eventID: eventID,
+            date: Date())
+    }
+
     static func == (lhs: ActivityEvent, rhs: ActivityEvent) -> Bool {
         return lhs.eventID == rhs.eventID
     }
-    
+
     func hash(into hasher: inout Hasher) {
         hasher.combine(eventID)
     }
-    
+
     enum CodingKeys: CodingKey {
         case eventType
         case userID

@@ -8,7 +8,7 @@
 import UIKit
 import SDWebImage
 
-class PostCommentsTableViewCell: UITableViewCell {
+class PostCommentTableViewCell: UITableViewCell {
     
     static let identifier = "PostCommentsTableViewCell"
     
@@ -50,6 +50,7 @@ class PostCommentsTableViewCell: UITableViewCell {
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         backgroundColor = .systemBackground
+        selectionStyle = .none
         setupViewsAndConstraints()
     }
     
@@ -62,18 +63,18 @@ class PostCommentsTableViewCell: UITableViewCell {
         profilePhotoImageView.layer.cornerRadius = 35 / 2
     }
     
-    public func configure(with comment: PostComment) {
-        messageLabel.text = comment.commentText
+    func configure(with viewModel: CommentViewModel) {
+        messageLabel.text = viewModel.commentText
         messageLabel.sizeToFit()
-        timePassedLabel.text = comment.datePosted.timeAgoDisplay()
+        timePassedLabel.text = viewModel.datePostedText
         timePassedLabel.sizeToFit()
-        usernameLabel.text = comment.author.username
+        usernameLabel.text = viewModel.author.username
         usernameLabel.sizeToFit()
-        let url = URL(string: comment.author.profilePhotoURL)
+        let url = URL(string: viewModel.author.profilePhotoURL)
         profilePhotoImageView.sd_setImage(with: url)
     }
     
-    public func configurePostCaption(caption: String, postAuthorUsername: String, postAuthorProfilePhoto: UIImage, timeSincePostedTitle: String) {
+    func configurePostCaption(caption: String, postAuthorUsername: String, postAuthorProfilePhoto: UIImage, timeSincePostedTitle: String) {
         messageLabel.text = caption
         messageLabel.sizeToFit()
         timePassedLabel.text = timeSincePostedTitle

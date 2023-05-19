@@ -8,7 +8,7 @@
 import UIKit
 
 protocol FormTableViewCellDelegate: AnyObject {
-    func formTableViewCell(_ cell: FormTableViewCell, didUpdateModel model: EditProfileFormModel)
+    func formTableViewCell(didUpdateModel model: EditProfileFormModel)
 }
 
 class FormTableViewCell: UITableViewCell, UITextFieldDelegate {
@@ -17,7 +17,7 @@ class FormTableViewCell: UITableViewCell, UITextFieldDelegate {
     
     private var model: EditProfileFormModel?
     
-    public weak var delegate: FormTableViewCellDelegate?
+    weak var delegate: FormTableViewCellDelegate?
     
     private let formLabel: UILabel = {
         let label = UILabel()
@@ -47,6 +47,7 @@ class FormTableViewCell: UITableViewCell, UITextFieldDelegate {
     
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
+        selectionStyle = .none
         contentView.addSubviews(formLabel, textField, divider)
         setupConstraints()
         textField.delegate = self
@@ -97,20 +98,12 @@ class FormTableViewCell: UITableViewCell, UITextFieldDelegate {
         return true
     }
     
-//    func textFieldDidEndEditing(_ textField: UITextField) {
-//        model?.value = textField.text
-//        guard let model = model else {
-//            return
-//        }
-//        delegate?.formTableViewCell(self, didUpdateModel: model )
-//    }
-    
    @objc func textFieldValueDidChange() {
        model?.value = textField.text
        guard let model = model else {
            return
        }
-       delegate?.formTableViewCell(self, didUpdateModel: model )
+       delegate?.formTableViewCell(didUpdateModel: model )
     }
     
     

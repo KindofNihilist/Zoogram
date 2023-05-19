@@ -8,103 +8,122 @@
 import UIKit
 import SDWebImage
 
-enum PostSubviewType {
-    case header(profilePictureURL: String, username: String)
-    case postContent(provider: UserPost)
-    case actions(provider: String)
-    case comment(comment: PostComment)
-    case footer(provider: UserPost, username: String)
-}
-
-struct PostModel {
-    let subviews: [PostSubviewType]
-}
-
 class PostViewModel {
     let postID: String
-    let authorID: String
-    let authorProfilePhoto: UIImage
-    let authorUsername: String
+    let author: ZoogramUser
     let isMadeByCurrentUser: Bool
-    
+    var isNewlyCreated: Bool
+    var shouldShowBlankCell: Bool = false
+
     let postImage: UIImage
     let postImageURL: String
-    let postCaption: NSMutableAttributedString
-    let unAttributedPostCaption: String
-    
+    let postCaption: NSMutableAttributedString?
+    let unAttributedPostCaption: String?
+
     var likeState: LikeState
     var bookmarkState: BookmarkState
-    
+
     var likesCountTitle: String
-    var commentsCountTitle: String
+    var commentsCountTitle: String?
     var timeSincePostedTitle: String
-    
+
     var likesCount: Int {
         didSet {
             likesCountTitle = PostViewModel.createTitleFor(likesCount: likesCount)
         }
     }
-    
-    var commentsCount: Int {
+
+    var commentsCount: Int? {
         didSet {
             commentsCountTitle = PostViewModel.createTitleFor(commentsCount: commentsCount)
         }
     }
-    
+
     init(post: UserPost) {
-        postID = post.postID
-        authorID = post.author.userID
-        authorProfilePhoto = post.author.profilePhoto ?? UIImage()
-        authorUsername = post.author.username
-        isMadeByCurrentUser = post.isMadeByCurrentUser()
-        postImage = post.image ?? UIImage()
-        postImageURL = post.photoURL
-        postCaption = PostViewModel.formatPostCaption(caption: post.caption, username: authorUsername)
-        unAttributedPostCaption = post.caption
-        bookmarkState = post.bookmarkState
-        likeState = post.likeState
-        
-        likesCountTitle = PostViewModel.createTitleFor(likesCount: post.likesCount)
-        commentsCountTitle = PostViewModel.createTitleFor(commentsCount: post.commentsCount)
-        timeSincePostedTitle = PostViewModel.createTitleFor(timeSincePosted: post.postedDate)
-        
-        likesCount = post.likesCount
-        commentsCount = post.commentsCount
-        
+        self.postID = post.postID
+        self.author = post.author
+        self.isMadeByCurrentUser = post.isMadeByCurrentUser()
+        self.postImage = post.image ?? UIImage()
+        self.postImageURL = post.photoURL
+        self.postCaption = PostViewModel.formatPostCaption(caption: post.caption, username: post.author.username)
+        self.unAttributedPostCaption = post.caption
+        self.bookmarkState = post.bookmarkState
+        self.likeState = post.likeState
+        self.isNewlyCreated = post.isNewlyCreated
+
+        self.likesCountTitle = PostViewModel.createTitleFor(likesCount: post.likesCount)
+        self.commentsCountTitle = PostViewModel.createTitleFor(commentsCount: post.commentsCount)
+        self.timeSincePostedTitle = PostViewModel.createTitleFor(timeSincePosted: post.postedDate)
+
+        self.likesCount = post.likesCount ?? 0
+        self.commentsCount = post.commentsCount
+
     }
-    
-    class func formatPostCaption(caption: String, username: String) -> NSMutableAttributedString {
+
+    init() {
+        self.postID = ""
+        self.author = ZoogramUser()
+        self.isMadeByCurrentUser = true
+        self.postImage = UIImage(systemName: "photo")!
+        self.postImageURL = ""
+        self.postCaption = NSMutableAttributedString()
+        self.unAttributedPostCaption = ""
+        self.bookmarkState = .notBookmarked
+        self.likeState = .notLiked
+        self.isNewlyCreated = true
+        self.likesCountTitle = ""
+        self.commentsCountTitle = ""
+        self.timeSincePostedTitle = ""
+        self.likesCount = 0
+        self.commentsCount = 0
+    }
+
+    class func createBlankViewModel() -> PostViewModel {
+        let postViewModel = PostViewModel()
+        postViewModel.shouldShowBlankCell = true
+        return postViewModel
+    }
+
+    class func formatPostCaption(caption: String?, username: String) -> NSMutableAttributedString? {
+        guard let caption = caption else {
+            return nil
+        }
+
+        let usernameWithCaption = NSMutableAttributedString()
+
         let attributedUsername = NSAttributedString(string: "\(username) ", attributes: [NSAttributedString.Key.font: UIFont.boldSystemFont(ofSize: 14), NSAttributedString.Key.foregroundColor: UIColor.label])
+        usernameWithCaption.append(attributedUsername)
         
         let attributedCaption = NSAttributedString(string: caption, attributes: [NSAttributedString.Key.font: UIFont.systemFont(ofSize: 14), NSAttributedString.Key.foregroundColor: UIColor.label])
-        
-        let usernameWithCaption = NSMutableAttributedString()
-        usernameWithCaption.append(attributedUsername)
         usernameWithCaption.append(attributedCaption)
-        
+
         return usernameWithCaption
     }
-    
-    class func createTitleFor(likesCount: Int) -> String {
+
+    class func createTitleFor(likesCount: Int?) -> String {
+        guard let likesCount = likesCount else {
+            return "0 likes"
+        }
+
         if likesCount == 1 {
             return "\(likesCount) like"
         } else {
             return "\(likesCount) likes"
         }
     }
-    
-    class func createTitleFor(commentsCount: Int) -> String {
-        guard commentsCount > 0 else {
-            return ""
+
+    class func createTitleFor(commentsCount: Int?) -> String? {
+        guard let count = commentsCount, count > 0 else {
+            return nil
         }
-        
+
         if commentsCount == 1 {
             return "View \(commentsCount) comment"
         } else {
             return "View all \(commentsCount) comments"
         }
     }
-    
+
     class func createTitleFor(timeSincePosted: Date) -> String {
         return timeSincePosted.timeAgoDisplay()
     }

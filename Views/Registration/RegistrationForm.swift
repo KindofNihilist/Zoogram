@@ -18,7 +18,7 @@ class RegistrationForm: UIView {
         label.sizeToFit()
         return label
     }()
-    
+
     private let textField: UITextField = {
         let field = UITextField()
         field.returnKeyType = .next
@@ -32,7 +32,7 @@ class RegistrationForm: UIView {
         field.translatesAutoresizingMaskIntoConstraints = false
         return field
     }()
-    
+
     private let errorNotificationView: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -52,36 +52,36 @@ class RegistrationForm: UIView {
         }
         setupConstraints()
     }
-    
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-    
+
     func setupConstraints() {
         NSLayoutConstraint.activate([
             descriptionLabel.topAnchor.constraint(equalTo: self.topAnchor, constant: 25),
             descriptionLabel.centerXAnchor.constraint(equalTo: self.centerXAnchor),
             descriptionLabel.leadingAnchor.constraint(lessThanOrEqualTo: self.leadingAnchor, constant: 10),
             descriptionLabel.trailingAnchor.constraint(lessThanOrEqualTo: self.trailingAnchor, constant: 10),
-            
+
             textField.topAnchor.constraint(equalTo: descriptionLabel.bottomAnchor, constant: 45),
             textField.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: 20),
             textField.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -20),
-            textField.heightAnchor.constraint(equalToConstant: 50),
+            textField.heightAnchor.constraint(equalToConstant: 50)
         ])
     }
-    
+
     func getTextFieldData() -> String {
         return textField.text!
     }
-    
+
     func showErrorNotification(error: String) {
         errorNotificationView.text = error
         self.addSubview(errorNotificationView)
-        
+
         NSLayoutConstraint.activate([
             errorNotificationView.topAnchor.constraint(equalTo: textField.bottomAnchor, constant: 10),
-            errorNotificationView.leadingAnchor.constraint(equalTo: textField.leadingAnchor, constant: 10),
+            errorNotificationView.leadingAnchor.constraint(equalTo: textField.leadingAnchor, constant: 10)
         ])
     }
 }

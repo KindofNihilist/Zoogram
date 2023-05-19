@@ -8,7 +8,7 @@
 import Foundation
 
 final class LoginViewModel {
-    
+
     func loginUser(with email: String, password: String, completion: @escaping (Bool, String) -> Void) {
         AuthenticationManager.shared.signInUsing(email: email, password: password) { isSuccessful, resultDescription in
             if isSuccessful {
@@ -18,6 +18,4 @@ final class LoginViewModel {
             }
         }
     }
-    
-    
 }

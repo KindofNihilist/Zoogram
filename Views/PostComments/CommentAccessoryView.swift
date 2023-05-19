@@ -7,28 +7,29 @@
 
 import UIKit
 
-protocol CommentAccessoryViewProtocol {
+protocol CommentAccessoryViewProtocol: AnyObject {
     func postButtonTapped(commentText: String, completion: @escaping () -> Void)
 }
 
 class CommentAccessoryView: UIInputView {
-    
-    var delegate: CommentAccessoryViewProtocol?
+
+    weak var delegate: CommentAccessoryViewProtocol?
+
     var isEditing: Bool = false
     let elementsHeight: CGFloat = 40
     let textViewMaxHeight: CGFloat = 100
     let placeholder = "Enter comment"
-    
-    var intrinsicHeight: CGFloat = 0 {
+
+     var intrinsicHeight: CGFloat = 0 {
         didSet {
             print("Intrinsic height set to:", intrinsicHeight)
             animateHeightChange()
         }
     }
-    
-    var accessoryViewHeight: CGFloat = 50
-    
-    var userProfilePicture: UIImageView = {
+
+     var accessoryViewHeight: CGFloat = 50
+
+     var userProfilePicture: UIImageView = {
         let imageView = UIImageView()
         imageView.translatesAutoresizingMaskIntoConstraints = false
         imageView.contentMode = .scaleAspectFit
@@ -37,8 +38,8 @@ class CommentAccessoryView: UIInputView {
         imageView.contentMode = .scaleAspectFill
         return imageView
     }()
-    
-    var inputContainerView: UIView = {
+
+    private var inputContainerView: UIView = {
         let view = UIView()
         view.translatesAutoresizingMaskIntoConstraints = false
         view.clipsToBounds = true
@@ -47,8 +48,8 @@ class CommentAccessoryView: UIInputView {
         view.layer.borderColor = UIColor.placeholderText.cgColor
         return view
     }()
-    
-    var commentTextView: UITextView = {
+
+    private var commentTextView: UITextView = {
         let textView = UITextView()
         textView.translatesAutoresizingMaskIntoConstraints = false
         textView.backgroundColor = .systemBackground
@@ -57,18 +58,19 @@ class CommentAccessoryView: UIInputView {
         textView.isScrollEnabled = false
         return textView
     }()
-    
-    var postButton: UIButton = {
+
+    private lazy var postButton: UIButton = {
         let button = UIButton(type: .system)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.clipsToBounds = true
         button.layer.cornerRadius = 30/2
-        button.setImage(UIImage(systemName: "arrow.up.circle.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 35)), for: .normal)
+        button.setImage(UIImage(systemName: "arrow.up.circle.fill",
+                                withConfiguration: UIImage.SymbolConfiguration(pointSize: 35)), for: .normal)
         button.tintColor = .systemBlue
         button.addTarget(self, action: #selector(didTapPostButton), for: .touchUpInside)
         return button
     }()
-    
+
     override init(frame: CGRect, inputViewStyle: UIInputView.Style) {
         super.init(frame: frame, inputViewStyle: inputViewStyle)
         setupConstraints()
@@ -78,17 +80,17 @@ class CommentAccessoryView: UIInputView {
         commentTextView.textColor = .placeholderText
         autoresizingMask = .flexibleHeight
     }
-    
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-    
+
     override func layoutSubviews() {
         super.layoutSubviews()
-        
+
         setViewCornerRadius()
     }
-    
+
     func animateHeightChange() {
         var duration: Double = 0
         if self.intrinsicHeight > 50 {
@@ -97,13 +99,12 @@ class CommentAccessoryView: UIInputView {
         self.invalidateIntrinsicContentSize()
         self.superview?.setNeedsLayout()
 
-//        UIView.animate(withDuration: <#T##TimeInterval#>, delay: <#T##TimeInterval#>, options: <#T##UIView.AnimationOptions#>, animations: <#T##() -> Void#>)
         UIView.animate(withDuration: duration, delay: 0) {
             print("inside animation block")
             self.superview?.layoutIfNeeded()
         }
     }
-    
+
     func setViewCornerRadius() {
         userProfilePicture.layer.cornerRadius = elementsHeight / 2
         inputContainerView.layer.cornerRadius = elementsHeight / 2
@@ -113,33 +114,32 @@ class CommentAccessoryView: UIInputView {
         inputContainerView.addSubviews(commentTextView, postButton)
 
         NSLayoutConstraint.activate([
-            
+
             userProfilePicture.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -5),
             userProfilePicture.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: 10),
             userProfilePicture.widthAnchor.constraint(equalToConstant: elementsHeight),
             userProfilePicture.heightAnchor.constraint(equalToConstant: elementsHeight),
-            
+
             inputContainerView.leadingAnchor.constraint(equalTo: userProfilePicture.trailingAnchor, constant: 10),
             inputContainerView.bottomAnchor.constraint(equalTo: userProfilePicture.bottomAnchor),
             inputContainerView.topAnchor.constraint(equalTo: self.topAnchor, constant: 5),
             inputContainerView.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -10),
-            
+
             commentTextView.topAnchor.constraint(equalTo: inputContainerView.topAnchor),
             commentTextView.leadingAnchor.constraint(equalTo: inputContainerView.leadingAnchor, constant: 10),
             commentTextView.bottomAnchor.constraint(equalTo: inputContainerView.bottomAnchor),
             commentTextView.trailingAnchor.constraint(equalTo: postButton.leadingAnchor),
-            
+
             postButton.trailingAnchor.constraint(equalTo: inputContainerView.trailingAnchor, constant: -3),
             postButton.centerYAnchor.constraint(equalTo: userProfilePicture.centerYAnchor),
             postButton.widthAnchor.constraint(equalToConstant: elementsHeight - 3),
             postButton.heightAnchor.constraint(equalToConstant: elementsHeight - 3)
         ])
     }
-    
+
     override var intrinsicContentSize: CGSize {
         return CGSize(width: UIView.noIntrinsicMetric, height: self.intrinsicHeight)    }
-    
-    
+
     @objc func didTapPostButton() {
         guard let text = commentTextView.text, text != placeholder, text != "" else {
             return
@@ -152,7 +152,7 @@ class CommentAccessoryView: UIInputView {
 }
 
 extension CommentAccessoryView: UITextViewDelegate {
-    
+
     func textViewDidBeginEditing(_ textView: UITextView) {
         self.isEditing = true
         if textView.text == placeholder {
@@ -160,7 +160,7 @@ extension CommentAccessoryView: UITextViewDelegate {
             textView.textColor = .label
         }
     }
-    
+
     func textViewDidEndEditing(_ textView: UITextView) {
         isEditing = false
         guard textView.text != "" else {
@@ -169,18 +169,16 @@ extension CommentAccessoryView: UITextViewDelegate {
             return
         }
     }
-    
+
     func textViewDidChange(_ textView: UITextView) {
         sizeTextViewToItsContent(textView: textView)
 //        textView.centerVerticalText()
-        
-        
     }
-    
+
     func sizeTextViewToItsContent(textView: UITextView) {
         let size = CGSize(width: frame.size.width, height: .infinity)
         let estimatedSize = textView.sizeThatFits(size)
-        
+
         if estimatedSize.height > textViewMaxHeight {
             print("estimated size > max height enabling scrolling")
             commentTextView.isScrollEnabled = true

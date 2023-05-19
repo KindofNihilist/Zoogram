@@ -8,7 +8,7 @@
 import Foundation
 import SDWebImage
 
-enum profileFormKind {
+enum ProfileFormKind {
     case name, username, bio, phone, email, gender
 }
 
@@ -16,11 +16,11 @@ struct EditProfileFormModel {
     let label: String
     let placeholder: String
     var value: String?
-    let formKind: profileFormKind
+    let formKind: ProfileFormKind
 }
 
 class ProfileEdditingViewModel {
-    
+
     var name: String = ""
     var username: String = ""
     var bio: String = ""
@@ -29,13 +29,11 @@ class ProfileEdditingViewModel {
     var profilePictureURL: String = ""
     var gender: String = ""
     var newProfilePicture: UIImage?
-    
+
     var hasChangedProfilePic: Bool = false
     var models = [[EditProfileFormModel]]()
     var changedValues = [String: Any]()
-    
-    
-    
+
     func getUserProfileData(completion: @escaping () -> Void) {
         UserService.shared.observeUser(for: AuthenticationManager.shared.getCurrentUserUID()) { user in
             self.name = user.name
@@ -49,22 +47,20 @@ class ProfileEdditingViewModel {
             completion()
         }
     }
-    
+
     func configureModels() {
         models.removeAll()
-        //name, username, website, bio
         let section1 = [EditProfileFormModel(label: "Name", placeholder: "Name", value: name, formKind: .name),
                         EditProfileFormModel(label: "Username", placeholder: "Username", value: username, formKind: .username),
                         EditProfileFormModel(label: "Bio", placeholder: "Bio", value: bio, formKind: .bio)]
         models.append(section1)
-        
-        //private phone, email, gender
+
         let section2 = [EditProfileFormModel(label: "Phone", placeholder: "Phone", value: phoneNumber, formKind: .phone),
                         EditProfileFormModel(label: "Email", placeholder: "Email", value: email, formKind: .email),
                         EditProfileFormModel(label: "Gender", placeholder: "Gender", value: gender, formKind: .gender)]
         models.append(section2)
     }
-    
+
     func getProfilePicture(completion: @escaping (UIImage) -> Void) {
         print(name, username, bio, email)
         let url = URL(string: profilePictureURL)
@@ -74,7 +70,7 @@ class ProfileEdditingViewModel {
             }
         }
     }
-    
+
     func hasEdditedUserProfile(data: EditProfileFormModel) {
         switch data.formKind {
         case .name:
@@ -91,13 +87,12 @@ class ProfileEdditingViewModel {
             changedValues["gender"] = data.value
         }
     }
-    
-    
+
     func saveChanges(completion: @escaping () -> Void) {
         if hasChangedProfilePic {
             print("inside hasChangedProfilePic")
             UserService.shared.updateUserProfilePicture(newProfilePic: newProfilePicture!)
-            
+
             UserService.shared.updateUserProfile(with: self.changedValues) {
                 completion()
             }

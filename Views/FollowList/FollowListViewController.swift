@@ -18,28 +18,29 @@ enum FollowCellType {
 }
 
 class FollowListViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
-    
+
     private let viewModel = FollowListViewModel()
-    
+
     private var viewKind: FollowCellType
-    
+
     private var isUserProfile: Bool
-    
+
     private let tableView: UITableView = {
         let tableView = UITableView()
         tableView.separatorStyle = .none
         return tableView
     }()
-    
+
     private lazy var messageImageView: UIImageView = {
         let imageview = UIImageView()
-        imageview.image = UIImage(systemName: "person.crop.circle.badge.plus", withConfiguration: UIImage.SymbolConfiguration(pointSize: 25))
+        imageview.image = UIImage(systemName: "person.crop.circle.badge.plus",
+                                  withConfiguration: UIImage.SymbolConfiguration(pointSize: 25))
         imageview.contentMode = .scaleAspectFit
         imageview.tintColor = .label
         imageview.translatesAutoresizingMaskIntoConstraints = false
         return imageview
     }()
-    
+
     private lazy var messageTitle: UILabel = {
         let label = UILabel()
         label.font = .boldSystemFont(ofSize: 25)
@@ -48,7 +49,7 @@ class FollowListViewController: UIViewController, UITableViewDelegate, UITableVi
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
-    
+
     private lazy var message: UILabel = {
         let label = UILabel()
         label.font = .systemFont(ofSize: 15)
@@ -59,7 +60,7 @@ class FollowListViewController: UIViewController, UITableViewDelegate, UITableVi
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
-    
+
     init(for uid: String, isUserProfile: Bool, viewKind: FollowCellType) {
         self.isUserProfile = isUserProfile
         self.viewKind = viewKind
@@ -67,34 +68,36 @@ class FollowListViewController: UIViewController, UITableViewDelegate, UITableVi
         super.init(nibName: nil, bundle: nil)
         tableView.delegate = self
         tableView.dataSource = self
-        tableView.register(FollowingListTableViewCell.self, forCellReuseIdentifier: FollowingListTableViewCell.identifier)
-        tableView.register(FollowersListTableViewCell.self, forCellReuseIdentifier: FollowersListTableViewCell.identifier)
+        tableView.register(FollowingListTableViewCell.self,
+                           forCellReuseIdentifier: FollowingListTableViewCell.identifier)
+        tableView.register(FollowersListTableViewCell.self,
+                           forCellReuseIdentifier: FollowersListTableViewCell.identifier)
     }
-    
+
     override func viewWillAppear(_ animated: Bool) {
-        
+
     }
-    
+
     @objc func popBack() {
         self.navigationController?.popViewController(animated: true)
     }
-    
+
     override func viewDidLoad() {
         super.viewDidLoad()
         view = tableView
-        
+
         switch viewKind {
-            
+
         case .following:
-            viewModel.getFollowing() {
+            viewModel.getFollowing {
                 if self.viewModel.users.isEmpty {
                     self.showNoOneFollowedMessage()
                 }
                 self.tableView.reloadData()
             }
-            
+
         case .followers:
-            viewModel.getFollowers() {
+            viewModel.getFollowers {
                 if self.viewModel.users.isEmpty {
                     self.showNoFollowersMessage()
                 }
@@ -102,67 +105,71 @@ class FollowListViewController: UIViewController, UITableViewDelegate, UITableVi
             }
         }
     }
-    
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-    
+
     func showNoFollowersMessage() {
         messageTitle.text = "Followers"
         message.text = "You'll see all of the people who follow \nyou here."
         self.view.addSubviews(messageTitle, messageImageView, message)
         setupMessageConstraints()
     }
-    
+
     func showNoOneFollowedMessage() {
         messageTitle.text = "People you follow"
         message.text = "When you follow someone, \nyou'll see them here."
         self.view.addSubviews(messageTitle, messageImageView, message)
         setupMessageConstraints()
     }
-    
+
     func numberOfSections(in tableView: UITableView) -> Int {
         return 1
     }
-    
+
     func setupMessageConstraints() {
         NSLayoutConstraint.activate([
             messageImageView.bottomAnchor.constraint(equalTo: view.centerYAnchor, constant: -10),
             messageImageView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             messageImageView.heightAnchor.constraint(equalToConstant: 100),
             messageImageView.widthAnchor.constraint(equalToConstant: 100),
-            
+
             messageTitle.topAnchor.constraint(equalTo: messageImageView.bottomAnchor, constant: 10),
             messageTitle.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            
+
             message.topAnchor.constraint(equalTo: messageTitle.bottomAnchor, constant: 8),
-            message.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            
+            message.centerXAnchor.constraint(equalTo: view.centerXAnchor)
+
         ])
     }
-    
+
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return viewModel.users.count
     }
-    
+
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let user = viewModel.users[indexPath.row]
-        
+
         if isUserProfile {
             switch viewKind {
-                
+
             case .following:
-                let cell = tableView.dequeueReusableCell(withIdentifier: FollowingListTableViewCell.identifier, for: indexPath) as! FollowingListTableViewCell
+                let cell: FollowingListTableViewCell = tableView.dequeue(
+                    withIdentifier: FollowingListTableViewCell.identifier,
+                    for: indexPath)
                 let url = URL(string: user.profilePhotoURL)
                 cell.nameLabel.text = user.name
                 cell.usernameLabel.text = user.username
                 cell.profileImageView.sd_setImage(with: url)
-                cell.configure(userID: user.userID ,followStatus: user.followStatus)
+                cell.configure(userID: user.userID, followStatus: user.followStatus)
                 cell.delegate = self
                 return cell
-                
+
             case .followers:
-                let cell = tableView.dequeueReusableCell(withIdentifier: FollowersListTableViewCell.identifier, for: indexPath) as! FollowersListTableViewCell
+                let cell: FollowersListTableViewCell = tableView.dequeue(
+                    withIdentifier: FollowersListTableViewCell.identifier,
+                    for: indexPath)
                 let url = URL(string: user.profilePhotoURL)
                 cell.nameLabel.text = user.name
                 cell.usernameLabel.text = user.username
@@ -172,7 +179,9 @@ class FollowListViewController: UIViewController, UITableViewDelegate, UITableVi
                 return cell
             }
         } else {
-            let cell = tableView.dequeueReusableCell(withIdentifier: FollowingListTableViewCell.identifier, for: indexPath) as! FollowingListTableViewCell
+            let cell: FollowingListTableViewCell = tableView.dequeue(
+                withIdentifier: FollowingListTableViewCell.identifier,
+                for: indexPath)
             let url = URL(string: user.profilePhotoURL)
             cell.nameLabel.text = user.name
             cell.usernameLabel.text = user.username
@@ -181,23 +190,23 @@ class FollowListViewController: UIViewController, UITableViewDelegate, UITableVi
             return cell
         }
     }
-    
+
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let user = viewModel.users[indexPath.row]
         let service = UserProfileServiceAPIAdapter(userID: user.userID,
-                                                   followService: FollowService.shared,
+                                                   followService: FollowSystemService.shared,
                                                    userPostsService: UserPostsService.shared,
                                                    userService: UserService.shared,
                                                    likeSystemService: LikeSystemService.shared,
                                                    bookmarksService: BookmarksService.shared)
-        let vc = UserProfileViewController(service: service, isTabBarItem: false)
-        navigationController?.pushViewController(vc, animated: true)
+        let userProfileVC = UserProfileViewController(service: service, user: user, isTabBarItem: false)
+        navigationController?.pushViewController(userProfileVC, animated: true)
     }
-    
+
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
         return 75.0
     }
-    
+
 }
 
 extension FollowListViewController: FollowListCellDelegate {
@@ -208,7 +217,7 @@ extension FollowListViewController: FollowListCellDelegate {
             }
         }
     }
-    
+
     func undoButtonTapped(userID: String, undoCompletion: @escaping (FollowStatus) -> Void) {
         viewModel.undoUserRemoval(uid: userID) { success in
             if success {
@@ -216,18 +225,16 @@ extension FollowListViewController: FollowListCellDelegate {
             }
         }
     }
-    
+
     func followButtonTapped(userID: String, followCompletion: @escaping (FollowStatus) -> Void) {
         viewModel.followUser(uid: userID) { followStatus in
             followCompletion(followStatus)
         }
     }
-    
+
     func unfollowButtonTapped(userID: String, unfollowCompletion: @escaping (FollowStatus) -> Void) {
         viewModel.unfollowUser(uid: userID) { followStatus in
             unfollowCompletion(followStatus)
         }
     }
 }
-
-

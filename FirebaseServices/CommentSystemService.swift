@@ -8,9 +8,9 @@
 import Foundation
 import FirebaseDatabase
 
-class CommentsService {
+class CommentSystemService {
     
-    static let shared = CommentsService()
+    static let shared = CommentSystemService()
     
     private let databaseRef = Database.database(url: "https://catogram-58487-default-rtdb.europe-west1.firebasedatabase.app").reference()
     

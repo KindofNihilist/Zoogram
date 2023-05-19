@@ -9,7 +9,7 @@ import UIKit
 
 class CollectionViewCustomLayout: UICollectionViewFlowLayout {
     let cellsPerRow: Int
-    
+
     init(cellsPerRow: Int, minimumInteritemSpacing: CGFloat = 0, minimumLineSpacing: CGFloat = 0, sectionInset: UIEdgeInsets = .zero) {
             self.cellsPerRow = cellsPerRow
             super.init()
@@ -26,15 +26,20 @@ class CollectionViewCustomLayout: UICollectionViewFlowLayout {
         override func prepare() {
             super.prepare()
 
-            guard let collectionView = collectionView else { return }
-            let marginsAndInsets = sectionInset.left + sectionInset.right + collectionView.safeAreaInsets.left + collectionView.safeAreaInsets.right + minimumInteritemSpacing * CGFloat(cellsPerRow - 1)
-            let itemWidth = ((collectionView.bounds.size.width - marginsAndInsets) / CGFloat(cellsPerRow)).rounded(.down)
+            guard let safeAreaInsets = collectionView?.safeAreaInsets,
+                  let collectionViewWidth = collectionView?.bounds.size.width
+            else { return }
+            let cellsPerRow = CGFloat(cellsPerRow)
+            let safeAreaInsetsCombined = safeAreaInsets.left + safeAreaInsets.right
+            let sectionInsets = sectionInset.left + sectionInset.right
+            let marginsAndInsets = sectionInsets + safeAreaInsetsCombined + minimumInteritemSpacing * (cellsPerRow - 1)
+            let itemWidth = ((collectionViewWidth - marginsAndInsets) / (cellsPerRow - 1)).rounded(.down)
             itemSize = CGSize(width: itemWidth, height: itemWidth)
         }
 
         override func invalidationContext(forBoundsChange newBounds: CGRect) -> UICollectionViewLayoutInvalidationContext {
-            let context = super.invalidationContext(forBoundsChange: newBounds) as! UICollectionViewFlowLayoutInvalidationContext
-            context.invalidateFlowLayoutDelegateMetrics = newBounds.size != collectionView?.bounds.size
-            return context
+            let context = super.invalidationContext(forBoundsChange: newBounds) as? UICollectionViewFlowLayoutInvalidationContext
+            context?.invalidateFlowLayoutDelegateMetrics = newBounds.size != collectionView?.bounds.size
+            return context ?? UICollectionViewLayoutInvalidationContext()
         }
 }

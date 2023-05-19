@@ -8,23 +8,23 @@
 import Foundation
 
 class DiscoverViewModel {
-    
+
     var foundUsers = [ZoogramUser]()
-    
+
     func searchUser(for input: String, completion: @escaping () -> Void ) {
         guard input != "" else {
             foundUsers = []
             completion()
             return
         }
-        
+
         print("inside search user func")
-        UserService.shared.searchUserWith(username: input) { users in
+        UserService.shared.searchUserWith(username: input) { [weak self] users in
             print("Search results: ", users)
-            self.foundUsers = users
-            print(self.foundUsers)
+            self?.foundUsers = users
+            print(self?.foundUsers)
             completion()
         }
     }
-    
+
 }

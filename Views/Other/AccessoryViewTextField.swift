@@ -8,21 +8,21 @@
 import UIKit
 
 class AccessoryViewTextView: UITextView {
-    
+
     var placeholder = "" {
         didSet {
             self.text = placeholder
         }
     }
-    
+
     var isEditing: Bool = false
-    
+
     var rightView: UIView? {
         didSet {
             setupRightView()
         }
     }
-    
+
     override init(frame: CGRect, textContainer: NSTextContainer?) {
         super.init(frame: frame, textContainer: textContainer)
         self.textColor = .placeholderText
@@ -32,7 +32,7 @@ class AccessoryViewTextView: UITextView {
         self.contentSize = sizeThatFits(self.frame.size)
 //        centerVerticalText()
     }
-    
+
     func setupRightView() {
         guard let rightView = rightView else {
             return
@@ -44,15 +44,14 @@ class AccessoryViewTextView: UITextView {
             rightView.trailingAnchor.constraint(equalTo: self.safeAreaLayoutGuide.trailingAnchor, constant: -5),
             rightView.bottomAnchor.constraint(equalTo: self.safeAreaLayoutGuide.bottomAnchor, constant: 5),
             rightView.heightAnchor.constraint(equalToConstant: 30),
-            rightView.widthAnchor.constraint(equalToConstant: 30),
+            rightView.widthAnchor.constraint(equalToConstant: 30)
         ])
     }
-    
-    
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-    
+
 //    func centerVerticalText() {
 //            let fitSize = CGSize(width: bounds.width, height: CGFloat.greatestFiniteMagnitude)
 //            let size = sizeThatFits(fitSize)
@@ -63,17 +62,17 @@ class AccessoryViewTextView: UITextView {
 }
 
 class AccessoryViewTextField: UITextField {
-    
+
     let inset: CGFloat = 10
     let buttonInset: CGFloat = 3
     let buttonRightInset: CGFloat = 2
     var insets = UIEdgeInsets(top: 10, left: 15, bottom: 10, right: 5)
-    
+
     private func setInsets(forBounds bounds: CGRect) -> CGRect {
 
-        var totalInsets = insets //property in you subClass
+        var totalInsets = insets
 
-        if let leftView = leftView  { totalInsets.left += leftView.frame.origin.x }
+        if let leftView = leftView { totalInsets.left += leftView.frame.origin.x }
         if let rightView = rightView { totalInsets.right += rightView.bounds.size.width + 5}
 
         return bounds.inset(by: totalInsets)
@@ -95,8 +94,11 @@ class AccessoryViewTextField: UITextField {
 
         var rect = super.rightViewRect(forBounds: bounds)
         rect.origin.x -= insets.right
-        var customRect = CGRect(x: rect.minX - 2.5, y: rect.minY - 2.5, width: bounds.height - 5, height: bounds.height - 5)
-        
+        var customRect = CGRect(x: rect.minX - 2.5,
+                                y: rect.minY - 2.5,
+                                width: bounds.height - 5,
+                                height: bounds.height - 5)
+
         return customRect
     }
 
@@ -107,7 +109,7 @@ class AccessoryViewTextField: UITextField {
 
         return rect
     }
-    
+
 //    override func textRect(forBounds bounds: CGRect) -> CGRect {
 //        return CGRect(x: inset, y: bounds.maxY, width: bounds.width - bounds.height, height: 50)
 //    }

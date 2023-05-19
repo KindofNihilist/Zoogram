@@ -7,21 +7,20 @@
 
 import UIKit
 
-protocol NewPostProtocol {
-    func shouldUpdateHomeFeed()
-    func shouldUpdateUserProfilePosts()
+protocol NewPostProtocol: AnyObject {
+    func makeANewPost(post: UserPost, completion: @escaping () -> Void)
 }
 
 class MakeAPostViewController: UIViewController {
-    
-    let viewModel = NewPostViewModel()
-    
-    var delegate: NewPostProtocol?
-    
+
+    let viewModel: NewPostViewModel
+
+    weak var delegate: NewPostProtocol?
+
     let captionTextViewPlaceholder = "Write a caption..."
-    
+
     var imagePreviewHeightConstraint = NSLayoutConstraint()
-    
+
     let postImagePreview: UIImageView = {
         let imageView = UIImageView()
         imageView.translatesAutoresizingMaskIntoConstraints = false
@@ -30,7 +29,7 @@ class MakeAPostViewController: UIViewController {
         imageView.backgroundColor = .systemCyan
         return imageView
     }()
-    
+
     let captionTextView: UITextView = {
         let textView = UITextView()
         textView.translatesAutoresizingMaskIntoConstraints = false
@@ -46,129 +45,139 @@ class MakeAPostViewController: UIViewController {
         textView.textColor = .placeholderText
         return textView
     }()
-    
+
     init(photo: UIImage) {
+        self.viewModel = NewPostViewModel()
         super.init(nibName: nil, bundle: nil)
-        self.postImagePreview.image = photo
         self.viewModel.preparePhotoForPosting(photoToCompress: photo)
+        self.postImagePreview.image = photo
         self.captionTextView.text = self.captionTextViewPlaceholder
     }
-    
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-    
+
     override func viewWillAppear(_ animated: Bool) {
-        viewModel.getSnapshotOfFollowers()
-        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillAppear), name: UIResponder.keyboardWillShowNotification, object: nil)
-        
-        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillDissappear), name: UIResponder.keyboardWillHideNotification, object: nil)
+        NotificationCenter.default.addObserver(self,
+                                               selector: #selector(keyboardWillAppear),
+                                               name: UIResponder.keyboardWillShowNotification,
+                                               object: nil)
+
+        NotificationCenter.default.addObserver(self,
+                                               selector: #selector(keyboardWillDissappear),
+                                               name: UIResponder.keyboardWillHideNotification,
+                                               object: nil)
     }
-    
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
-        NotificationCenter.default.removeObserver(self)
-    }
-    
+
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
-        setupNavBar()
-        captionTextView.delegate = self
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(hideKeyboard))
           tapGesture.cancelsTouchesInView = true
         view.addGestureRecognizer(tapGesture)
+        view.backgroundColor = .systemBackground
         view.addSubviews(postImagePreview, captionTextView)
+        setupNavBar()
         setupConstraints()
         setupPreview()
-        
+        captionTextView.delegate = self
     }
-    
+
     override var prefersStatusBarHidden: Bool {
         return true
     }
-    
+
     @objc func hideKeyboard() {
         captionTextView.endEditing(true)
     }
-    
+
     func setupConstraints() {
         NSLayoutConstraint.activate([
             postImagePreview.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 15),
             postImagePreview.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
             postImagePreview.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
-            
-//            captionTextView.topAnchor.constraint(equalTo: postImagePreview.bottomAnchor, constant: 20),
+
             captionTextView.heightAnchor.constraint(equalToConstant: 200),
             captionTextView.leadingAnchor.constraint(equalTo: postImagePreview.leadingAnchor),
             captionTextView.trailingAnchor.constraint(equalTo: postImagePreview.trailingAnchor),
-            captionTextView.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor, constant: -15),
+            captionTextView.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor, constant: -15)
         ])
     }
-    
+
     private func setupNavBar() {
-        navigationItem.leftBarButtonItem = UIBarButtonItem(image: UIImage(systemName: "chevron.backward"), style: .plain, target: self, action: #selector(navigateBack))
-        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Post", style: .done, target: self, action: #selector(postAPhoto))
+        navigationItem.leftBarButtonItem = UIBarButtonItem(
+            image: UIImage(systemName: "chevron.backward"),
+            style: .plain,
+            target: self,
+            action: #selector(navigateBack))
+
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            title: "Post",
+            style: .done,
+            target: self,
+            action: #selector(postAPhoto))
+
         navigationItem.leftBarButtonItem?.tintColor = .white
         let button = UIButton()
         button.tintColor = .white
         navigationItem.titleView = button
     }
-    
+
     func setupPreview() {
         guard let photo = postImagePreview.image else {
             return
         }
-        
+
         let imageAspectRatio = photo.size.height / photo.size.width
-        let heightConstraint = NSLayoutConstraint(item: postImagePreview, attribute: NSLayoutConstraint.Attribute.height, relatedBy: NSLayoutConstraint.Relation.equal, toItem: postImagePreview, attribute: NSLayoutConstraint.Attribute.width, multiplier: imageAspectRatio, constant: 0)
+        let heightConstraint = NSLayoutConstraint(
+            item: postImagePreview,
+            attribute: NSLayoutConstraint.Attribute.height,
+            relatedBy: NSLayoutConstraint.Relation.equal,
+            toItem: postImagePreview,
+            attribute: NSLayoutConstraint.Attribute.width,
+            multiplier: imageAspectRatio,
+            constant: 0)
         self.imagePreviewHeightConstraint = heightConstraint
         self.imagePreviewHeightConstraint.isActive = true
     }
-    
+
    @objc func postAPhoto() {
-       var caption = ""
-       if captionTextView.text != captionTextViewPlaceholder {
-           caption = captionTextView.text
+       guard viewModel.post.image != nil else {
+           return
        }
-       viewModel.makeAPost(caption: caption) { isSuccesfull in
-           if isSuccesfull {
-               print("Made a post")
-//               self.delegate?.shouldUpdateHomeFeed()
-//               self.delegate?.shouldUpdateUserProfilePosts()
-               sendNotificationToUpdateUserFeed()
-               sendNotificationToUpdateUserProfile()
-               self.view.window?.rootViewController?.dismiss(animated: true)
-           } else {
-               self.showAlert()
-           }
+       delegate?.makeANewPost(post: viewModel.post) {
+//           self.dismiss(animated: true)
        }
     }
-    
+
     @objc private func navigateBack() {
         navigationController?.popViewController(animated: true)
     }
-    
+
     @objc private func keyboardWillAppear() {
         UIView.animate(withDuration: 0.2, delay: 0) {
             self.postImagePreview.alpha = 0
         }
     }
-    
+
     @objc private func keyboardWillDissappear() {
         UIView.animate(withDuration: 0.2, delay: 0) {
             self.postImagePreview.alpha = 1
         }
     }
-    
+
     func showAlert() {
         let alertController = UIAlertController()
         alertController.title = "Unable to make a post"
         alertController.message = "There was a network error, please try again later"
-        
+
         let action = UIAlertAction(title: "OK", style: .default)
         alertController.addAction(action)
-        
+
         present(alertController, animated: true)
     }
 
@@ -181,14 +190,18 @@ extension MakeAPostViewController: UITextViewDelegate {
             textView.textColor = .label
         }
     }
-    
+
     func textViewDidEndEditing(_ textView: UITextView) {
         if textView.text.isEmpty {
             textView.text = self.captionTextViewPlaceholder
             textView.textColor = .placeholderText
         }
     }
-    
+
+    func textViewDidChange(_ textView: UITextView) {
+        self.viewModel.post.caption = textView.text
+    }
+
     func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
         let newText = (textView.text as NSString).replacingCharacters(in: range, with: text)
         let numberOfChars = newText.count

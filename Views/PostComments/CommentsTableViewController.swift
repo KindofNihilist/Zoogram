@@ -9,22 +9,22 @@ import UIKit
 import SDWebImage
 
 class CommentsTableViewController: UIViewController {
-    
+
     let viewModel = CommentsViewModel()
-    
+
     let postID: String
-    let postCaption: String
+    let postCaption: String?
     let timeSincePostedTitle: String
     let postAuthorID: String
     let postAuthorUsername: String
     let postAuthorProfileImage: UIImage
     let isCaptionless: Bool
-    
+
     var keyboardAccessoryView: CommentAccessoryView = {
         let commentAccessoryView = CommentAccessoryView()
         return commentAccessoryView
     }()
-    
+
     var tableView: UITableView = {
         let tableView = UITableView()
         tableView.backgroundColor = .systemBackground
@@ -36,27 +36,27 @@ class CommentsTableViewController: UIViewController {
         tableView.estimatedSectionHeaderHeight = UITableView.automaticDimension
         tableView.allowsSelection = false
         tableView.separatorStyle = .none
-        tableView.register(PostCommentsTableViewCell.self, forCellReuseIdentifier: PostCommentsTableViewCell.identifier)
+        tableView.register(PostCommentTableViewCell.self, forCellReuseIdentifier: PostCommentTableViewCell.identifier)
         return tableView
     }()
-    
+
     init(viewModel: PostViewModel) {
         self.postID = viewModel.postID
         self.postCaption = viewModel.unAttributedPostCaption
         self.timeSincePostedTitle = viewModel.timeSincePostedTitle
-        self.postAuthorID = viewModel.authorID
-        self.postAuthorUsername = viewModel.authorUsername
-        self.postAuthorProfileImage = viewModel.authorProfilePhoto
-        self.isCaptionless = viewModel.unAttributedPostCaption.isEmpty
+        self.postAuthorID = viewModel.author.userID
+        self.postAuthorUsername = viewModel.author.username
+        self.postAuthorProfileImage = viewModel.author.profilePhoto ?? UIImage()
+        self.isCaptionless = viewModel.unAttributedPostCaption == nil
         super.init(nibName: nil, bundle: nil)
         tableView.delegate = self
         tableView.dataSource = self
     }
-    
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-    
+
     override func viewDidLoad() {
         super.viewDidLoad()
         self.title = "Comments"
@@ -68,11 +68,11 @@ class CommentsTableViewController: UIViewController {
             self.tableView.reloadData()
         }
     }
-    
+
     override func viewWillLayoutSubviews() {
         keyboardAccessoryView.intrinsicHeight = keyboardAccessoryView.accessoryViewHeight + view.safeAreaInsets.bottom
     }
-    
+
     func setupTableViewConstraints() {
         view.addSubview(tableView)
         NSLayoutConstraint.activate([
@@ -82,41 +82,40 @@ class CommentsTableViewController: UIViewController {
             tableView.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor),
         ])
     }
-    
+
     override func viewWillAppear(_ animated: Bool) {
-        
+
         NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillAppear), name: UIResponder.keyboardWillShowNotification, object: nil)
-        
+
         NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillDisappear), name: UIResponder.keyboardWillHideNotification, object: nil)
     }
-    
-    
+
+
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         NotificationCenter.default.removeObserver(self)
     }
-    
+
     override var inputAccessoryView: UIView? {
         return keyboardAccessoryView
     }
-    
+
     override var canBecomeFirstResponder: Bool {
         return true
     }
-    
-    
-   
-    
-    //MARK: Methods
-    
-    
+
+
+
+
+    // MARK: Methods
+
     func configureKeyboardAccessoryView() {
         guard let photoURL = AuthenticationManager.shared.getCurrentUserProfilePhotoURL() else {
             return
         }
         keyboardAccessoryView.userProfilePicture.sd_setImage(with: photoURL)
     }
-    
+
     func scrollToTheLastRow() {
         let lastRow = (tableView.numberOfRows(inSection: isCaptionless ? 0 : 1) - 1)
         guard lastRow >= 1 else {
@@ -124,14 +123,14 @@ class CommentsTableViewController: UIViewController {
         }
         self.tableView.scrollToRow(at: IndexPath(row: lastRow, section: isCaptionless ? 0 : 1), at: .bottom, animated: true)
     }
-    
+
     @objc func keyboardWillAppear() {
         if keyboardAccessoryView.isEditing {
             self.keyboardAccessoryView.intrinsicHeight = keyboardAccessoryView.accessoryViewHeight
             scrollToTheLastRow()
         }
     }
-    
+
     @objc func keyboardWillDisappear() {
         print("keyboardWillDisappear triggered")
         self.keyboardAccessoryView.intrinsicHeight = keyboardAccessoryView.accessoryViewHeight + view.safeAreaInsets.bottom
@@ -141,7 +140,7 @@ class CommentsTableViewController: UIViewController {
 
 extension CommentsTableViewController: UITableViewDelegate, UITableViewDataSource {
     //MARK: TableView Methods
-    
+
     func numberOfSections(in tableView: UITableView) -> Int {
         if isCaptionless {
             return 1
@@ -149,7 +148,7 @@ extension CommentsTableViewController: UITableViewDelegate, UITableViewDataSourc
             return 2
         }
     }
-    
+
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         if isCaptionless {
             return viewModel.postComments.count
@@ -161,17 +160,18 @@ extension CommentsTableViewController: UITableViewDelegate, UITableViewDataSourc
             }
         }
     }
-    
+
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        
-        let cell = tableView.dequeueReusableCell(withIdentifier: PostCommentsTableViewCell.identifier, for: indexPath) as! PostCommentsTableViewCell
-        
-        if isCaptionless {
-            let comment = viewModel.postComments[indexPath.row]
-            cell.configure(with: comment)
-        } else {
+
+        guard let cell = tableView.dequeueReusableCell(withIdentifier: PostCommentTableViewCell.identifier,
+                                                       for: indexPath) as? PostCommentTableViewCell
+        else {
+            fatalError("Could not cast cell")
+        }
+
+        if let caption = self.postCaption {
             if indexPath.section == 0 {
-                cell.configurePostCaption(caption: self.postCaption,
+                cell.configurePostCaption(caption: caption,
                                           postAuthorUsername: self.postAuthorUsername,
                                           postAuthorProfilePhoto: self.postAuthorProfileImage,
                                           timeSincePostedTitle: self.timeSincePostedTitle)
@@ -179,16 +179,18 @@ extension CommentsTableViewController: UITableViewDelegate, UITableViewDataSourc
                 let comment = viewModel.postComments[indexPath.row]
                 cell.configure(with: comment)
             }
+        } else {
+            let comment = viewModel.postComments[indexPath.row]
+            cell.configure(with: comment)
         }
-        
         return cell
     }
-    
+
     func tableView(_ tableView: UITableView, viewForFooterInSection section: Int) -> UIView? {
         guard isCaptionless == false else {
             return nil
         }
-        
+
         if section == 0 {
             let separatorView = UIView()
             separatorView.backgroundColor = .secondarySystemBackground
@@ -197,7 +199,7 @@ extension CommentsTableViewController: UITableViewDelegate, UITableViewDataSourc
             return UIView()
         }
     }
-    
+
     func tableView(_ tableView: UITableView, heightForFooterInSection section: Int) -> CGFloat {
         if section == 0 {
             return 2
@@ -205,7 +207,7 @@ extension CommentsTableViewController: UITableViewDelegate, UITableViewDataSourc
             return 0
         }
     }
-    
+
     func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
         guard indexPath.section == 1 else {
             return
@@ -220,13 +222,13 @@ extension CommentsTableViewController: UITableViewDelegate, UITableViewDataSourc
             }
         }
     }
-    
+
     func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
         guard indexPath.section == 1 else {
             return false
         }
         let commentAuthorID = viewModel.postComments[indexPath.row].authorID
-        
+
         if commentAuthorID == AuthenticationManager.shared.getCurrentUserUID() {
             return true
         } else {
@@ -236,7 +238,7 @@ extension CommentsTableViewController: UITableViewDelegate, UITableViewDataSourc
 }
 
 extension CommentsTableViewController: CommentAccessoryViewProtocol {
-    
+
     func postButtonTapped(commentText: String, completion: @escaping () -> Void) {
         print("post button tapped")
         viewModel.postComment(postID: self.postID, postAuthorID: postAuthorID, comment: commentText) {

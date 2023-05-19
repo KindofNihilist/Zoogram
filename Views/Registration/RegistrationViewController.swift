@@ -8,7 +8,7 @@
 import UIKit
 
 class RegistrationViewController: UIViewController {
-    
+
     private let headerView: UIView = {
         let header = UIView()
         header.clipsToBounds = true
@@ -16,7 +16,7 @@ class RegistrationViewController: UIViewController {
         header.translatesAutoresizingMaskIntoConstraints = false
         return header
     }()
-    
+
     private let headerLabel: UILabel = {
        let label = UILabel()
         label.text = "Create new account"
@@ -26,7 +26,7 @@ class RegistrationViewController: UIViewController {
         label.textAlignment = .center
         return label
     }()
-    
+
     private let usernameField: UITextField = {
         let field = UITextField()
         field.placeholder = "Username"
@@ -41,7 +41,7 @@ class RegistrationViewController: UIViewController {
         field.translatesAutoresizingMaskIntoConstraints = false
         return field
     }()
-    
+
     private let emailField: UITextField = {
         let field = UITextField()
         field.placeholder = "Email"
@@ -56,7 +56,7 @@ class RegistrationViewController: UIViewController {
         field.translatesAutoresizingMaskIntoConstraints = false
         return field
     }()
-    
+
     private let passwordField: UITextField = {
         let field = UITextField()
         field.isSecureTextEntry = true
@@ -72,7 +72,7 @@ class RegistrationViewController: UIViewController {
         field.translatesAutoresizingMaskIntoConstraints = false
         return field
     }()
-    
+
     private let confirmPasswordField: UITextField = {
         let field = UITextField()
         field.isSecureTextEntry = true
@@ -88,8 +88,8 @@ class RegistrationViewController: UIViewController {
         field.translatesAutoresizingMaskIntoConstraints = false
         return field
     }()
-    
-    private let SignInButton: UIButton = {
+
+    private lazy var signInButton: UIButton = {
         let button = UIButton()
         button.setTitle("Sign In", for: .normal)
         button.layer.masksToBounds = true
@@ -100,7 +100,7 @@ class RegistrationViewController: UIViewController {
         button.translatesAutoresizingMaskIntoConstraints = false
         return button
     }()
-    
+
     override func viewDidLoad() {
         title = "Create new account"
         usernameField.delegate = self
@@ -109,65 +109,56 @@ class RegistrationViewController: UIViewController {
         confirmPasswordField.delegate = self
         view.backgroundColor = .systemBackground
         view.addSubviews(usernameField, emailField, passwordField, confirmPasswordField, SignInButton)
-//        headerView.addSubview(headerLabel)
         setupNavigationBar()
         setupConstraints()
-        
     }
-    
+
     func setupConstraints() {
         NSLayoutConstraint.activate([
-//            headerView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-//            headerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-//            headerView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-//            headerView.heightAnchor.constraint(equalToConstant: 70),
-//
-//            headerLabel.centerXAnchor.constraint(equalTo: headerView.centerXAnchor),
-//            headerLabel.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
-//            headerLabel.heightAnchor.constraint(equalToConstant: 50),
-//            headerLabel.widthAnchor.constraint(equalTo: headerView.widthAnchor, constant: -20),
-            
+
             usernameField.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 35),
             usernameField.widthAnchor.constraint(equalTo: view.widthAnchor, constant: -40),
             usernameField.heightAnchor.constraint(equalToConstant: 50),
             usernameField.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            
+
             emailField.topAnchor.constraint(equalTo: usernameField.bottomAnchor, constant: 15),
             emailField.widthAnchor.constraint(equalTo: usernameField.widthAnchor),
             emailField.heightAnchor.constraint(equalTo: usernameField.heightAnchor),
             emailField.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            
+
             passwordField.topAnchor.constraint(equalTo: emailField.bottomAnchor, constant: 15),
             passwordField.widthAnchor.constraint(equalTo: emailField.widthAnchor),
             passwordField.heightAnchor.constraint(equalTo: emailField.heightAnchor),
             passwordField.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            
+
             confirmPasswordField.topAnchor.constraint(equalTo: passwordField.bottomAnchor, constant: 15),
             confirmPasswordField.widthAnchor.constraint(equalTo: passwordField.widthAnchor),
             confirmPasswordField.heightAnchor.constraint(equalTo: passwordField.heightAnchor),
             confirmPasswordField.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            
+
             SignInButton.topAnchor.constraint(equalTo: confirmPasswordField.bottomAnchor, constant: 20),
             SignInButton.widthAnchor.constraint(equalTo: view.widthAnchor, constant: -40),
             SignInButton.heightAnchor.constraint(equalToConstant: 50),
-            SignInButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            SignInButton.centerXAnchor.constraint(equalTo: view.centerXAnchor)
         ])
     }
-    
+
     private func setupNavigationBar() {
-        navigationItem.leftBarButtonItem = UIBarButtonItem(barButtonSystemItem: .cancel, target: self, action: #selector(cancelRegistration))
+        navigationItem.leftBarButtonItem = UIBarButtonItem(barButtonSystemItem: .cancel,
+                                                           target: self,
+                                                           action: #selector(cancelRegistration))
     }
-    
+
     @objc func cancelRegistration() {
         self.dismiss(animated: true, completion: nil)
     }
-    
+
     @objc func didTapSignInButton() {
         usernameField.resignFirstResponder()
         emailField.resignFirstResponder()
         passwordField.resignFirstResponder()
         confirmPasswordField.resignFirstResponder()
-        
+
         guard let username = usernameField.text, !username.isEmpty,
               let email = emailField.text, !email.isEmpty,
               let password = passwordField.text, !password.isEmpty,
@@ -178,8 +169,8 @@ class RegistrationViewController: UIViewController {
             if isSuccessfull {
                 UserDefaults.standard.set(email, forKey: "email")
                 UserDefaults.standard.set(username, forKey: "username")
-                let vc = NewUserProfileSetupViewController()
-                self.navigationController?.setViewControllers([vc], animated: true)
+                let newUserVC = NewUserProfileSetupViewController()
+                self.navigationController?.setViewControllers([newUserVC], animated: true)
             } else {
                 print(errorDescription)
             }
