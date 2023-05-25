@@ -57,7 +57,6 @@ class PostViewModel {
 
         self.likesCount = post.likesCount ?? 0
         self.commentsCount = post.commentsCount
-
     }
 
     init() {

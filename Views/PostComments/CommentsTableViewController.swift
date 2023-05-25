@@ -36,7 +36,7 @@ class CommentsTableViewController: UIViewController {
         tableView.estimatedSectionHeaderHeight = UITableView.automaticDimension
         tableView.allowsSelection = false
         tableView.separatorStyle = .none
-        tableView.register(PostCommentTableViewCell.self, forCellReuseIdentifier: PostCommentTableViewCell.identifier)
+        tableView.register(CommentTableViewCell.self, forCellReuseIdentifier: CommentTableViewCell.identifier)
         return tableView
     }()
 
@@ -90,7 +90,6 @@ class CommentsTableViewController: UIViewController {
         NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillDisappear), name: UIResponder.keyboardWillHideNotification, object: nil)
     }
 
-
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         NotificationCenter.default.removeObserver(self)
@@ -139,7 +138,7 @@ class CommentsTableViewController: UIViewController {
 
 
 extension CommentsTableViewController: UITableViewDelegate, UITableViewDataSource {
-    //MARK: TableView Methods
+    // MARK: TableView Methods
 
     func numberOfSections(in tableView: UITableView) -> Int {
         if isCaptionless {
@@ -163,8 +162,8 @@ extension CommentsTableViewController: UITableViewDelegate, UITableViewDataSourc
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
 
-        guard let cell = tableView.dequeueReusableCell(withIdentifier: PostCommentTableViewCell.identifier,
-                                                       for: indexPath) as? PostCommentTableViewCell
+        guard let cell = tableView.dequeueReusableCell(withIdentifier: CommentTableViewCell.identifier,
+                                                       for: indexPath) as? CommentTableViewCell
         else {
             fatalError("Could not cast cell")
         }
@@ -183,6 +182,7 @@ extension CommentsTableViewController: UITableViewDelegate, UITableViewDataSourc
             let comment = viewModel.postComments[indexPath.row]
             cell.configure(with: comment)
         }
+        cell.delegate = self
         return cell
     }
 
@@ -227,9 +227,8 @@ extension CommentsTableViewController: UITableViewDelegate, UITableViewDataSourc
         guard indexPath.section == 1 else {
             return false
         }
-        let commentAuthorID = viewModel.postComments[indexPath.row].authorID
 
-        if commentAuthorID == AuthenticationManager.shared.getCurrentUserUID() {
+        if postAuthorID == AuthenticationManager.shared.getCurrentUserUID() {
             return true
         } else {
             return false
@@ -246,5 +245,11 @@ extension CommentsTableViewController: CommentAccessoryViewProtocol {
             self.scrollToTheLastRow()
             completion()
         }
+    }
+}
+
+extension CommentsTableViewController: CommentCellProtocol {
+    func openUserProfile(of commentAuthor: ZoogramUser) {
+        self.showProfile(of: commentAuthor)
     }
 }

@@ -86,7 +86,7 @@ class PostCommentedEventTableViewCell: UITableViewCell {
         activityMessageLabel.attributedText = wholeMessage
 
         if event.seen == false {
-            self.contentView.backgroundColor = ColorScheme.activityUnseenEventLightBlue
+            self.contentView.backgroundColor = ColorScheme.unseenEventLightBlue
         } else {
             self.contentView.backgroundColor = .systemBackground
         }

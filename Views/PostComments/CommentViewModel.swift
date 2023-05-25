@@ -25,4 +25,24 @@ class CommentViewModel {
         self.author = comment.author
     }
 
+    init(commentID: String, authorID: String, commentText: String, datePostedText: String, author: ZoogramUser) {
+        self.commentID = commentID
+        self.authorID = authorID
+        self.commentText = commentText
+        self.datePostedText = datePostedText
+        self.author = author
+    }
+
+    static func createPostCaptionForCommentArea(with postViewModel: PostViewModel?) -> CommentViewModel? {
+        guard let postViewModel = postViewModel else {
+            return nil
+        }
+        let postCaption = CommentViewModel(
+            commentID: "",
+            authorID: postViewModel.author.userID,
+            commentText: postViewModel.unAttributedPostCaption!,
+            datePostedText: postViewModel.timeSincePostedTitle,
+            author: postViewModel.author)
+        return postCaption
+    }
 }

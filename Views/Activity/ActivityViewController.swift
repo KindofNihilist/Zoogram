@@ -54,7 +54,7 @@ class ActivityViewController: UIViewController {
         self.viewModel = ActivityViewModel(service: service)
         super.init(nibName: nil, bundle: nil)
     }
-
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
@@ -163,7 +163,7 @@ class ActivityViewController: UIViewController {
         }
     }
 
-    private func presentPostWithComments(post: UserPost?) {
+    private func presentPostWithComments(post: UserPost?, commentIDToFocusOn: String?) {
         guard let post = post else {
             return
         }
@@ -175,7 +175,8 @@ class ActivityViewController: UIViewController {
             likesService: LikeSystemService.shared,
             bookmarksService: BookmarksService.shared)
 
-        let postWithCommentsVC = PostWithCommentsViewController(post: post, service: service)
+        let postWithCommentsVC = PostWithCommentsViewController(post: post, commentIDToFocusOn: commentIDToFocusOn, service: service)
+        postWithCommentsVC.hidesBottomBarWhenPushed = true
         self.navigationController?.pushViewController(postWithCommentsVC, animated: true)
     }
 }
@@ -227,14 +228,14 @@ extension ActivityViewController: UITableViewDelegate, UITableViewDataSource {
         switch model.eventType {
 
         case .postLiked:
-            presentPostWithComments(post: model.post)
+            presentPostWithComments(post: model.post, commentIDToFocusOn: model.commentID)
 
         case .followed:
             let service = createUserProfileDefaultServiceFor(userID: model.userID)
             let userProfileVC = UserProfileViewController(service: service, user: model.user, isTabBarItem: false)
 
         case .postCommented:
-            presentPostWithComments(post: model.post)
+            presentPostWithComments(post: model.post, commentIDToFocusOn: model.commentID)
         }
     }
 

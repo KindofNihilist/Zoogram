@@ -88,7 +88,7 @@ class FollowEventTableViewCell: UITableViewCell {
         profileImageView.sd_setImage(with: url, completed: nil)
 
         if event.seen == false {
-            self.contentView.backgroundColor = ColorScheme.activityUnseenEventLightBlue
+            self.contentView.backgroundColor = ColorScheme.unseenEventLightBlue
         } else {
             self.contentView.backgroundColor = .systemBackground
         }

@@ -68,7 +68,19 @@ class PostWithCommentsServiceAdapter: PostWithCommentsService {
 
     func getComments(completion: @escaping ([PostComment]) -> Void) {
         commentsService.getCommentsForPost(postID: postID) { comments in
-            completion(comments)
+            let dispatchGroup = DispatchGroup()
+
+            for comment in comments {
+                dispatchGroup.enter()
+                self.getImage(for: comment.author.profilePhotoURL) { image in
+                    comment.author.profilePhoto = image
+                    dispatchGroup.leave()
+                }
+            }
+
+            dispatchGroup.notify(queue: .main) {
+                completion(comments)
+            }
         }
     }
 

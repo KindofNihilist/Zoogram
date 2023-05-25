@@ -13,9 +13,23 @@ class UserService {
 
     static let shared = UserService()
 
+    var currentUser: ZoogramUser!
+
     private let databaseRef = Database.database(url: "https://catogram-58487-default-rtdb.europe-west1.firebasedatabase.app").reference()
 
     typealias IsSuccessful = Bool
+
+    func getCurrentUser(completion: @escaping () -> Void) {
+        guard currentUser == nil else {
+            return
+        }
+
+        let currentUserID = AuthenticationManager.shared.getCurrentUserUID()
+        observeUser(for: currentUserID) { currentUser in
+            self.currentUser = currentUser
+            completion()
+        }
+    }
 
     func insertNewUser(with user: ZoogramUser, completion: @escaping (IsSuccessful) -> Void) {
         let userID = AuthenticationManager.shared.getCurrentUserUID()

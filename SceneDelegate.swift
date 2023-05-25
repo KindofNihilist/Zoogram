@@ -24,7 +24,9 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             navigationController.tabBarController?.tabBar.backgroundColor = .systemBackground
             window?.rootViewController = navigationController
         } else {
-            self.window?.rootViewController = TabBarController()
+            UserService.shared.getCurrentUser {
+                self.window?.rootViewController = TabBarController()
+            }
         }
         window?.makeKeyAndVisible()
         window?.windowScene = windowScene
