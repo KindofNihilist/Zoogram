@@ -8,9 +8,15 @@
 import Foundation
 import SDWebImage
 
-protocol PostWithCommentsService: CommentsService, PostActionsService, ImageService { }
+protocol CommentsService: PostActionsService, ImageService {
+    var postID: String { get set }
+    var postAuthorID: String { get set }
+    func getComments(completion: @escaping ([PostComment]) -> Void)
+    func postComment(comment: PostComment, completion: @escaping (PostComment) -> Void)
+    func deleteComment(commentID: String, completion: @escaping () -> Void)
+}
 
-extension PostWithCommentsService {
+extension CommentsService {
 
     func getAdditionalPostData(for post: UserPost, completion: @escaping (UserPost) -> Void) {
 
@@ -46,7 +52,7 @@ extension PostWithCommentsService {
     }
 }
 
-class PostWithCommentsServiceAdapter: PostWithCommentsService {
+class PostWithCommentsServiceAdapter: CommentsService {
 
     var postID: String
 
@@ -71,6 +77,7 @@ class PostWithCommentsServiceAdapter: PostWithCommentsService {
             let dispatchGroup = DispatchGroup()
 
             for comment in comments {
+                print(comment.commentText)
                 dispatchGroup.enter()
                 self.getImage(for: comment.author.profilePhotoURL) { image in
                     comment.author.profilePhoto = image

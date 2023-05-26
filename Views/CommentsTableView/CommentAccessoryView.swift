@@ -29,6 +29,13 @@ class CommentAccessoryView: UIInputView {
 
      var accessoryViewHeight: CGFloat = 50
 
+    private var separator: UIView = {
+        let separator = UIView()
+        separator.translatesAutoresizingMaskIntoConstraints = false
+        separator.backgroundColor = ColorScheme.separatorColor
+        return separator
+    }()
+
      var userProfilePicture: UIImageView = {
         let imageView = UIImageView()
         imageView.translatesAutoresizingMaskIntoConstraints = false
@@ -91,6 +98,10 @@ class CommentAccessoryView: UIInputView {
         setViewCornerRadius()
     }
 
+    func configure(with profilePhoto: UIImage?) {
+        self.userProfilePicture.image = profilePhoto
+    }
+
     func animateHeightChange() {
         var duration: Double = 0
         if self.intrinsicHeight > 50 {
@@ -109,20 +120,25 @@ class CommentAccessoryView: UIInputView {
         userProfilePicture.layer.cornerRadius = elementsHeight / 2
         inputContainerView.layer.cornerRadius = elementsHeight / 2
     }
-    func setupConstraints() {
-        self.addSubviews(userProfilePicture, inputContainerView)
+   private func setupConstraints() {
+       self.addSubviews(separator, userProfilePicture, inputContainerView)
         inputContainerView.addSubviews(commentTextView, postButton)
 
         NSLayoutConstraint.activate([
 
-            userProfilePicture.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -5),
+            separator.topAnchor.constraint(equalTo: self.topAnchor),
+            separator.heightAnchor.constraint(equalToConstant: 1),
+            separator.widthAnchor.constraint(equalTo: self.widthAnchor),
+            separator.bottomAnchor.constraint(equalTo: userProfilePicture.topAnchor, constant: -10),
+
+            userProfilePicture.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -10),
             userProfilePicture.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: 10),
             userProfilePicture.widthAnchor.constraint(equalToConstant: elementsHeight),
             userProfilePicture.heightAnchor.constraint(equalToConstant: elementsHeight),
 
             inputContainerView.leadingAnchor.constraint(equalTo: userProfilePicture.trailingAnchor, constant: 10),
             inputContainerView.bottomAnchor.constraint(equalTo: userProfilePicture.bottomAnchor),
-            inputContainerView.topAnchor.constraint(equalTo: self.topAnchor, constant: 5),
+            inputContainerView.topAnchor.constraint(equalTo: userProfilePicture.topAnchor),
             inputContainerView.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -10),
 
             commentTextView.topAnchor.constraint(equalTo: inputContainerView.topAnchor),

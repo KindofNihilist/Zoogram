@@ -15,6 +15,10 @@ class PostTableViewCellBuilder: TableViewCellBuilder {
 
     private let delegate: PostTableViewCellProtocol
 
+    var canEdit: Bool = false
+
+    var editingStyle: UITableViewCell.EditingStyle = .none
+
     init(viewModel: PostViewModel, delegate: PostTableViewCellProtocol) {
         self.viewModel = viewModel
         self.delegate = delegate

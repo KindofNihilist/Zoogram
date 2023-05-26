@@ -9,7 +9,7 @@ import Foundation
 import FirebaseDatabase
 import SDWebImage
 
-class UserService {
+class UserService: ImageService {
 
     static let shared = UserService()
 
@@ -26,8 +26,11 @@ class UserService {
 
         let currentUserID = AuthenticationManager.shared.getCurrentUserUID()
         observeUser(for: currentUserID) { currentUser in
-            self.currentUser = currentUser
-            completion()
+            self.getImage(for: currentUser.profilePhotoURL) { profilePhoto in
+                currentUser.profilePhoto = profilePhoto
+                self.currentUser = currentUser
+                completion()
+            }
         }
     }
 

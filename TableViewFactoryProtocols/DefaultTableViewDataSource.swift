@@ -58,6 +58,14 @@ class DefaultTableViewDataSource: NSObject, TableViewDataSource {
         delegate?.didSelectCell(at: indexPath)
     }
 
+    func tableView(_ tableView: UITableView, viewForFooterInSection section: Int) -> UIView? {
+        return sections[section].footerView()
+    }
+
+    func tableView(_ tableView: UITableView, heightForFooterInSection section: Int) -> CGFloat {
+        return sections[section].heightForFooter()
+    }
+
     func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) {
         delegate?.scrollViewDidEndScrollingAnimation()
     }

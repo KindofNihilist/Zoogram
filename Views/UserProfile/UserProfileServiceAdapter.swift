@@ -7,7 +7,7 @@
 
 import Foundation
 
-class UserProfileServiceAPIAdapter: UserProfileService {
+class UserProfileServiceAPIAdapter: UserProfileService, ImageService {
 
     var userID: String
 
@@ -53,11 +53,10 @@ class UserProfileServiceAPIAdapter: UserProfileService {
     func getUserData(completion: @escaping (ZoogramUser) -> Void) {
         userService.getUser(for: userID) { user in
             let url = URL(string: user.profilePhotoURL)
-            getImageForURL(url!) { retrievedImage in
-                user.profilePhoto = retrievedImage
+            self.getImage(for: user.profilePhotoURL) { profilePhoto in
+                user.profilePhoto = profilePhoto
                 completion(user)
             }
-
         }
     }
 

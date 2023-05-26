@@ -54,9 +54,7 @@ class PostViewController: UIViewController {
 
 extension PostViewController: PostsTableViewProtocol {
     func didTapCommentButton(viewModel: PostViewModel) {
-        let commentsViewController = CommentsTableViewController(viewModel: viewModel)
-        commentsViewController.hidesBottomBarWhenPushed = true
-        navigationController?.pushViewController(commentsViewController, animated: true)
+        showCommentsFor(viewModel)
     }
 
     func didSelectUser(user: ZoogramUser) {

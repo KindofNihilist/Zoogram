@@ -175,7 +175,7 @@ class ActivityViewController: UIViewController {
             likesService: LikeSystemService.shared,
             bookmarksService: BookmarksService.shared)
 
-        let postWithCommentsVC = PostWithCommentsViewController(post: post, commentIDToFocusOn: commentIDToFocusOn, service: service)
+        let postWithCommentsVC = CommentsViewController(post: post, commentIDToFocusOn: commentIDToFocusOn, shouldShowRelatedPost: true, service: service)
         postWithCommentsVC.hidesBottomBarWhenPushed = true
         self.navigationController?.pushViewController(postWithCommentsVC, animated: true)
     }

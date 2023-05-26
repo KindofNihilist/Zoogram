@@ -15,7 +15,7 @@ class CommentTableViewCellBuilder: TableViewCellBuilder {
 
     private let identifier = CommentTableViewCell.identifier
 
-    var editingStyle: UITableViewCell.EditingStyle
+    var editingStyle: UITableViewCell.EditingStyle = .none
 
     var canEdit: Bool = false
 
@@ -25,6 +25,10 @@ class CommentTableViewCellBuilder: TableViewCellBuilder {
         self.viewModel = viewModel
         self.delegate = delegate
         self.isAPostCaption = isAPostCaption
+        self.canEdit = viewModel.canBeEdited
+        if self.canEdit {
+            editingStyle = .delete
+        }
     }
 
     func cellAt(indexPath: IndexPath, for tableView: UITableView) -> UITableViewCell {
@@ -35,8 +39,8 @@ class CommentTableViewCellBuilder: TableViewCellBuilder {
         } else {
             cell.configure(with: viewModel)
         }
-        
         cell.configure(with: viewModel)
+        cell.delegate = self.delegate
 
         return cell
     }

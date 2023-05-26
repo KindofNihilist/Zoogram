@@ -54,8 +54,9 @@ class CommentSystemService {
         var comments = [PostComment]()
 
         databaseRef.child(databaseKey).queryOrderedByKey().observeSingleEvent(of: .value) { snapshot in
+            print(snapshot)
 
-            for snapshotChild in snapshot.children {
+            for (index, snapshotChild) in snapshot.children.enumerated() {
 
                 guard let commentSnapshot = snapshotChild as? DataSnapshot,
                       let commentDictionary = commentSnapshot.value as? [String: Any]
@@ -66,10 +67,9 @@ class CommentSystemService {
                 do {
                     let jsonData = try JSONSerialization.data(withJSONObject: commentDictionary as Any)
                     let decodedComment = try JSONDecoder().decode(PostComment.self, from: jsonData)
-
+                    comments.append(decodedComment)
                     UserService.shared.getUser(for: decodedComment.authorID) { commentAuthor in
-                        decodedComment.author = commentAuthor
-                        comments.append(decodedComment)
+                        comments[index].author = commentAuthor
                         dispatchGroup.leave()
                     }
                 } catch {
@@ -77,6 +77,10 @@ class CommentSystemService {
                 }
             }
             dispatchGroup.notify(queue: .main) {
+                print("\n")
+                for comment in comments {
+                    print(comment.commentText)
+                }
                 completion(comments.reversed())
             }
         }

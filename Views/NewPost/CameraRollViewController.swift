@@ -13,7 +13,7 @@ class CameraRollViewController: UIViewController {
         didSet {
             if let photo = selectedPhoto {
                 previewCropView.changeImage(image: photo)
-                self.focusOnPreview(withDuration: 0.1)
+//                self.focusOnPreview(withDuration: 0.1)
             }
         }
     }
@@ -97,14 +97,16 @@ class CameraRollViewController: UIViewController {
     }
 
     private func setupNavBar() {
-        navigationItem.leftBarButtonItem = UIBarButtonItem(image: UIImage(systemName: "xmark"),
-                                                           style: .plain,
-                                                           target: self,
-                                                           action: #selector(dismissSelf))
-        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Next",
-                                                            style: .done,
-                                                            target: self,
-                                                            action: #selector(didTapNext))
+        navigationItem.leftBarButtonItem = UIBarButtonItem(
+            image: UIImage(systemName: "xmark"),
+            style: .plain,
+            target: self,
+            action: #selector(dismissSelf))
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            title: "Next",
+            style: .done,
+            target: self,
+            action: #selector(didTapNext))
         navigationItem.leftBarButtonItem?.tintColor = .white
         navigationItem.title = "New Post"
     }
@@ -176,14 +178,21 @@ class CameraRollViewController: UIViewController {
 
     func selectPhotoAsPreview(at path: Int, completion: @escaping () -> Void = {}) {
         let asset = userPhotos?.object(at: path)
-        let photoSize = CGSize(width: view.frame.width, height: view.frame.width)
+        guard let photoWidth = asset?.pixelWidth,
+              let photoHeight = asset?.pixelHeight
+        else {
+            return
+        }
+        let photoSize = CGSize(width: photoWidth, height: photoHeight)
         let options = PHImageRequestOptions()
         options.deliveryMode = .highQualityFormat
+        options.version = .original
+        PHCachingImageManager.default().requestImage(
+            for: asset!,
+            targetSize: photoSize,
+            contentMode: .default,
+            options: options) { image, _ in
 
-        PHCachingImageManager.default().requestImage(for: asset!,
-                                                     targetSize: photoSize,
-                                                     contentMode: .aspectFill,
-                                                     options: options) { image, _ in
             guard let image = image else {
                 return
             }

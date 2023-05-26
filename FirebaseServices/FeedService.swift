@@ -26,7 +26,8 @@ class FeedService {
             var retrievedPosts = [UserPost]()
             var lastReceivedPost = ""
             let dispatchGroup = DispatchGroup()
-            for snapshotChild in snapshot.children.reversed() {
+
+            for (index, snapshotChild) in snapshot.children.enumerated().reversed() {
 
                 guard let postSnapshot = snapshotChild as? DataSnapshot,
                       let postDictionary = postSnapshot.value as? [String : Any]
@@ -39,9 +40,9 @@ class FeedService {
                 do {
                     let jsonData = try JSONSerialization.data(withJSONObject: postDictionary as Any)
                     let userPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
+                    retrievedPosts.append(userPost)
                     UserService.shared.getUser(for: userPost.userID) { postAuthor in
-                        userPost.author = postAuthor
-                        retrievedPosts.append(userPost)
+                        retrievedPosts[index].author = postAuthor
                         dispatchGroup.leave()
                     }
                 } catch {
@@ -65,7 +66,7 @@ class FeedService {
             var lastReceivedPost = ""
             let dispatchGroup = DispatchGroup()
 
-            for snapshotChild in snapshot.children.reversed() {
+            for (index, snapshotChild) in snapshot.children.enumerated().reversed() {
 
                 guard let postSnapshot = snapshotChild as? DataSnapshot,
                       let postDictionary = postSnapshot.value as? [String : Any]
@@ -79,10 +80,9 @@ class FeedService {
                 do {
                     let jsonData = try JSONSerialization.data(withJSONObject: postDictionary as Any)
                     let userPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
-
+                    retrievedPosts.append(userPost)
                     UserService.shared.getUser(for: userPost.userID) { postAuthor in
-                        userPost.author = postAuthor
-                        retrievedPosts.append(userPost)
+                        retrievedPosts[index].author = postAuthor
                         dispatchGroup.leave()
                     }
 

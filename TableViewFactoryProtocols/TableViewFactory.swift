@@ -8,5 +8,7 @@
 import UIKit.UITableView
 
 protocol TableViewFactory {
+    var tableView: UITableView { get }
     func buildSections() -> [TableViewSectionBuilder]
+    func registerCells()
 }

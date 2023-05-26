@@ -12,4 +12,5 @@ struct ColorScheme {
     static let unseenEventLightBlue = UIColor(red: 0.84, green: 0.94, blue: 0.97, alpha: 1.00)
     static let progressBarTrackTint = UIColor(red: 0.66, green: 0.84, blue: 1.00, alpha: 1.00)
     static let progressBarTint = UIColor(red: 0.00, green: 0.43, blue: 0.95, alpha: 1.00)
+    static let separatorColor = UIColor.systemGray5
 }

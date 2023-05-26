@@ -14,7 +14,7 @@ protocol PostActionsService {
     func bookmarkPost(postID: String, authorID: String, bookmarkState: BookmarkState, completion: @escaping (BookmarkState) -> Void)
 }
 
-protocol PostsService: PostActionsService {
+protocol PostsService: PostActionsService, ImageService {
     var lastReceivedPostKey: String {get set}
     var isAlreadyPaginating: Bool {get set}
     var hasHitTheEndOfPosts: Bool {get set}
@@ -36,15 +36,15 @@ extension PostsService {
 
             dispatchGroup.enter()
             let profilePhotoURL = URL(string: post.author.profilePhotoURL)
-            SDWebImageManager.shared.loadImage(with: profilePhotoURL, progress: .none) { profilePhoto, _, _, _, _, _ in
+            getImage(for: post.author.profilePhotoURL) { profilePhoto in
                 post.author.profilePhoto = profilePhoto
                 dispatchGroup.leave()
             }
 
             dispatchGroup.enter()
-            SDWebImageManager.shared.loadImage(with: URL(string: post.photoURL), progress: .none) { image, data, error, _, _, _ in
-                if let downloadedImage = image {
-                    post.image = downloadedImage
+            getImage(for: post.photoURL) { postPhoto in
+                if let postPhoto = postPhoto {
+                    post.image = postPhoto
                 }
                 dispatchGroup.leave()
             }
@@ -88,17 +88,18 @@ extension PostsService {
         let dispatchGroup = DispatchGroup()
 
         dispatchGroup.enter()
-        getImageForURL(URL(string: postsAuthor.profilePhotoURL)!) { profilePhoto in
+        getImage(for: postsAuthor.profilePhotoURL) { profilePhoto in
             postsAuthor.profilePhoto = profilePhoto
             dispatchGroup.leave()
+
         }
 
         for post in postsOfSingleUser {
 
             dispatchGroup.enter()
-            SDWebImageManager.shared.loadImage(with: URL(string: post.photoURL), progress: .none) { image, data, error, _, _, _ in
-                if let downloadedImage = image {
-                    post.image = downloadedImage
+            getImage(for: post.photoURL) { postPhoto in
+                if let postPhoto = postPhoto {
+                    post.image = postPhoto
                 }
                 dispatchGroup.leave()
             }

@@ -278,15 +278,27 @@ class PostTableViewCell: UITableViewCell {
             showBlankView(postID: viewModel.postID)
             return
         }
+        self.likeButtonState = viewModel.likeState
+        self.bookmarkButtonState = viewModel.bookmarkState
+
+        setupViews(postImage: viewModel.postImage)
+        configureViews(viewModel: viewModel)
+    }
+
+    private func setupViews(postImage: UIImage) {
         setupHeader()
-        setupContentView(for: viewModel.postImage)
+        setupContentView(for: postImage)
         setupActionsView()
         setupFooter()
         addGestureRecognizers()
+    }
 
+    private func configureViews(viewModel: PostViewModel) {
+        if viewModel.isNewlyCreated {
+            self.contentView.alpha = 0
+        }
         configureHeader(profilePhoto: viewModel.author.profilePhoto ?? UIImage(),
                         username: viewModel.author.username)
-//        configureImageView(with: viewModel.postImage)
         configureFooter(
             username: viewModel.author.username,
             caption: viewModel.postCaption,
@@ -296,13 +308,6 @@ class PostTableViewCell: UITableViewCell {
         setCommentsTitle(title: viewModel.commentsCountTitle)
         likeButton.setLikeButtonState(likeState: viewModel.likeState, isUserInitiated: false)
         bookmarkButton.setBookmarkButtonState(state: viewModel.bookmarkState, animated: false)
-
-        self.likeButtonState = viewModel.likeState
-        self.bookmarkButtonState = viewModel.bookmarkState
-
-        if viewModel.isNewlyCreated {
-            self.contentView.alpha = 0
-        }
     }
 
     private func showBlankView(postID: String) {

@@ -1,13 +1,13 @@
 //
-//  BaseSection.swift
+//  CommentSection.swift
 //  Zoogram
 //
-//  Created by Artem Dolbiiev on 24.05.2023.
+//  Created by Artem Dolbiiev on 26.05.2023.
 //
 
 import UIKit
 
-class BaseSection: TableViewSectionBuilder {
+class CommentSection: TableViewSectionBuilder {
 
     var sectionIndex: SectionIndex
 
@@ -46,4 +46,5 @@ class BaseSection: TableViewSectionBuilder {
         appendBuilder(builder)
         tableView.insertRows(at: [indexPath], with: animation)
     }
+
 }

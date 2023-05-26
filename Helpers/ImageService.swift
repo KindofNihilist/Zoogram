@@ -8,18 +8,17 @@
 import Foundation
 import SDWebImage
 
+typealias URLString = String
 
 protocol ImageService {
-    func getImage(for urlString: String, completion: @escaping(UIImage) -> Void)
+    func getImage(for urlString: URLString, completion: @escaping(UIImage?) -> Void)
 }
 
 extension ImageService {
-    func getImage(for urlString: String, completion: @escaping(UIImage) -> Void) {
+    func getImage(for urlString: String, completion: @escaping(UIImage?) -> Void) {
         let url = URL(string: urlString)
         SDWebImageManager.shared.loadImage(with: url, progress: .none) { downloadedImage, _, _, _, _, _ in
-            if let unwrappedImage = downloadedImage {
-                completion(unwrappedImage)
-            }
+            completion(downloadedImage)
         }
     }
 }

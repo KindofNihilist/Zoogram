@@ -117,9 +117,9 @@ class PostViewModel {
         }
 
         if commentsCount == 1 {
-            return "View \(commentsCount) comment"
+            return "View \(count) comment"
         } else {
-            return "View all \(commentsCount) comments"
+            return "View all \(count) comments"
         }
     }
 

@@ -270,4 +270,17 @@ extension UIViewController {
         actionSheet.addAction(shareAction)
         present(actionSheet, animated: true)
     }
+
+    func showCommentsFor(_ viewModel: PostViewModel) {
+        let service = PostWithCommentsServiceAdapter(
+            postID: viewModel.postID,
+            postAuthorID: viewModel.author.userID,
+            postsService: UserPostsService.shared,
+            commentsService: CommentSystemService.shared,
+            likesService: LikeSystemService.shared,
+            bookmarksService: BookmarksService.shared)
+        let commentsViewController = CommentsViewController(postViewModel: viewModel, shouldShowRelatedPost: false, service: service)
+        commentsViewController.hidesBottomBarWhenPushed = true
+        navigationController?.pushViewController(commentsViewController, animated: true)
+    }
 }
