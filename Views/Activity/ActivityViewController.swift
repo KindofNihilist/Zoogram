@@ -88,14 +88,7 @@ class ActivityViewController: UIViewController {
     }
 
     override func viewWillAppear(_ animated: Bool) {
-        CATransaction.begin()
-        CATransaction.setCompletionBlock {
-            self.tableView.scrollToRow(at: IndexPath(row: 0, section: 0), at: .top, animated: false)
-            self.checkIfCellisFullyVisible()
-            self.markSeenEvents(delay: 0.5)
-        }
-        self.tableView.reloadData()
-        CATransaction.commit()
+        showRecentNotificationsOnAppear()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -121,6 +114,20 @@ class ActivityViewController: UIViewController {
     }
 
     // MARK: Methods
+
+    private func showRecentNotificationsOnAppear() {
+        guard viewModel.hasZeroEvents != true else {
+            return
+        }
+        CATransaction.begin()
+        CATransaction.setCompletionBlock {
+            self.tableView.scrollToRow(at: IndexPath(row: 0, section: 0), at: .top, animated: false)
+            self.checkIfCellisFullyVisible()
+            self.markSeenEvents(delay: 0.5)
+        }
+        self.tableView.reloadData()
+        CATransaction.commit()
+    }
 
     private func checkNotificationsAvailability() {
         if viewModel.hasZeroEvents {

@@ -288,11 +288,10 @@ extension UserProfileViewController: UICollectionViewDelegate, UICollectionViewD
         let headerView = self.collectionView(collectionView,
                                              viewForSupplementaryElementOfKind: UICollectionView.elementKindSectionHeader,
                                              at: IndexPath(row: 0, section: section))
-
-        return headerView.systemLayoutSizeFitting(CGSize(width: collectionView.frame.width,
-                                                         height: UIView.layoutFittingCompressedSize.height),
-                                                  withHorizontalFittingPriority: .required,
-                                                  verticalFittingPriority: .fittingSizeLevel)
+        let headerViewSize = CGSize(width: collectionView.frame.width, height: UIView.layoutFittingCompressedSize.height)
+        return headerView.systemLayoutSizeFitting(headerViewSize,
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel)
     }
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {

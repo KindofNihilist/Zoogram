@@ -85,6 +85,7 @@ class ActivitySystemService {
                 do {
                     let jsonData = try JSONSerialization.data(withJSONObject: activityEventDictionary as Any)
                     let decodedEvent = try JSONDecoder().decode(ActivityEvent.self, from: jsonData)
+                    print(decodedEvent.eventID)
                     events.append(decodedEvent)
                 } catch { error
                   print("Couldn't decode activity event data. \(error)")

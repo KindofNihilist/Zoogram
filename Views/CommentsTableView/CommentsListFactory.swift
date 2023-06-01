@@ -58,6 +58,20 @@ class CommentListFactory: TableViewFactory {
         return sections
     }
 
+    func getCommentSectionRect() -> CGRect {
+        return tableView.rect(forSection: commentsSection.sectionIndex)
+//        if let postSection = postSection {
+//            let postRectangle = tableView.rect(forSection: postSection.sectionIndex)
+//            return postRectangle.maxY
+//        } else if let captionSection = captionSection {
+//            let captionRectangle = tableView.rect(forSection: captionSection.sectionIndex)
+//            return captionRectangle.maxY
+//        } else {
+//            let commentsRectange = tableView.rect(forSection: commentsSection.sectionIndex)
+//            return commentsRectange.minY
+//        }
+    }
+
     func registerCells() {
         tableView.register(CommentTableViewCell.self, forCellReuseIdentifier: CommentTableViewCell.identifier)
         tableView.register(PostTableViewCell.self, forCellReuseIdentifier: PostTableViewCell.identifier)

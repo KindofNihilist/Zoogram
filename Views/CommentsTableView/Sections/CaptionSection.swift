@@ -36,6 +36,6 @@ class CaptionSection: TableViewSectionBuilder {
     }
 
     func heightForFooter() -> CGFloat {
-        return 2
+        return 1
     }
 }

@@ -104,6 +104,8 @@ class CommentsTableViewVM {
     func insertNewlyCreatedComment(comment: CommentViewModel) {
         self.comments.insert(comment, at: 0)
         self.shouldShowNewlyCreatedComment = true
+        self.hasAlreadyFocusedOnComment = false
+        self.indexPathOfCommentToToFocusOn = IndexPath(row: 0, section: 1)
     }
 
     func getComments() -> [CommentViewModel] {

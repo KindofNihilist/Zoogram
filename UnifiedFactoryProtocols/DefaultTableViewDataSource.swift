@@ -66,6 +66,10 @@ class DefaultTableViewDataSource: NSObject, TableViewDataSource {
         return sections[section].heightForFooter()
     }
 
+    func tableView(_ tableView: UITableView, estimatedHeightForRowAt indexPath: IndexPath) -> CGFloat {
+        return sections[indexPath.section].estimatedRowHeight() ?? UITableView.automaticDimension
+    }
+
     func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) {
         delegate?.scrollViewDidEndScrollingAnimation()
     }

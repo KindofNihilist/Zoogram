@@ -44,7 +44,9 @@ class CommentSection: TableViewSectionBuilder {
 
     func insertCell(for builder: TableViewCellBuilder, at indexPath: IndexPath, in tableView: UITableView, with animation: UITableView.RowAnimation) {
         appendBuilder(builder)
+        tableView.beginUpdates()
         tableView.insertRows(at: [indexPath], with: animation)
+        tableView.endUpdates()
     }
 
 }

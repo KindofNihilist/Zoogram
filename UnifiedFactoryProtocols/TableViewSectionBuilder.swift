@@ -25,6 +25,7 @@ protocol TableViewSectionBuilder: AnyObject {
     func heightForHeader() -> CGFloat
     func footerView() -> UIView?
     func heightForFooter() -> CGFloat
+    func estimatedRowHeight() -> CGFloat?
     func removeCell(at indexPath: IndexPath, in tableView: UITableView, with animation: UITableView.RowAnimation)
     func insertCell(for builder: TableViewCellBuilder, at indexPath: IndexPath, in tableView: UITableView, with animation: UITableView.RowAnimation)
     func removeBuilder(at indexPath: IndexPath)
@@ -48,5 +49,7 @@ extension TableViewSectionBuilder {
         self.builders.insert(builder, at: 0)
     }
 
-
+    func estimatedRowHeight() -> CGFloat? {
+        return nil
+    }
 }

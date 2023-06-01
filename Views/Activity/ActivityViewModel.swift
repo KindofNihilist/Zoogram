@@ -67,10 +67,4 @@ class ActivityViewModel {
         let seenEvent = events[indexPath.row]
         seenEvents.insert(seenEvent)
     }
-
-
-
-    
-
-    
 }

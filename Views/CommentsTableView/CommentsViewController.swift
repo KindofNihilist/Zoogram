@@ -137,6 +137,10 @@ class CommentsViewController: UIViewController {
     }
 
     private func showCreatedCommentIfNeeded() {
+        guard isCommentsScrolledToTop() else {
+            scrollToFirstRow()
+            return
+        }
         guard viewModel.shouldShowNewlyCreatedComment else {
             return
         }
@@ -151,16 +155,20 @@ class CommentsViewController: UIViewController {
             return
         }
         let commentSection = factory.getCommentSectionIndex()
-        self.tableView.scrollToRow(at: IndexPath(row: 0, section: commentSection), at: .top, animated: true)
+        let commentSectionRect = factory.getCommentSectionRect()
+        self.tableView.setContentOffset(CGPoint(x: 0, y: commentSectionRect.minY.rounded() - 2), animated: true)
+//        self.tableView.scrollToRow(at: IndexPath(row: 0, section: commentSection), at: .top, animated: true)
     }
 
     private func isCommentsScrolledToTop() -> Bool {
-        guard let commentSection = factory?.getCommentSectionIndex() else {
+        guard let commentSectionIndex = factory?.getCommentSectionIndex(),
+              let commentSectionRect = factory?.getCommentSectionRect() else {
             return true
         }
-        let rectOfFirstComment = tableView.rectForRow(at: IndexPath(row: 0, section: commentSection))
-        let rectRelativeToSuperview = tableView.convert(rectOfFirstComment, to: tableView.superview)
-        return rectRelativeToSuperview.maxY != 0 ? false : true
+        let rectOfFirstComment = tableView.rectForRow(at: IndexPath(row: 0, section: commentSectionIndex))
+        let rectRelativeToSuperview = tableView.convert(commentSectionRect, to: tableView.superview)
+        let contentOffset = tableView.contentOffset.y
+        return contentOffset == commentSectionRect.minY.rounded() - 2 ? true : false
     }
 
     @objc func keyboardWillAppear() {
