@@ -7,11 +7,9 @@
 
 import UIKit.UITableView
 
-class PostTableViewCellBuilder: TableViewCellBuilder {
+class PostTableViewCellBuilder: GenericCellController<PostTableViewCell> {
 
     private let viewModel: PostViewModel
-
-    private let identifier = PostTableViewCell.identifier
 
     private let delegate: PostTableViewCellProtocol
 
@@ -24,11 +22,9 @@ class PostTableViewCellBuilder: TableViewCellBuilder {
         self.delegate = delegate
     }
 
-    func cellAt(indexPath: IndexPath, for tableView: UITableView) -> UITableViewCell {
-        let cell: PostTableViewCell = tableView.dequeue(withIdentifier: identifier, for: indexPath)
+    override func configureCell(_ cell: PostTableViewCell) {
         cell.configure(with: viewModel)
-        cell.delegate = delegate
-        return cell
+        cell.delegate = self.delegate
     }
 
 }

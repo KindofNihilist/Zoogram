@@ -7,7 +7,7 @@
 
 import UIKit.UITableView
 
-class CommentTableViewCellBuilder: TableViewCellBuilder {
+class CommentTableViewCellController: GenericCellController<CommentTableViewCell> {
 
     private let viewModel: CommentViewModel
 
@@ -31,18 +31,13 @@ class CommentTableViewCellBuilder: TableViewCellBuilder {
         }
     }
 
-    func cellAt(indexPath: IndexPath, for tableView: UITableView) -> UITableViewCell {
-        let cell: CommentTableViewCell = tableView.dequeue(withIdentifier: identifier, for: indexPath)
-
+    override func configureCell(_ cell: CommentTableViewCell) {
         if isAPostCaption {
             cell.configurePostCaption(with: viewModel)
         } else {
             cell.configure(with: viewModel)
         }
-        cell.configure(with: viewModel)
         cell.delegate = self.delegate
-
-        return cell
     }
 
     func isCellEditable() -> Bool {
