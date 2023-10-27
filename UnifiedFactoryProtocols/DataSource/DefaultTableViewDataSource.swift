@@ -24,9 +24,9 @@ class DefaultTableViewDataSource: NSObject, TableViewDataSource {
 
     weak var delegate: TableViewDataSourceDelegate?
 
-    private var sections: [TableViewSectionBuilder]
+    private var sections: [TableSectionController]
 
-    init(sections: [TableViewSectionBuilder]) {
+    init(sections: [TableSectionController]) {
         self.sections = sections
     }
 
@@ -35,11 +35,11 @@ class DefaultTableViewDataSource: NSObject, TableViewDataSource {
     }
 
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return sections[section].numberOfRows()
+        return sections[section].numberOfCells()
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        return sections[indexPath.section].cell(at: indexPath, in: tableView)
+        return sections[indexPath.section].cell(at: indexPath) 
     }
 
     func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
@@ -59,11 +59,11 @@ class DefaultTableViewDataSource: NSObject, TableViewDataSource {
     }
 
     func tableView(_ tableView: UITableView, viewForFooterInSection section: Int) -> UIView? {
-        return sections[section].footerView()
+        return sections[section].footer()
     }
 
     func tableView(_ tableView: UITableView, heightForFooterInSection section: Int) -> CGFloat {
-        return sections[section].heightForFooter()
+        return sections[section].footerHeight()
     }
 
     func tableView(_ tableView: UITableView, estimatedHeightForRowAt indexPath: IndexPath) -> CGFloat {

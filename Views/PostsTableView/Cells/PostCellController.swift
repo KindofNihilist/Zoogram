@@ -7,7 +7,7 @@
 
 import UIKit.UITableView
 
-class PostTableViewCellBuilder: GenericCellController<PostTableViewCell> {
+class PostCellController: GenericCellController<PostTableViewCell> {
 
     private let viewModel: PostViewModel
 

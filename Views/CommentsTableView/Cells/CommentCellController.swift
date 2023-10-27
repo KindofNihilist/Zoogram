@@ -7,13 +7,11 @@
 
 import UIKit.UITableView
 
-class CommentTableViewCellController: GenericCellController<CommentTableViewCell> {
+class CommentCellController: GenericCellController<CommentTableViewCell> {
 
     private let viewModel: CommentViewModel
 
     private let delegate: CommentCellProtocol
-
-    private let identifier = CommentTableViewCell.identifier
 
     var editingStyle: UITableViewCell.EditingStyle = .none
 

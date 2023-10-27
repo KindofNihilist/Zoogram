@@ -113,8 +113,11 @@ class PostTableViewCell: UITableViewCell {
     private lazy var commentButton: UIButton = {
         let button = UIButton()
         button.translatesAutoresizingMaskIntoConstraints = false
-        button.setImage(UIImage(systemName: "bubble.right", withConfiguration: UIImage.SymbolConfiguration(pointSize: 29)), for: .normal)
+//        button.setImage(UIImage(systemName: "message", withConfiguration: UIImage.SymbolConfiguration(pointSize: 28)), for: .normal)
+        button.setImage(UIImage(named: "commentIcon"), for: .normal)
         button.imageView?.contentMode = .scaleAspectFit
+        button.contentHorizontalAlignment = .fill
+        button.contentVerticalAlignment = .fill
         button.tintColor = .label
         button.backgroundColor = .systemBackground
         button.isOpaque = true
@@ -240,18 +243,18 @@ class PostTableViewCell: UITableViewCell {
         NSLayoutConstraint.activate([
             likeButton.leadingAnchor.constraint(equalTo: profilePhotoImageView.leadingAnchor),
             likeButton.centerYAnchor.constraint(equalTo: actionsContainerView.centerYAnchor),
-            likeButton.widthAnchor.constraint(equalToConstant: 30),
-            likeButton.heightAnchor.constraint(equalToConstant: 30),
+            likeButton.widthAnchor.constraint(equalToConstant: 25),
+            likeButton.heightAnchor.constraint(equalToConstant: 25),
 
-            commentButton.leadingAnchor.constraint(equalTo: likeButton.trailingAnchor, constant: 10),
+            commentButton.leadingAnchor.constraint(equalTo: likeButton.trailingAnchor, constant: 15),
             commentButton.centerYAnchor.constraint(equalTo: actionsContainerView.centerYAnchor),
-            commentButton.widthAnchor.constraint(equalToConstant: 30),
-            commentButton.heightAnchor.constraint(equalToConstant: 30),
+            commentButton.widthAnchor.constraint(equalToConstant: 25),
+            commentButton.heightAnchor.constraint(equalToConstant: 24),
 
             bookmarkButton.trailingAnchor.constraint(equalTo: actionsContainerView.trailingAnchor, constant: -10),
             bookmarkButton.centerYAnchor.constraint(equalTo: actionsContainerView.centerYAnchor),
-            bookmarkButton.widthAnchor.constraint(equalToConstant: 30),
-            bookmarkButton.heightAnchor.constraint(equalToConstant: 30)
+            bookmarkButton.widthAnchor.constraint(equalToConstant: 25),
+            bookmarkButton.heightAnchor.constraint(equalToConstant: 25)
         ])
     }
 
@@ -387,7 +390,7 @@ class PostTableViewCell: UITableViewCell {
 
     @objc func bookmarkButtonTapped() {
         delegate?.didTapBookmarkButton(cell: self) { [weak self] bookmarkState in
-            self?.bookmarkButton.setBookmarkButtonState(state: bookmarkState, animated: false)
+            self?.bookmarkButton.setBookmarkButtonState(state: bookmarkState, animated: true)
             self?.bookmarkButton.buttonState = bookmarkState
         }
     }

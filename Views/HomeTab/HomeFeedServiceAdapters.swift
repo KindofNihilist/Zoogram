@@ -17,6 +17,7 @@ class HomeFeedPostsAPIServiceAdapter: HomeFeedService {
 
     var lastReceivedPostKey: String = ""
     var isAlreadyPaginating: Bool = false
+    var isPaginationAllowed: Bool = true
     var hasHitTheEndOfPosts: Bool = false
 
     init(feedService: FeedService, likeSystemService: LikeSystemService, userPostService: UserPostsService, bookmarksService: BookmarksService, storageManager: StorageManager) {
@@ -88,10 +89,10 @@ class HomeFeedPostsAPIServiceAdapter: HomeFeedService {
             print("Downloaded feed posts with last post key: \(lastPostKey)")
             self?.lastReceivedPostKey = lastPostKey
             self?.getAdditionalPostDataFor(postsOfMultipleUsers: posts) { postsWithAdditionalData in
-                self?.isAlreadyPaginating = false
-                completion(postsWithAdditionalData.map({ post in
+                let postsViewModels = postsWithAdditionalData.map { post in
                     PostViewModel(post: post)
-                }))
+                }
+                completion(postsViewModels)
             }
         }
     }

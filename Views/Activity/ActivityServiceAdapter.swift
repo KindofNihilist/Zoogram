@@ -20,7 +20,7 @@ class ActivityServiceAdapter: ActivityService {
         self.userService = userService
         self.userPostsService = userPostsService
     }
-    
+
     func observeActivityEvents(completion: @escaping ([ActivityEvent]) -> Void) {
         activitySystemService.observeActivityEvents { events in
             self.getAdditionalDataFor(events: events) { eventsWithAdditionalData in

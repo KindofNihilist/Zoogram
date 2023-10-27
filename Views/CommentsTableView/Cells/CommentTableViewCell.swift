@@ -18,8 +18,6 @@ class CommentTableViewCell: UITableViewCell {
 
     private var author: ZoogramUser!
 
-    static let identifier = "PostCommentsTableViewCell"
-
     private let profilePhotoImageView: UIImageView = {
         let imageView = UIImageView()
         imageView.translatesAutoresizingMaskIntoConstraints = false

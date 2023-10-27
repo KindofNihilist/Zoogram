@@ -17,6 +17,7 @@ class BookmarkedPostsServiceAdapter: PostsService {
 
     var lastReceivedPostKey: String = ""
     var isAlreadyPaginating: Bool = false
+    var isPaginationAllowed: Bool = true
     var hasHitTheEndOfPosts: Bool = false
 
     init(bookmarksService: BookmarksService, likeSystemService: LikeSystemService, userPostsService: UserPostsService) {
@@ -45,9 +46,10 @@ class BookmarkedPostsServiceAdapter: PostsService {
         bookmarksService.getMoreBookmarkedPosts(after: lastReceivedPostKey, numberOfPostsToGet: 21) { posts, lastRetrievedPostKey in
             self.lastReceivedPostKey = lastRetrievedPostKey
             self.getAdditionalPostDataFor(postsOfMultipleUsers: posts) { postsWithAdditionalData in
-                completion(postsWithAdditionalData.map({ post in
+                let postsViewModels = postsWithAdditionalData.map { post in
                     PostViewModel(post: post)
-                }))
+                }
+                completion(postsViewModels)
             }
         }
     }

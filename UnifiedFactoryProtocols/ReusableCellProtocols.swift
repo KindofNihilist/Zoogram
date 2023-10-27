@@ -12,12 +12,27 @@ public protocol ReusableCell: AnyObject {
     associatedtype CellHolder: ReusableCellHolder
 }
 
+public protocol SupplementaryView: AnyObject {
+    associatedtype ViewHolder: ReusableCellHolder
+}
+
+extension UIView: SupplementaryView {
+    public typealias ViewHolder = UITableView
+}
+
+extension UICollectionReusableView: SupplementaryView {
+    public typealias ViewHolder = UICollectionView
+}
+
+
 public protocol ReusableCellHolder: AnyObject {
     associatedtype CellType: ReusableCell
-    func register(_ nib: UINib?, forCellWithReuseIdentifier identifier: String)
+    associatedtype SupplementaryViewType: SupplementaryView
     func register(_ cellClass: AnyClass?, forCellWithReuseIdentifier identifier: String)
-    func dequeueReusableCell(withReuseIdentifier identifier: String, for indexPath: IndexPath) -> CellType
-    func cellForItem(at indexPath: IndexPath) -> CellType?
+    func dequeueReusableCell(withCellIdentifier identifier: String, for indexPath: IndexPath) -> CellType
+    func cell(at indexPath: IndexPath) -> CellType?
+    func insertCell(at indexPath: IndexPath)
+    func removeCell(at indexPath: IndexPath)
 }
 
 extension UITableViewCell: ReusableCell {
@@ -29,24 +44,58 @@ extension UICollectionViewCell: ReusableCell {
 }
 
 extension UITableView: ReusableCellHolder {
-    public func register(_ nib: UINib?, forCellWithReuseIdentifier identifier: String) {
-        register(nib, forCellReuseIdentifier: identifier)
-    }
 
+    public typealias SupplementaryViewType = UIView
+
+    
     public func register(_ cellClass: AnyClass?, forCellWithReuseIdentifier identifier: String) {
         register(cellClass, forCellReuseIdentifier: identifier)
     }
 
-    public func dequeueReusableCell(withReuseIdentifier identifier: String, for indexPath: IndexPath) -> UITableViewCell {
+    public func dequeueReusableCell(withCellIdentifier identifier: String, for indexPath: IndexPath) -> UITableViewCell {
         return dequeueReusableCell(withIdentifier: identifier, for: indexPath)
     }
 
-    public func cellForItem(at indexPath: IndexPath) -> UITableViewCell? {
+    public func cell(at indexPath: IndexPath) -> UITableViewCell? {
         return cellForRow(at: indexPath)
+    }
+
+    public func insertCell(at indexPath: IndexPath) {
+        insertRows(at: [indexPath], with: .automatic)
+    }
+
+    public func removeCell(at indexPath: IndexPath) {
+        deleteRows(at: [indexPath], with: .automatic)
     }
 
 }
 
 extension UICollectionView: ReusableCellHolder {
+    
+    public typealias SupplementaryViewType = UICollectionReusableView
 
+
+    public func register(_ cellClass: AnyClass?, forCellWithIdentifier identifier: String) {
+        register(cellClass, forCellWithReuseIdentifier: identifier)
+    }
+
+    public func dequeueReusableCell(withCellIdentifier identifier: String, for indexPath: IndexPath) -> UICollectionViewCell {
+        return dequeueReusableCell(withReuseIdentifier: identifier, for: indexPath)
+    }
+
+    public func cell(at indexPath: IndexPath) -> UICollectionViewCell? {
+        cellForItem(at: indexPath)
+    }
+
+    public func insertCell(at indexPath: IndexPath) {
+        performBatchUpdates {
+            insertItems(at: [indexPath])
+        }
+    }
+
+    public func removeCell(at indexPath: IndexPath) {
+        performBatchUpdates {
+            deleteItems(at: [indexPath])
+        }
+    }
 }

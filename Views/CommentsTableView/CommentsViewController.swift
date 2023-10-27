@@ -20,8 +20,6 @@ class CommentsViewController: UIViewController {
     private var tableView: UITableView = {
         let tableView = UITableView()
         tableView.translatesAutoresizingMaskIntoConstraints = false
-        tableView.register(CommentTableViewCell.self, forCellReuseIdentifier: CommentTableViewCell.identifier)
-        tableView.register(PostTableViewCell.self, forCellReuseIdentifier: PostTableViewCell.identifier)
         tableView.keyboardDismissMode = .interactive
         tableView.rowHeight = UITableView.automaticDimension
         tableView.estimatedRowHeight = UITableView.automaticDimension
@@ -155,8 +153,9 @@ class CommentsViewController: UIViewController {
             return
         }
         let commentSection = factory.getCommentSectionIndex()
-        let commentSectionRect = factory.getCommentSectionRect()
-        self.tableView.setContentOffset(CGPoint(x: 0, y: commentSectionRect.minY.rounded() - 2), animated: true)
+        if let commentSectionRect = factory.getCommentSectionRect() {
+            self.tableView.setContentOffset(CGPoint(x: 0, y: commentSectionRect.minY.rounded() - 2), animated: true)
+        }
 //        self.tableView.scrollToRow(at: IndexPath(row: 0, section: commentSection), at: .top, animated: true)
     }
 
@@ -194,7 +193,6 @@ extension CommentsViewController {
             shouldShowRelatedPost: viewModel.shouldShowRelatedPost,
             tableView: self.tableView,
             delegate: self)
-        self.factory?.registerCells()
     }
 
     func setupDataSource() {
@@ -265,8 +263,8 @@ extension CommentsViewController: CommentsTableViewActionsProtocol {
 }
 
 extension CommentsViewController: TableViewDataSourceDelegate {
-    func didSelectCell(at indexPath: IndexPath) {
 
+    func didSelectCell(at indexPath: IndexPath) {
     }
 
     func scrollViewDidEndScrollingAnimation() {

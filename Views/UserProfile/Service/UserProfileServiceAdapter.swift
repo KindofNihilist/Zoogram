@@ -7,6 +7,8 @@
 
 import Foundation
 
+typealias HasHitTheEnd = Bool
+
 class UserProfileServiceAPIAdapter: UserProfileService, ImageService {
 
     var userID: String
@@ -20,7 +22,8 @@ class UserProfileServiceAPIAdapter: UserProfileService, ImageService {
     var dispatchGroup: DispatchGroup
     var lastReceivedPostKey: String = ""
     var isAlreadyPaginating: Bool = false
-    var hasHitTheEndOfPosts: Bool = false
+    var isPaginationAllowed: Bool = true
+    var hasHitTheEndOfPosts: HasHitTheEnd = false
 
     init(userID: String, followService: FollowSystemService, userPostsService: UserPostsService, userService: UserService, likeSystemService: LikeSystemService, bookmarksService: BookmarksService) {
         self.userID = userID
@@ -61,7 +64,7 @@ class UserProfileServiceAPIAdapter: UserProfileService, ImageService {
     }
 
     func getPosts(completion: @escaping ([PostViewModel]) -> Void) {
-        userPostsService.getPosts(for: userID) { [weak self] posts, lastObtainedPostKey in
+        userPostsService.getPosts(quantity: 12, for: userID) { [weak self] posts, lastObtainedPostKey in
             self?.lastReceivedPostKey = lastObtainedPostKey
             print("got user profile posts")
             print(posts)
@@ -76,26 +79,30 @@ class UserProfileServiceAPIAdapter: UserProfileService, ImageService {
     }
 
     func getMorePosts(completion: @escaping ([PostViewModel]?) -> Void) {
+        print("Last postKey: ", lastReceivedPostKey)
         guard isAlreadyPaginating == false, lastReceivedPostKey != "" else {
+            print("isAlreadyPaginating: \(isAlreadyPaginating)")
             return
         }
-
         isAlreadyPaginating = true
-
-        userPostsService.getMorePosts(after: lastReceivedPostKey, for: userID) { [weak self] posts, lastDownloadedPostKey in
-            guard lastDownloadedPostKey != self?.lastReceivedPostKey else {
+        isPaginationAllowed = false
+        userPostsService.getMorePosts(quantity: 12, after: lastReceivedPostKey, for: userID) { [weak self] posts, lastDownloadedPostKey in
+            guard posts.isEmpty != true, lastDownloadedPostKey != self?.lastReceivedPostKey else {
                 self?.hasHitTheEndOfPosts = true
-                print("Hit the end of user posts")
+                print("has hit the end of user posts")
+                completion(nil)
                 return
             }
+            print("Last received postKey: ", lastDownloadedPostKey)
             print("got more posts for user")
             self?.lastReceivedPostKey = lastDownloadedPostKey
             self?.getAdditionalPostDataFor(postsOfSingleUser: posts) { postsWithAdditionalData in
                 print("got additional post data for single user")
                 self?.isAlreadyPaginating = false
-                completion(postsWithAdditionalData.map({ post in
+                let postsViewModels = postsWithAdditionalData.map({ post in
                     PostViewModel(post: post)
-                }))
+                })
+                completion(postsViewModels)
             }
         }
     }

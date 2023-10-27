@@ -8,7 +8,7 @@ import SDWebImage
 import UIKit
 
 protocol UserProfilePostsTableViewProtocol: AnyObject {
-    func updateUserProfileData()
+    func updateUserProfilePosts()
 }
 
 class PostViewController: UIViewController {

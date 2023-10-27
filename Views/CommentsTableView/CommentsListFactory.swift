@@ -7,7 +7,7 @@
 
 import UIKit
 
-class CommentListFactory: TableViewFactory {
+class CommentListFactory {
 
     internal var tableView: UITableView
 
@@ -31,35 +31,42 @@ class CommentListFactory: TableViewFactory {
         self.tableView = tableView
         self.delegate = delegate
         self.shouldShowRelatedPost = shouldShowRelatedPost
+//        CommentCellController.registerCell(in: tableView)
+//        PostCellController.registerCell(in: tableView)
+
     }
 
-    func buildSections() -> [TableViewSectionBuilder] {
-        var sections = [TableViewSectionBuilder]()
+    func buildSections() -> [TableSectionController] {
+        var sections = [TableSectionController]()
 
         if shouldShowRelatedPost {
-            let postBuilder = createPostBuilder(postViewModel: post)
-            postSection = PostSection(builders: [postBuilder], delegate: self)
+            let postController = createPostController(postViewModel: post)
+            postSection = PostSection(sectionHolder: tableView, cellControllers: [postController])
+            postSection?.sectionIndex = 0
             sections.append(postSection!)
         } else {
             if let caption = CommentViewModel.createPostCaptionForCommentArea(with: self.post) {
-                let captionBuilder = CommentTableViewCellBuilder(viewModel: caption, delegate: self.delegate)
-                captionSection = CaptionSection(builders: [captionBuilder], delegate: self)
+                let captionController = CommentCellController(viewModel: caption, delegate: self.delegate)
+                captionSection = CaptionSection(sectionHolder: tableView, cellControllers: [captionController])
+                captionSection?.sectionIndex = 0
                 sections.append(captionSection!)
             }
         }
 
-        let commentsBuilders = self.comments.map { commentViewModel in
-            CommentTableViewCellBuilder(viewModel: commentViewModel, delegate: self.delegate)
+        let commentsControllers = self.comments.map { commentViewModel in
+            CommentCellController(viewModel: commentViewModel, delegate: self.delegate)
         }
 
-        commentsSection = CommentSection(builders: commentsBuilders, delegate: self)
+        commentsSection = CommentSection(sectionHolder: tableView, cellControllers: commentsControllers)
         sections.append(commentsSection!)
-
         return sections
     }
 
-    func getCommentSectionRect() -> CGRect {
-        return tableView.rect(forSection: commentsSection.sectionIndex)
+    func getCommentSectionRect() -> CGRect? {
+        guard let commentSectionIndex = commentsSection.sectionIndex else {
+            return nil
+        }
+        return tableView.rect(forSection: commentSectionIndex)
 //        if let postSection = postSection {
 //            let postRectangle = tableView.rect(forSection: postSection.sectionIndex)
 //            return postRectangle.maxY
@@ -72,38 +79,27 @@ class CommentListFactory: TableViewFactory {
 //        }
     }
 
-    func registerCells() {
-        tableView.register(CommentTableViewCell.self, forCellReuseIdentifier: CommentTableViewCell.identifier)
-        tableView.register(PostTableViewCell.self, forCellReuseIdentifier: PostTableViewCell.identifier)
+    func createPostController(postViewModel: PostViewModel) -> PostCellController {
+        return PostCellController(viewModel: postViewModel, delegate: self.delegate)
     }
 
-    func createPostBuilder(postViewModel: PostViewModel) -> PostTableViewCellBuilder {
-        return PostTableViewCellBuilder(viewModel: postViewModel, delegate: self.delegate)
-    }
-
-    func getCommentSectionIndex() -> SectionIndex {
+    func getCommentSectionIndex() -> SectionIndex? {
         return commentsSection.sectionIndex
     }
 
     func removeCommentCell(at indexPath: IndexPath, with animation: UITableView.RowAnimation) {
         self.comments.remove(at: indexPath.row)
-        commentsSection.removeCell(at: indexPath, in: self.tableView, with: animation)
+        commentsSection.removeCell(at: indexPath, in: self.tableView)
     }
 
     func insertCommentCell(with comment: CommentViewModel, with animation: UITableView.RowAnimation, completion: @escaping () -> Void) {
-        self.comments.append(comment)
-        let commentBuilder = CommentTableViewCellBuilder(viewModel: comment, delegate: self.delegate)
-        commentsSection.insertCell(for: commentBuilder, at: IndexPath(row: 0, section: commentsSection.sectionIndex), in: tableView, with: animation)
-        completion()
-    }
-}
-
-extension CommentListFactory: SectionManager {
-    func getSectionIndex() -> SectionIndex {
-        if postSection != nil || captionSection != nil {
-            return 1
-        } else {
-            return 0
+        guard let commentSectionIndex = commentsSection.sectionIndex else {
+            return
         }
+        self.comments.append(comment)
+        let commentController = CommentCellController(viewModel: comment, delegate: self.delegate)
+        let commentSectionIndexPath = IndexPath(row: 0, section: commentSectionIndex)
+        commentsSection.insertCell(with: commentController, at: commentSectionIndexPath, in: self.tableView)
+        completion()
     }
 }

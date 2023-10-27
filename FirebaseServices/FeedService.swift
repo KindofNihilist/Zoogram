@@ -21,33 +21,37 @@ class FeedService {
         let currentUserID = AuthenticationManager.shared.getCurrentUserUID()
         print("inside getPosts for timeline")
 
-        databaseRef.child("Timelines/\(currentUserID)").queryOrderedByKey().queryLimited(toLast: 12).observeSingleEvent(of: .value) { snapshot in
+        databaseRef.child("Timelines/\(currentUserID)").queryOrderedByKey().queryLimited(toLast: 6).observeSingleEvent(of: .value) { snapshot in
 
             var retrievedPosts = [UserPost]()
             var lastReceivedPost = ""
             let dispatchGroup = DispatchGroup()
 
-            for (index, snapshotChild) in snapshot.children.enumerated().reversed() {
+            for snapshotChild in snapshot.children.reversed() {
 
                 guard let postSnapshot = snapshotChild as? DataSnapshot,
-                      let postDictionary = postSnapshot.value as? [String : Any]
+                      let postDictionary = postSnapshot.value as? [String: Any]
                 else {
                     print("Error while creating post dictionary from snapshot")
                     return
                 }
-                dispatchGroup.enter()
                 lastReceivedPost = postSnapshot.key
                 do {
                     let jsonData = try JSONSerialization.data(withJSONObject: postDictionary as Any)
                     let userPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
                     retrievedPosts.append(userPost)
-                    UserService.shared.getUser(for: userPost.userID) { postAuthor in
-                        retrievedPosts[index].author = postAuthor
-                        dispatchGroup.leave()
-                    }
                 } catch {
                     print("Couldn't create post object from dictionary")
                 }
+            }
+
+            retrievedPosts = retrievedPosts.map { userPost in
+                dispatchGroup.enter()
+                UserService.shared.getUser(for: userPost.userID) { postAuthor in
+                    userPost.author = postAuthor
+                    dispatchGroup.leave()
+                }
+                return userPost
             }
 
             dispatchGroup.notify(queue: .main) {
@@ -60,36 +64,39 @@ class FeedService {
 
         let currentUserID = AuthenticationManager.shared.getCurrentUserUID()
 
-        databaseRef.child("Timelines/\(currentUserID)").queryOrderedByKey().queryEnding(beforeValue: lastSeenPostKey).queryLimited(toLast: 12).observeSingleEvent(of: .value) { snapshot in
+        databaseRef.child("Timelines/\(currentUserID)").queryOrderedByKey().queryEnding(beforeValue: lastSeenPostKey).queryLimited(toLast: 6).observeSingleEvent(of: .value) { snapshot in
 
             var retrievedPosts = [UserPost]()
             var lastReceivedPost = ""
             let dispatchGroup = DispatchGroup()
 
-            for (index, snapshotChild) in snapshot.children.enumerated().reversed() {
+            for snapshotChild in snapshot.children.reversed() {
 
                 guard let postSnapshot = snapshotChild as? DataSnapshot,
-                      let postDictionary = postSnapshot.value as? [String : Any]
+                      let postDictionary = postSnapshot.value as? [String: Any]
                 else {
                     print("Error while creating post dictionary from snapshot")
                     return
                 }
-                dispatchGroup.enter()
                 lastReceivedPost = postSnapshot.key
 
                 do {
                     let jsonData = try JSONSerialization.data(withJSONObject: postDictionary as Any)
                     let userPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
                     retrievedPosts.append(userPost)
-                    UserService.shared.getUser(for: userPost.userID) { postAuthor in
-                        retrievedPosts[index].author = postAuthor
-                        dispatchGroup.leave()
-                    }
-
                 } catch {
                     print("Couldn't create post object from dictionary")
                 }
             }
+
+            retrievedPosts = retrievedPosts.map({ userPost in
+                dispatchGroup.enter()
+                UserService.shared.getUser(for: userPost.userID) { postAuthor in
+                    userPost.author = postAuthor
+                    dispatchGroup.leave()
+                }
+                return userPost
+            })
 
             dispatchGroup.notify(queue: .main) {
                 completion(retrievedPosts, lastReceivedPost)

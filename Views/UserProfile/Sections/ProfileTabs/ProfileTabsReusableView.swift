@@ -14,8 +14,6 @@ protocol ProfileTabsCollectionViewDelegate: AnyObject {
 
 class ProfileTabsReusableView: UICollectionReusableView {
 
-    static let identifier = "ProfileTabsCollectionReusableView"
-
     weak var delegate: ProfileTabsCollectionViewDelegate?
 
     private let personalFeedButton: UIButton = {
@@ -78,7 +76,5 @@ class ProfileTabsReusableView: UICollectionReusableView {
         taggedButton.tintColor = .label
         delegate?.didTapTaggedTabButton()
     }
-
-
 
 }

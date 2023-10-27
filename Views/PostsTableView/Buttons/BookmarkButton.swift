@@ -10,11 +10,17 @@ import UIKit
 class BookmarkButton: UIButton {
 
     var buttonState: BookmarkState = .notBookmarked
+//    var unbookmarkedStateImage = UIImage(systemName: "bookmarkIcon", withConfiguration: UIImage.SymbolConfiguration(pointSize: 28))
+    var unbookmarkedStateImage = UIImage(named: "unbookmarkedIcon")
+    var bookmarkedStateImage = UIImage(named: "bookmarkedIcon")
+//    var bookmarkedStateImage = UIImage(systemName: "bookmark.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 28))
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        self.setImage(UIImage(systemName: "bookmark", withConfiguration: UIImage.SymbolConfiguration(pointSize: 29)), for: .normal)
+        self.setImage(unbookmarkedStateImage, for: .normal)
         self.imageView?.contentMode = .scaleAspectFit
+        self.contentHorizontalAlignment = .fill
+        self.contentVerticalAlignment = .fill
         self.isOpaque = true
         self.backgroundColor = .systemBackground
         self.tintColor = .label
@@ -48,10 +54,10 @@ class BookmarkButton: UIButton {
     }
 
     func setBookmarkedState() {
-        self.setImage(UIImage(systemName: "bookmark.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 29)), for: .normal)
+        self.setImage(bookmarkedStateImage, for: .normal)
     }
 
     func setUnmarkedState() {
-        self.setImage(UIImage(systemName: "bookmark", withConfiguration: UIImage.SymbolConfiguration(pointSize: 29)), for: .normal)
+        self.setImage(unbookmarkedStateImage, for: .normal)
     }
 }

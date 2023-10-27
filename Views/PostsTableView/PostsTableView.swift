@@ -97,7 +97,7 @@ class PostsTableView: UITableView {
         guard posts.isEmpty != true else {
             return UIView()
         }
-        let footerView = UIView(frame: CGRect(x: 0, y: 0, width: self.frame.width, height: 100))
+        let footerView = UIView(frame: CGRect(x: 0, y: 0, width: self.frame.width, height: 200))
         let spinner = UIActivityIndicatorView(style: .medium)
         footerView.addSubview(spinner)
         spinner.center = footerView.center
@@ -163,6 +163,11 @@ extension PostsTableView: UITableViewDelegate, UITableViewDataSource {
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
         guard service.hasHitTheEndOfPosts != true && self.isPaginationAllowed else {
+            UIView.animate(withDuration: 0.6) {
+                self.tableFooterView?.alpha = 0
+            } completion: { _ in
+                self.tableFooterView = nil
+            }
             return
         }
         let position = scrollView.contentOffset.y
@@ -170,11 +175,17 @@ extension PostsTableView: UITableViewDelegate, UITableViewDataSource {
         if position > (self.contentSize.height - 100 - scrollView.frame.size.height) {
             self.tableFooterView = createFooterSpinnerView()
             self.service.getMorePosts { retrievedPosts in
-                if let unwrapedPosts = retrievedPosts {
-                    self.posts.append(contentsOf: unwrapedPosts)
-                    self.reloadData()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                    if let unwrapedPosts = retrievedPosts {
+                        let postsCountBeforeUpdate = self.posts.count
+                        self.posts.append(contentsOf: unwrapedPosts)
+                        let indexPaths = (postsCountBeforeUpdate ..< self.posts.count).map {
+                            IndexPath(row: $0, section: 0)
+                        }
+                        self.insertRows(at: indexPaths, with: .fade)
+                        self.service.isAlreadyPaginating = false
+                    }
                 }
-                self.tableFooterView = nil
             }
         }
     }

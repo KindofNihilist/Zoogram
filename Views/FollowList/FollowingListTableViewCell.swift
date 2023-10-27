@@ -44,7 +44,7 @@ class FollowingListTableViewCell: UITableViewCell {
         label.font = UIFont.systemFont(ofSize: 14)
         label.textColor = .lightGray
         label.translatesAutoresizingMaskIntoConstraints = false
-        label.numberOfLines = 1
+        label.numberOfLines = 0
         return label
     }()
 
@@ -75,19 +75,18 @@ class FollowingListTableViewCell: UITableViewCell {
             profileImageView.widthAnchor.constraint(equalToConstant: profileImageViewSize),
             profileImageView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
 
-            followUnfollowButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -15),
+            followUnfollowButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -10),
             followUnfollowButton.heightAnchor.constraint(equalToConstant: 30),
-            followUnfollowButton.widthAnchor.constraint(equalToConstant: 80),
+            followUnfollowButton.widthAnchor.constraint(equalToConstant: 75),
             followUnfollowButton.topAnchor.constraint(equalTo: usernameLabel.topAnchor),
 
             usernameLabel.leadingAnchor.constraint(equalTo: profileImageView.trailingAnchor, constant: 15),
-            usernameLabel.trailingAnchor.constraint(lessThanOrEqualTo: followUnfollowButton.leadingAnchor),
+            usernameLabel.trailingAnchor.constraint(lessThanOrEqualTo: followUnfollowButton.leadingAnchor, constant: -5),
             usernameLabel.heightAnchor.constraint(equalToConstant: 15),
             usernameLabel.bottomAnchor.constraint(equalTo: profileImageView.centerYAnchor, constant: -5),
 
             nameLabel.leadingAnchor.constraint(equalTo: profileImageView.trailingAnchor, constant: 15),
-            nameLabel.trailingAnchor.constraint(equalTo: usernameLabel.trailingAnchor),
-            nameLabel.heightAnchor.constraint(equalToConstant: 15),
+            nameLabel.trailingAnchor.constraint(equalTo: followUnfollowButton.leadingAnchor, constant: -5),
             nameLabel.topAnchor.constraint(equalTo: profileImageView.centerYAnchor),
         ])
 

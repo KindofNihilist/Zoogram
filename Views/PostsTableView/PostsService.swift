@@ -18,6 +18,7 @@ protocol PostsService: PostActionsService, ImageService {
     var lastReceivedPostKey: String {get set}
     var isAlreadyPaginating: Bool {get set}
     var hasHitTheEndOfPosts: Bool {get set}
+    var isPaginationAllowed: Bool {get set}
 
     func getPosts(completion: @escaping ([PostViewModel]) -> Void)
     func getMorePosts(completion: @escaping ([PostViewModel]?) -> Void)

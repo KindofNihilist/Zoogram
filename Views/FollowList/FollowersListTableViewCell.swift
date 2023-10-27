@@ -42,7 +42,7 @@ class FollowersListTableViewCell: UITableViewCell {
         label.translatesAutoresizingMaskIntoConstraints = false
         label.font = UIFont.boldSystemFont(ofSize: 14)
         label.textColor = .label
-        label.numberOfLines = 1
+        label.numberOfLines = 0
         return label
     }()
 
@@ -51,7 +51,7 @@ class FollowersListTableViewCell: UITableViewCell {
         label.font = UIFont.systemFont(ofSize: 14)
         label.textColor = .lightGray
         label.translatesAutoresizingMaskIntoConstraints = false
-        label.numberOfLines = 1
+        label.numberOfLines = 0
         return label
     }()
 
@@ -65,7 +65,8 @@ class FollowersListTableViewCell: UITableViewCell {
         button.translatesAutoresizingMaskIntoConstraints = false
         button.layer.borderWidth = 0.5
         button.layer.borderColor = UIColor.lightGray.cgColor
-        button.layer.cornerRadius = 5
+        button.layer.cornerRadius = 10
+        button.layer.cornerCurve = .continuous
         button.addTarget(self, action: #selector(removeButtonTapped), for: .touchUpInside)
         return button
     }()
@@ -106,13 +107,12 @@ class FollowersListTableViewCell: UITableViewCell {
             removeButton.topAnchor.constraint(equalTo: usernameLabel.topAnchor),
 
             usernameLabel.leadingAnchor.constraint(equalTo: profileImageView.trailingAnchor, constant: 15),
-            usernameLabel.trailingAnchor.constraint(lessThanOrEqualTo: followUnfollowButton.leadingAnchor),
+            usernameLabel.trailingAnchor.constraint(lessThanOrEqualTo: followUnfollowButton.leadingAnchor, constant: -5),
             usernameLabel.heightAnchor.constraint(equalToConstant: 15),
             usernameLabel.bottomAnchor.constraint(equalTo: profileImageView.centerYAnchor, constant: -5),
 
             nameLabel.leadingAnchor.constraint(equalTo: profileImageView.trailingAnchor, constant: 15),
-            nameLabel.trailingAnchor.constraint(equalTo: usernameLabel.trailingAnchor),
-            nameLabel.heightAnchor.constraint(equalToConstant: 15),
+            nameLabel.trailingAnchor.constraint(equalTo: removeButton.leadingAnchor, constant: -10),
             nameLabel.topAnchor.constraint(equalTo: profileImageView.centerYAnchor),
 
             followUnfollowButton.leadingAnchor.constraint(equalTo: usernameLabel.trailingAnchor, constant: 5),
