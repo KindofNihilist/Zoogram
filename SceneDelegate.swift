@@ -11,24 +11,21 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     var window: UIWindow?
 
-
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
-     
-//        guard let _ = (scene as? UIWindowScene) else { return }
-        
+
         guard let windowScene = (scene as? UIWindowScene) else { return }
         window = UIWindow(frame: UIScreen.main.bounds)
         window?.backgroundColor = .systemBackground
         if Auth.auth().currentUser == nil {
-            window?.rootViewController = LoginViewController()
+            let navigationController = UINavigationController(rootViewController: LoginViewController())
+            navigationController.navigationBar.backgroundColor = .systemBackground
+            navigationController.navigationBar.isTranslucent = false
+            navigationController.tabBarController?.tabBar.isTranslucent = false
+            navigationController.tabBarController?.tabBar.backgroundColor = .systemBackground
+            window?.rootViewController = navigationController
         } else {
-            DatabaseManager.shared.getUser(for: Auth.auth().currentUser!.uid) { [weak self] result in
-                switch result {
-                case.success(let userData):
-                    self?.window?.rootViewController = TabBarController(userData: userData)
-                case.failure(let error):
-                    print(error)
-                }
+            UserService.shared.getCurrentUser {
+                self.window?.rootViewController = TabBarController()
             }
         }
         window?.makeKeyAndVisible()
@@ -62,7 +59,4 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // Use this method to save data, release shared resources, and store enough scene-specific state information
         // to restore the scene back to its current state.
     }
-
-
 }
-
