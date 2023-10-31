@@ -175,7 +175,9 @@ extension TabBarController: ActivityViewNotificationProtocol {
 
 extension TabBarController: NewPostProtocol {
     func makeANewPost(post: UserPost, completion: @escaping () -> Void) {
+
         homeVC.setTableViewVisibleContentToTop(animated: false)
+
         cameraRollVC.dismiss(animated: true) {
             let currentUser = self.userProfileVC.getCurrentUserProfile()
             self.homeVC.showMakingNewPostNotificationViewFor(username: currentUser.username, with: post.image)
@@ -183,11 +185,14 @@ extension TabBarController: NewPostProtocol {
             self.homeVC.service.makeANewPost(post: post) { progress in
                 self.homeVC.updateProgressBar(progress: progress)
             } completion: { result in
+
                 switch result {
+
                 case .success():
                     post.author = currentUser
                     self.homeVC.animateInsertionOfCreatedPost(post: post)
                     self.userProfileVC.refreshProfileData()
+
                 case .failure(let error):
                     self.homeVC.show(error: error)
                 }

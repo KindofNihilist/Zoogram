@@ -34,7 +34,7 @@ class UserPostsService {
 
         databaseRef.child("Followers/\(userID)").observeSingleEvent(of: .value) { followersSnapshot in
 
-            var fanoutObj = [String : Any]()
+            var fanoutObj = [String: Any]()
             let postDictionary = post.createDictionary()
 
             if let followersData = followersSnapshot.value as? [String: AnyObject] {

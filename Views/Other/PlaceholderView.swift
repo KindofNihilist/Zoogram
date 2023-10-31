@@ -21,7 +21,8 @@ class PlaceholderView: UIView {
     let label: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
-        label.font = .rounded(ofSize: 23, weight: .bold)
+//        label.font = .rounded(ofSize: 23, weight: .bold)
+        label.font = CustomFonts.boldFont(ofSize: 23)
         label.numberOfLines = 0
         label.textAlignment = .center
 //        label.backgroundColor = .systemOrange

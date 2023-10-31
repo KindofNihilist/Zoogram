@@ -13,7 +13,7 @@ open class CellController<T: ReusableCellHolder> {
 
     var cell: T.CellType?
 
-    open var allowsEditing: Bool = false
+    var allowsEditing: Bool = false
 
     public var indexPath: IndexPath?
 

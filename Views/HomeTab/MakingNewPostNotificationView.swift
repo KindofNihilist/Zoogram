@@ -26,7 +26,7 @@ class MakingNewPostNotificationView: UIView {
     let postingToUsernameLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
-        label.font = UIFont.systemFont(ofSize: 14)
+        label.font = CustomFonts.regularFont(ofSize: 14)
         label.textColor = .secondaryLabel
         return label
     }()

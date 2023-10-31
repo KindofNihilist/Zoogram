@@ -42,7 +42,7 @@ final class UserProfileViewController: UIViewController {
 
     lazy var userNicknameLabel: UILabel = {
         let label = UILabel()
-        label.font = UIFont(name: "Gaegu-Bold", size: 22)
+        label.font = CustomFonts.boldFont(ofSize: 20)
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
@@ -62,7 +62,6 @@ final class UserProfileViewController: UIViewController {
 
         self.viewModel.posts.bind { posts in
             self.postTableViewController.updatePostsArrayWith(posts: posts)
-            print("posts value changed")
         }
     }
 

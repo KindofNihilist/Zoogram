@@ -31,9 +31,6 @@ class CommentListFactory {
         self.tableView = tableView
         self.delegate = delegate
         self.shouldShowRelatedPost = shouldShowRelatedPost
-//        CommentCellController.registerCell(in: tableView)
-//        PostCellController.registerCell(in: tableView)
-
     }
 
     func buildSections() -> [TableSectionController] {

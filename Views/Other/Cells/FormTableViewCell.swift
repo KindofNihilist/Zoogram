@@ -22,7 +22,7 @@ class FormTableViewCell: UITableViewCell, UITextFieldDelegate {
     private let formLabel: UILabel = {
         let label = UILabel()
         label.textColor = .label
-        label.font = UIFont.systemFont(ofSize: 15)
+        label.font = CustomFonts.regularFont(ofSize: 15)
         label.numberOfLines = 1
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -31,7 +31,7 @@ class FormTableViewCell: UITableViewCell, UITextFieldDelegate {
     private let textField: UITextField = {
         let textField = UITextField()
         textField.returnKeyType = .done
-        textField.font = UIFont.systemFont(ofSize: 14)
+        textField.font = CustomFonts.regularFont(ofSize: 14)
         textField.translatesAutoresizingMaskIntoConstraints = false
         textField.autocorrectionType = .no
         textField.autocapitalizationType = .none

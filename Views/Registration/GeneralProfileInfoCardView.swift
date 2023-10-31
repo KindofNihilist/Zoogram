@@ -38,7 +38,7 @@ class GeneralProfileInfoCardView: UIView {
         textView.autocorrectionType = .yes
         textView.layer.masksToBounds = true
         textView.layer.cornerRadius = 11
-        textView.font = UIFont.systemFont(ofSize: 17)
+        textView.font = CustomFonts.regularFont(ofSize: 17)
         textView.backgroundColor = .systemBackground
         textView.textContainerInset = UIEdgeInsets(top: 0, left: 5, bottom: 0, right: 5)
         textView.translatesAutoresizingMaskIntoConstraints = false

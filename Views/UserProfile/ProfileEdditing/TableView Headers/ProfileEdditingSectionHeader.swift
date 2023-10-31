@@ -24,7 +24,7 @@ class ProfileEdditingSectionHeader: UITableViewHeaderFooterView {
     
     func configureContents() {
         title.translatesAutoresizingMaskIntoConstraints = false
-        title.font = UIFont.boldSystemFont(ofSize: 19)
+        title.font = CustomFonts.boldFont(ofSize: 19)
         title.textColor = .label
         contentView.addSubview(title)
         

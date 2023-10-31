@@ -66,12 +66,13 @@ class PostLikedEventTableViewCell: UITableViewCell {
         self.event = event
         likedPostPhotoImageView.image = event.post?.image
 
-        let attributedUsername = NSAttributedString(string: "\(event.user!.username) ", attributes: [NSAttributedString.Key.font: UIFont.boldSystemFont(ofSize: 14), NSAttributedString.Key.foregroundColor: UIColor.label])
+        let attributedUsername = NSAttributedString(string: "\(event.user!.username) ", attributes: [NSAttributedString.Key.font: CustomFonts.boldFont(ofSize: 14), NSAttributedString.Key.foregroundColor: UIColor.label])
         let attributedEventMessage = NSAttributedString(string: "liked your post. ",
-                                                        attributes: [.font: UIFont.systemFont(ofSize: 14),
+                                                        attributes: [.font: CustomFonts.regularFont(ofSize: 14),
                                                                      .foregroundColor: UIColor.label])
+
         let attributedTimeStamp = NSAttributedString(string: event.date.timeAgoDisplay(),
-                                                     attributes: [.font: UIFont.systemFont(ofSize: 14),
+                                                     attributes: [.font: CustomFonts.regularFont(ofSize: 14),
                                                                   .foregroundColor: UIColor.secondaryLabel])
 
         let wholeMessage = NSMutableAttributedString()
@@ -81,6 +82,7 @@ class PostLikedEventTableViewCell: UITableViewCell {
 
         // adding lineSpacing attribute
         let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.lineBreakStrategy = .pushOut
         paragraphStyle.lineSpacing = 2
         wholeMessage.addAttribute(.paragraphStyle,
                                   value: paragraphStyle,

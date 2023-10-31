@@ -216,7 +216,8 @@ extension PostsTableView: PostTableViewCellProtocol {
         self.service.likePost(postID: postViewModel.postID,
                               likeState: postViewModel.likeState,
                               postAuthorID: postViewModel.author.userID) { likeState in
-            self.posts[indexPath.row].likeState = likeState
+            postViewModel.likeState = likeState
+            cell.setLikesTitle(title: postViewModel.likesCountTitle)
             completion(likeState)
         }
     }

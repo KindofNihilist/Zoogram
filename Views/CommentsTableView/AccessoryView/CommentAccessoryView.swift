@@ -50,17 +50,18 @@ class CommentAccessoryView: UIInputView {
         let view = UIView()
         view.translatesAutoresizingMaskIntoConstraints = false
         view.clipsToBounds = true
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = .systemGreen
+        view.layer.cornerCurve = .continuous
         view.layer.borderWidth = 1
         view.layer.borderColor = UIColor.placeholderText.cgColor
         return view
     }()
 
-    private var commentTextView: UITextView = {
-        let textView = UITextView()
+    private var commentTextView: VerticallyCenteredTextView = {
+        let textView = VerticallyCenteredTextView()
         textView.translatesAutoresizingMaskIntoConstraints = false
-        textView.backgroundColor = .systemBackground
-        textView.font = UIFont.systemFont(ofSize: 16)
+        textView.backgroundColor = .systemRed
+        textView.font = CustomFonts.regularFont(ofSize: 16)
         textView.clipsToBounds = true
         textView.isScrollEnabled = false
         return textView
@@ -103,7 +104,7 @@ class CommentAccessoryView: UIInputView {
     }
 
     func animateHeightChange() {
-        var duration: Double = 0
+        var duration: Double = 0.6
         if self.intrinsicHeight > 50 {
             duration = 0
         }
@@ -154,7 +155,8 @@ class CommentAccessoryView: UIInputView {
     }
 
     override var intrinsicContentSize: CGSize {
-        return CGSize(width: UIView.noIntrinsicMetric, height: self.intrinsicHeight)    }
+        return CGSize(width: UIView.noIntrinsicMetric, height: self.intrinsicHeight)
+    }
 
     @objc func didTapPostButton() {
         guard let text = commentTextView.text, text != placeholder, text != "" else {
@@ -188,7 +190,6 @@ extension CommentAccessoryView: UITextViewDelegate {
 
     func textViewDidChange(_ textView: UITextView) {
         sizeTextViewToItsContent(textView: textView)
-//        textView.centerVerticalText()
     }
 
     func sizeTextViewToItsContent(textView: UITextView) {

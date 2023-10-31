@@ -59,7 +59,7 @@ class HomeFeedPostsAPIServiceAdapter: HomeFeedService {
                 completion([PostViewModel]())
                 return
             }
-            print("Downloaded posts, last post key: \(lastPostKey)")
+//            print("Downloaded posts, last post key: \(lastPostKey)")
             self?.lastReceivedPostKey = lastPostKey
             self?.hasHitTheEndOfPosts = false
             self?.getAdditionalPostDataFor(postsOfMultipleUsers: posts) { postsWithAditionalData in
@@ -86,7 +86,7 @@ class HomeFeedPostsAPIServiceAdapter: HomeFeedService {
                 print("Hit the end of user posts")
                 return
             }
-            print("Downloaded feed posts with last post key: \(lastPostKey)")
+//            print("Downloaded feed posts with last post key: \(lastPostKey)")
             self?.lastReceivedPostKey = lastPostKey
             self?.getAdditionalPostDataFor(postsOfMultipleUsers: posts) { postsWithAdditionalData in
                 let postsViewModels = postsWithAdditionalData.map { post in

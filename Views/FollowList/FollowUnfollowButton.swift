@@ -11,7 +11,7 @@ class FollowUnfollowButton: UIButton {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        self.titleLabel?.font = UIFont.boldSystemFont(ofSize: 15)
+        self.titleLabel?.font = CustomFonts.boldFont(ofSize: 15)
         self.layer.cornerRadius = 10
         self.layer.cornerCurve = .continuous
         self.clipsToBounds = true

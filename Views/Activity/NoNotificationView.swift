@@ -14,7 +14,7 @@ class NoNotificationsView: UIView {
         label.text = "No Notifications"
         label.textColor = .secondaryLabel
         label.textAlignment = .center
-        label.font = UIFont.systemFont(ofSize: 16)
+        label.font = CustomFonts.regularFont(ofSize: 16)
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()

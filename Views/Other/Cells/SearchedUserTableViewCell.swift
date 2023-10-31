@@ -25,7 +25,7 @@ class SearchedUserTableViewCell: UITableViewCell {
     var usernameLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
-        label.font = UIFont.boldSystemFont(ofSize: 14)
+        label.font = CustomFonts.boldFont(ofSize: 14)
         label.textColor = .label
         label.numberOfLines = 1
         return label
@@ -33,7 +33,7 @@ class SearchedUserTableViewCell: UITableViewCell {
     
     var nameLabel: UILabel = {
         let label = UILabel()
-        label.font = UIFont.systemFont(ofSize: 14)
+        label.font = CustomFonts.regularFont(ofSize: 14)
         label.textColor = .lightGray
         label.translatesAutoresizingMaskIntoConstraints = false
         label.numberOfLines = 1

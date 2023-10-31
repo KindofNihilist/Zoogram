@@ -45,7 +45,7 @@ class ProfilePictureHeader: UIView {
         let button = UIButton()
         button.setTitle("Choose profile photo", for: .normal)
         button.setTitleColor(.link, for: .normal)
-        button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 16)
+        button.titleLabel?.font = CustomFonts.boldFont(ofSize: 16)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.addTarget(self, action: #selector(changeProfilePic), for: .touchUpInside)
         return button

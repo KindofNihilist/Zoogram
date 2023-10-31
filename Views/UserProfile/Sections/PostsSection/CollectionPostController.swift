@@ -16,7 +16,7 @@ class CollectionPostController: GenericCellController<PhotoCollectionViewCell> {
     init(post: PostViewModel, action: @escaping (IndexPath) -> Void) {
         self.action = action
         self.postPhoto = post.postImage
-        print("Creating post controller for \(post.postID)")
+//        print("Creating post controller for \(post.postID)")
     }
 
     override func configureCell(_ cell: PhotoCollectionViewCell) {

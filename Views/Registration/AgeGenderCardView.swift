@@ -17,7 +17,7 @@ class AgeGenderCardView: UIView {
         label.text = "Gender"
         label.textColor = .label
         label.textAlignment = .center
-        label.font = .rounded(ofSize: 23, weight: .bold)
+        label.font = CustomFonts.boldFont(ofSize: 23)
         label.sizeToFit()
         return label
     }()
@@ -39,7 +39,7 @@ class AgeGenderCardView: UIView {
         label.text = "Date of birth"
         label.textAlignment = .center
         label.textColor = .label
-        label.font = .rounded(ofSize: 23, weight: .bold)
+        label.font = CustomFonts.boldFont(ofSize: 23)
         label.sizeToFit()
         return label
     }()
@@ -51,7 +51,7 @@ class AgeGenderCardView: UIView {
         textField.placeholder = "Tap to choose date"
         textField.returnKeyType = .done
         textField.textColor = .label
-        textField.font = .systemFont(ofSize: 18)
+        textField.font = CustomFonts.regularFont(ofSize: 18)
         return textField
     }()
 

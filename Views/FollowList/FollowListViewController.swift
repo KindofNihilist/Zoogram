@@ -43,7 +43,7 @@ class FollowListViewController: UIViewController, UITableViewDelegate, UITableVi
 
     private lazy var messageTitle: UILabel = {
         let label = UILabel()
-        label.font = .boldSystemFont(ofSize: 25)
+        label.font = CustomFonts.boldFont(ofSize: 25)
         label.sizeToFit()
         label.textColor = .label
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -52,7 +52,7 @@ class FollowListViewController: UIViewController, UITableViewDelegate, UITableVi
 
     private lazy var message: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 15)
+        label.font = CustomFonts.regularFont(ofSize: 15)
         label.numberOfLines = 2
         label.textColor = .secondaryLabel
         label.textAlignment = .center

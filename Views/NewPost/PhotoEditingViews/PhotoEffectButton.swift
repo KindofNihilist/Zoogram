@@ -32,7 +32,7 @@ class PhotoEffectButton: UIButton {
     private let effectLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
-        label.font = UIFont.boldSystemFont(ofSize: 13)
+        label.font = CustomFonts.boldFont(ofSize: 13)
         label.textAlignment = .center
         label.textColor = .white
         return label

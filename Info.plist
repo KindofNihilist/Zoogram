@@ -5,9 +5,9 @@
 	<key>UIAppFonts</key>
 	<array>
 		<string>Katto.otf</string>
-		<string>Gaegu-Bold.ttf</string>
-		<string>Gaegu-Light.ttf</string>
-		<string>Gaegu-Regular.ttf</string>
+		<string>TTRounds-Bold.ttf</string>
+		<string>TTRounds-Light.ttf</string>
+		<string>TTRounds-Regular.ttf</string>
 	</array>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Allow access to your photo library</string>
