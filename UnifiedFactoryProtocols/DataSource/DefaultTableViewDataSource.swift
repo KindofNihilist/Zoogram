@@ -15,7 +15,7 @@ protocol TableViewDataSourceDelegate: AnyObject {
 
 extension TableViewDataSourceDelegate {
     func scrollViewDidEndScrollingAnimation() {}
-    func didCommit(editingStyle: UITableViewCell.EditingStyle, at indexPath: IndexPath){}
+    func didCommit(editingStyle: UITableViewCell.EditingStyle, at indexPath: IndexPath) {}
 }
 
 typealias TableViewDataSource = UITableViewDelegate & UITableViewDataSource
@@ -39,7 +39,7 @@ class DefaultTableViewDataSource: NSObject, TableViewDataSource {
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        return sections[indexPath.section].cell(at: indexPath) 
+        return sections[indexPath.section].cell(at: indexPath)
     }
 
     func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {

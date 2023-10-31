@@ -28,7 +28,6 @@ class PostTableViewCell: UITableViewCell {
     var likeHapticFeedbackGenerator = UINotificationFeedbackGenerator()
 
     static let headerHeight: CGFloat = 50
-    var imageViewHeightConstraint: NSLayoutConstraint!
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -67,7 +66,7 @@ class PostTableViewCell: UITableViewCell {
     private let usernameLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
-        label.font = UIFont.boldSystemFont(ofSize: 14)
+        label.font = CustomFonts.boldFont(ofSize: 14)
         label.backgroundColor = .systemBackground
         label.textColor = .label
         return label
@@ -138,16 +137,17 @@ class PostTableViewCell: UITableViewCell {
         let stackView = UIStackView()
         stackView.translatesAutoresizingMaskIntoConstraints = false
         stackView.axis = .vertical
-        stackView.spacing = 8
+        stackView.spacing = 10
         stackView.setContentHuggingPriority(.fittingSizeLevel, for: .vertical)
-        stackView.distribution = .fillProportionally
+        stackView.distribution = .equalSpacing
         return stackView
     }()
 
     private let likesLabel: UILabel = {
         let label = UILabel()
-        label.font = UIFont.boldSystemFont(ofSize: 14)
+        label.font = CustomFonts.boldFont(ofSize: 14)
         label.backgroundColor = .systemBackground
+//        label.backgroundColor = .systemOrange
         label.textColor = .label
         return label
     }()
@@ -155,16 +155,21 @@ class PostTableViewCell: UITableViewCell {
     private lazy var captionLabel: UILabel = {
         let label = UILabel()
         label.backgroundColor = .systemBackground
+//        label.backgroundColor = .systemGreen
         label.numberOfLines = 0
         return label
     }()
 
     private lazy var viewCommentsButton: UIButton = {
-        let button = UIButton()
-        button.titleLabel?.font = UIFont.systemFont(ofSize: 14)
+        let button = UIButton(type: .custom)
+        button.titleLabel?.font = CustomFonts.regularFont(ofSize: 14)
         button.setTitleColor(.secondaryLabel, for: .normal)
         button.contentHorizontalAlignment = .left
+        button.titleEdgeInsets = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
+        button.configuration?.titlePadding = 0
+        button.configuration?.contentInsets = .zero
         button.backgroundColor = .systemBackground
+//        button.backgroundColor = .systemBlue
         button.isHidden = true
         button.isOpaque = true
         button.addTarget(self, action: #selector(commentButtonTapped), for: .touchUpInside)
@@ -173,9 +178,10 @@ class PostTableViewCell: UITableViewCell {
 
     private let timeSincePostedLabel: UILabel = {
         let label = UILabel()
-        label.font = UIFont.systemFont(ofSize: 12)
+        label.font = CustomFonts.lightFont(ofSize: 12)
         label.textColor = .secondaryLabel
         label.backgroundColor = .systemBackground
+//        label.backgroundColor = .systemRed
         return label
     }()
 
@@ -241,7 +247,7 @@ class PostTableViewCell: UITableViewCell {
         ])
 
         NSLayoutConstraint.activate([
-            likeButton.leadingAnchor.constraint(equalTo: profilePhotoImageView.leadingAnchor),
+            likeButton.centerXAnchor.constraint(equalTo: profilePhotoImageView.centerXAnchor),
             likeButton.centerYAnchor.constraint(equalTo: actionsContainerView.centerYAnchor),
             likeButton.widthAnchor.constraint(equalToConstant: 25),
             likeButton.heightAnchor.constraint(equalToConstant: 25),
@@ -249,7 +255,7 @@ class PostTableViewCell: UITableViewCell {
             commentButton.leadingAnchor.constraint(equalTo: likeButton.trailingAnchor, constant: 15),
             commentButton.centerYAnchor.constraint(equalTo: actionsContainerView.centerYAnchor),
             commentButton.widthAnchor.constraint(equalToConstant: 25),
-            commentButton.heightAnchor.constraint(equalToConstant: 24),
+            commentButton.heightAnchor.constraint(equalToConstant: 23),
 
             bookmarkButton.trailingAnchor.constraint(equalTo: actionsContainerView.trailingAnchor, constant: -10),
             bookmarkButton.centerYAnchor.constraint(equalTo: actionsContainerView.centerYAnchor),
@@ -260,15 +266,16 @@ class PostTableViewCell: UITableViewCell {
 
     private func setupFooter() {
         contentView.addSubview(footerContainerStackView)
-
-        let bottomConstraint = footerContainerStackView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -10)
+        let bottomConstraint = footerContainerStackView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20)
         bottomConstraint.priority = UILayoutPriority(999)
-
         NSLayoutConstraint.activate([
-            footerContainerStackView.topAnchor.constraint(equalTo: actionsContainerView.bottomAnchor),
+            footerContainerStackView.topAnchor.constraint(equalTo: actionsContainerView.bottomAnchor, constant: 5),
             footerContainerStackView.leadingAnchor.constraint(equalTo: likeButton.leadingAnchor, constant: 5),
-            footerContainerStackView.trailingAnchor.constraint(equalTo: actionsContainerView.trailingAnchor),
-            bottomConstraint
+            footerContainerStackView.trailingAnchor.constraint(equalTo: bookmarkButton.trailingAnchor, constant: -5),
+            bottomConstraint,
+//            footerContainerStackView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -10),
+
+            viewCommentsButton.heightAnchor.constraint(equalToConstant: 15)
         ])
 
         footerContainerStackView.addArrangedSubviews(likesLabel, captionLabel, viewCommentsButton, timeSincePostedLabel)
@@ -348,7 +355,7 @@ class PostTableViewCell: UITableViewCell {
 
     func setCommentsTitle(title: String?) {
         guard let title = title else {
-            viewCommentsButton.removeFromSuperview()
+            viewCommentsButton.isHidden = true
             return
         }
         viewCommentsButton.setTitle(title, for: .normal)

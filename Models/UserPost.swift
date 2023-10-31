@@ -41,7 +41,7 @@ public class UserPost: Codable {
         self.userID = userID
         self.postID = postID
         self.photoURL = photoURL
-        self.caption = caption
+        self.caption = caption?.trimmingCharacters(in: NSCharacterSet.whitespacesAndNewlines)
         self.likesCount = likeCount
         self.commentsCount = commentsCount
         self.postedDate = postedDate
@@ -51,10 +51,11 @@ public class UserPost: Codable {
 
     required public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        let caption = try container.decodeIfPresent(String.self, forKey: .caption)
         self.userID = try container.decode(String.self, forKey: .userID)
         self.postID = try container.decode(String.self, forKey: .postID)
         self.photoURL = try container.decode(String.self, forKey: .photoURL)
-        self.caption = try container.decodeIfPresent(String.self, forKey: .caption)
+        self.caption = caption?.trimmingCharacters(in: NSCharacterSet.whitespacesAndNewlines)
         self.postedDate = try container.decode(Date.self, forKey: .postedDate)
     }
 

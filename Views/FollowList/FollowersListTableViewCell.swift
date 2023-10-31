@@ -40,7 +40,7 @@ class FollowersListTableViewCell: UITableViewCell {
     let usernameLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
-        label.font = UIFont.boldSystemFont(ofSize: 14)
+        label.font = CustomFonts.boldFont(ofSize: 14)
         label.textColor = .label
         label.numberOfLines = 0
         return label
@@ -48,7 +48,7 @@ class FollowersListTableViewCell: UITableViewCell {
 
     let nameLabel: UILabel = {
         let label = UILabel()
-        label.font = UIFont.systemFont(ofSize: 14)
+        label.font = CustomFonts.regularFont(ofSize: 14)
         label.textColor = .lightGray
         label.translatesAutoresizingMaskIntoConstraints = false
         label.numberOfLines = 0
@@ -59,7 +59,7 @@ class FollowersListTableViewCell: UITableViewCell {
         let button = UIButton()
         button.setTitle("Remove", for: .normal)
         button.setTitleColor(.label, for: .normal)
-        button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 14)
+        button.titleLabel?.font = CustomFonts.boldFont(ofSize: 14)
         button.backgroundColor = .systemBackground
         button.clipsToBounds = true
         button.translatesAutoresizingMaskIntoConstraints = false
@@ -75,7 +75,7 @@ class FollowersListTableViewCell: UITableViewCell {
         let button = UIButton()
         button.setTitle("Follow", for: .normal)
         button.setTitleColor(.systemBlue, for: .normal)
-        button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 14)
+        button.titleLabel?.font = CustomFonts.boldFont(ofSize: 14)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.addTarget(self, action: #selector(didTapFollowUnfollowButton), for: .touchUpInside)
         return button
@@ -107,7 +107,7 @@ class FollowersListTableViewCell: UITableViewCell {
             removeButton.topAnchor.constraint(equalTo: usernameLabel.topAnchor),
 
             usernameLabel.leadingAnchor.constraint(equalTo: profileImageView.trailingAnchor, constant: 15),
-            usernameLabel.trailingAnchor.constraint(lessThanOrEqualTo: followUnfollowButton.leadingAnchor, constant: -5),
+            usernameLabel.trailingAnchor.constraint(lessThanOrEqualTo: followUnfollowButton.leadingAnchor, constant: -10),
             usernameLabel.heightAnchor.constraint(equalToConstant: 15),
             usernameLabel.bottomAnchor.constraint(equalTo: profileImageView.centerYAnchor, constant: -5),
 

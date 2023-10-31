@@ -41,6 +41,7 @@ class CommentsViewController: UIViewController {
         return true
     }
 
+    // MARK: Init
     init(post: UserPost, commentIDToFocusOn: String? = nil, shouldShowRelatedPost: Bool, service: CommentsService) {
         self.viewModel = CommentsTableViewVM(
             post: post,
@@ -67,6 +68,7 @@ class CommentsViewController: UIViewController {
         fatalError("init(coder:) has not been implemented")
     }
 
+    // MARK: Lifecycle
     override func viewWillLayoutSubviews() {
         keyboardAccessoryView.intrinsicHeight = keyboardAccessoryView.accessoryViewHeight + view.safeAreaInsets.bottom
     }
@@ -93,6 +95,7 @@ class CommentsViewController: UIViewController {
         NotificationCenter.default.removeObserver(self)
     }
 
+    // MARK: Constraints setup
     private func setupConstraints() {
         NSLayoutConstraint.activate([
             tableView.topAnchor.constraint(equalTo: view.topAnchor),
@@ -102,15 +105,9 @@ class CommentsViewController: UIViewController {
         ])
     }
 
-    private func observeKeyboardEvents() {
-        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillAppear), name: UIResponder.keyboardWillShowNotification, object: nil)
-
-        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillDisappear), name: UIResponder.keyboardWillHideNotification, object: nil)
-    }
-
     private func scrollToSelectedCommentIfNeeded() {
         if let indexPath = viewModel.indexPathOfCommentToToFocusOn,
-           viewModel.hasAlreadyFocusedOnComment != true{
+           viewModel.hasAlreadyFocusedOnComment != true {
             print("should scroll")
             tableView.scrollToRow(at: indexPath, at: .top, animated: true)
         }
@@ -170,6 +167,19 @@ class CommentsViewController: UIViewController {
         return contentOffset == commentSectionRect.minY.rounded() - 2 ? true : false
     }
 
+
+}
+
+// MARK: Keyboard events
+
+extension CommentsViewController {
+
+    private func observeKeyboardEvents() {
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillAppear), name: UIResponder.keyboardWillShowNotification, object: nil)
+
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillDisappear), name: UIResponder.keyboardWillHideNotification, object: nil)
+    }
+
     @objc func keyboardWillAppear() {
         if keyboardAccessoryView.isEditing {
             self.keyboardAccessoryView.intrinsicHeight = keyboardAccessoryView.accessoryViewHeight
@@ -181,6 +191,8 @@ class CommentsViewController: UIViewController {
         self.keyboardAccessoryView.intrinsicHeight = keyboardAccessoryView.accessoryViewHeight + view.safeAreaInsets.bottom
     }
 }
+
+// MARK: Factory & DataSource setup
 
 extension CommentsViewController {
 

@@ -31,7 +31,7 @@ class CameraRollHeaderView: UIView {
         button.translatesAutoresizingMaskIntoConstraints = false
         button.setTitle("Recents", for: .normal)
         button.setTitleColor(.white, for: .normal)
-        button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 16)
+        button.titleLabel?.font = CustomFonts.boldFont(ofSize: 16)
         return button
     }()
 

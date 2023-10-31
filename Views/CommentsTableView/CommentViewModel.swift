@@ -7,7 +7,6 @@
 
 import Foundation
 
-
 class CommentViewModel {
 
     let commentID: String
@@ -16,7 +15,6 @@ class CommentViewModel {
     let datePostedText: String
     let author: ZoogramUser
     let canBeEdited: Bool
-
 
     init(comment: PostComment, canBeEdited: Bool) {
         self.commentID = comment.commentID

@@ -24,7 +24,7 @@ class LoginViewController: UIViewController {
         let label = UILabel()
         label.text = "Zoogram"
         label.textColor = .black
-        label.font = UIFont(name: "Noteworthy-Bold", size: 45)
+        label.font = CustomFonts.logoFont(ofSize: 45)
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
@@ -71,7 +71,7 @@ class LoginViewController: UIViewController {
         let button = UIButton()
         button.setTitle("Forgot password?", for: .normal)
         button.setTitleColor(.systemGray, for: .normal)
-        button.titleLabel?.font = UIFont.systemFont(ofSize: 16)
+        button.titleLabel?.font = CustomFonts.regularFont(ofSize: 16)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.sizeToFit()
         return button

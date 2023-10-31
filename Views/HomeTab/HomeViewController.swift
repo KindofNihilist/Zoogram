@@ -45,13 +45,13 @@ class HomeViewController: UIViewController {
     func setNavigationBarTitle() {
         let navigationBarTitleLabel = UILabel()
         navigationBarTitleLabel.text = "Zoogram"
-        navigationBarTitleLabel.font = UIFont(name: "Katto-PersonalUse-Outline", size: 30)
+        navigationBarTitleLabel.font = CustomFonts.logoFont(ofSize: 28)
         navigationBarTitleLabel.sizeToFit()
 
-        for family in UIFont.familyNames.sorted() {
-            let names = UIFont.fontNames(forFamilyName: family)
-            print("Family: \(family) Font names: \(names)")
-        }
+//        for family in UIFont.familyNames.sorted() {
+//            let names = UIFont.fontNames(forFamilyName: family)
+//            print("Family: \(family) Font names: \(names)")
+//        }
 
         let titleView = UIBarButtonItem(customView: navigationBarTitleLabel)
         navigationItem.titleView = navigationBarTitleLabel

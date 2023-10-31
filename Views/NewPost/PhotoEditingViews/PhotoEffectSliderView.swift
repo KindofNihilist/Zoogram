@@ -33,7 +33,7 @@ class PhotoEffectSliderView: UIView {
     private let effectNameLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
-        label.font = UIFont.boldSystemFont(ofSize: 17)
+        label.font = CustomFonts.boldFont(ofSize: 17)
         label.textAlignment = .center
         label.textColor = .white
         return label
@@ -42,7 +42,7 @@ class PhotoEffectSliderView: UIView {
     private lazy var cancelButton: UIButton = {
         let button = UIButton()
         button.translatesAutoresizingMaskIntoConstraints = false
-        button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 15)
+        button.titleLabel?.font = CustomFonts.boldFont(ofSize: 15)
         button.titleLabel?.textColor = .white
         button.setTitle("Cancel", for: .normal)
         button.addTarget(self, action: #selector(cancelButtonTapped), for: .touchUpInside)
@@ -52,7 +52,7 @@ class PhotoEffectSliderView: UIView {
     private lazy var doneButton: UIButton = {
         let button = UIButton()
         button.translatesAutoresizingMaskIntoConstraints = false
-        button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 15)
+        button.titleLabel?.font = CustomFonts.boldFont(ofSize: 15)
         button.titleLabel?.textColor = .white
         button.setTitle("Done", for: .normal)
         button.addTarget(self, action: #selector(doneButtonTapped), for: .touchUpInside)

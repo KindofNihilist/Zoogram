@@ -10,7 +10,10 @@ import UIKit
 class CommentSection: TableSectionController {
 
     override func canEditCell(at indexPath: IndexPath) -> Bool {
-        return cellControllers[indexPath.row].allowsEditing
+        guard let cellController = cellControllers[indexPath.row] as? CommentCellController else {
+            return false
+        }
+        return cellController.allowsEditing
     }
 
     override func editingStyleForCell(at indexPath: IndexPath) -> UITableViewCell.EditingStyle {

@@ -20,7 +20,15 @@ class PostViewModel {
     let postCaption: NSMutableAttributedString?
     let unAttributedPostCaption: String?
 
-    var likeState: LikeState
+    var likeState: LikeState {
+        didSet {
+            if likeState == .liked {
+                self.likesCount += 1
+            } else {
+                self.likesCount -= 1
+            }
+        }
+    }
     var bookmarkState: BookmarkState
 
     var likesCountTitle: String
@@ -30,12 +38,14 @@ class PostViewModel {
     var likesCount: Int {
         didSet {
             likesCountTitle = PostViewModel.createTitleFor(likesCount: likesCount)
+            print(likesCountTitle)
         }
     }
 
     var commentsCount: Int? {
         didSet {
             commentsCountTitle = PostViewModel.createTitleFor(commentsCount: commentsCount)
+            print(commentsCountTitle)
         }
     }
 
@@ -54,7 +64,6 @@ class PostViewModel {
         self.likesCountTitle = PostViewModel.createTitleFor(likesCount: post.likesCount)
         self.commentsCountTitle = PostViewModel.createTitleFor(commentsCount: post.commentsCount)
         self.timeSincePostedTitle = PostViewModel.createTitleFor(timeSincePosted: post.postedDate)
-
         self.likesCount = post.likesCount ?? 0
         self.commentsCount = post.commentsCount
     }
@@ -90,10 +99,14 @@ class PostViewModel {
 
         let usernameWithCaption = NSMutableAttributedString()
 
-        let attributedUsername = NSAttributedString(string: "\(username) ", attributes: [NSAttributedString.Key.font: UIFont.boldSystemFont(ofSize: 14), NSAttributedString.Key.foregroundColor: UIColor.label])
+
+        let attributedUsername = NSAttributedString(string: "\(username) ",
+                                                    attributes: [NSAttributedString.Key.font: CustomFonts.boldFont(ofSize: 14), NSAttributedString.Key.foregroundColor: UIColor.label])
         usernameWithCaption.append(attributedUsername)
-        
-        let attributedCaption = NSAttributedString(string: caption, attributes: [NSAttributedString.Key.font: UIFont.systemFont(ofSize: 14), NSAttributedString.Key.foregroundColor: UIColor.label])
+
+        let attributedCaption = NSAttributedString(string: caption,
+                                                   attributes: [NSAttributedString.Key.font: CustomFonts.regularFont(ofSize: 14), NSAttributedString.Key.foregroundColor: UIColor.label])
+
         usernameWithCaption.append(attributedCaption)
 
         return usernameWithCaption

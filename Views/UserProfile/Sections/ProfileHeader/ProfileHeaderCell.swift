@@ -62,14 +62,14 @@ final class ProfileHeaderCell: UICollectionViewCell {
 
     private let nameLabel: UILabel = {
         let label = UILabel()
-        label.font = UIFont.boldSystemFont(ofSize: 15)
+        label.font = CustomFonts.boldFont(ofSize: 15)
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
 
     private let bioLabel: UILabel = {
         let label = UILabel()
-        label.font = UIFont.systemFont(ofSize: 15)
+        label.font = CustomFonts.regularFont(ofSize: 15)
         label.numberOfLines = 0
         label.translatesAutoresizingMaskIntoConstraints = false
         label.sizeToFit()
@@ -116,7 +116,7 @@ final class ProfileHeaderCell: UICollectionViewCell {
 //    }
 
     func setupActionButtonAsEditButton() {
-        actionButton.titleLabel?.font = UIFont.boldSystemFont(ofSize: 15)
+        actionButton.titleLabel?.font = CustomFonts.boldFont(ofSize: 15)
         actionButton.setTitle("Edit Profile", for: .normal)
         actionButton.setTitleColor(.label, for: .normal)
         actionButton.translatesAutoresizingMaskIntoConstraints = false
@@ -128,7 +128,7 @@ final class ProfileHeaderCell: UICollectionViewCell {
     }
 
     func setupActionButtonAsFollowButton() {
-        actionButton.titleLabel?.font = UIFont.boldSystemFont(ofSize: 16)
+        actionButton.titleLabel?.font = CustomFonts.boldFont(ofSize: 16)
         actionButton.setTitle("Follow", for: .normal)
         actionButton.setTitleColor(.white, for: .normal)
         actionButton.backgroundColor = .systemBlue

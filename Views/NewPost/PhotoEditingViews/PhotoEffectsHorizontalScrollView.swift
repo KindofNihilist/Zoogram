@@ -131,7 +131,7 @@ class PhotoEffectsHorizontalScrollView: UIView {
         button.translatesAutoresizingMaskIntoConstraints = false
         button.setTitle("Filter", for: .normal)
         button.setTitleColor(.white, for: .normal)
-        button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 16)
+        button.titleLabel?.font = CustomFonts.boldFont(ofSize: 16)
         return button
     }()
 
@@ -140,7 +140,7 @@ class PhotoEffectsHorizontalScrollView: UIView {
         button.translatesAutoresizingMaskIntoConstraints = false
         button.setTitle("Edit", for: .normal)
         button.setTitleColor(.white, for: .normal)
-        button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 16)
+        button.titleLabel?.font = CustomFonts.boldFont(ofSize: 16)
         return button
     }()
 
@@ -191,47 +191,38 @@ class PhotoEffectsHorizontalScrollView: UIView {
     }
 
     @objc private func didSelectExposureSetting() {
-        print("button tapped")
         self.delegate?.showExposureSlider()
     }
 
     @objc private func didSelectBrightnessSetting() {
-        print("button tapped")
         self.delegate?.showBrightnessSlider()
     }
 
     @objc private func didSelectContrastSetting() {
-        print("button tapped")
         self.delegate?.showContrastSlider()
     }
 
     @objc private func didSelectSaturationSetting() {
-        print("button tapped")
         self.delegate?.showSaturationSlider()
     }
 
     @objc private func didSelectWarmthSetting() {
-        print("button tapped")
         self.delegate?.showWarmthSlider()
     }
 
     @objc private func didSelectTintSetting() {
-        print("button tapped")
         self.delegate?.showTintSlider()
     }
 
     @objc private func didSelectHighlightsSetting() {
-        print("button tapped")
         self.delegate?.showHighlightsSlider()
     }
 
     @objc private func didSelectShadowsSetting() {
-        print("button tapped")
         self.delegate?.showShadowsSlider()
     }
 
     @objc private func didSelectVignetteSetting() {
-        print("button tapped")
         self.delegate?.showVignetteSlider()
     }
 }

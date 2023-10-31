@@ -31,7 +31,7 @@ class CommentTableViewCell: UITableViewCell {
     private let usernameLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
-        label.font = UIFont.boldSystemFont(ofSize: 13)
+        label.font = CustomFonts.boldFont(ofSize: 14)
         label.text = "username"
         label.isUserInteractionEnabled = true
         return label
@@ -41,7 +41,7 @@ class CommentTableViewCell: UITableViewCell {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
         label.textColor = .label
-        label.font = UIFont.systemFont(ofSize: 14)
+        label.font = CustomFonts.regularFont(ofSize: 14)
         label.numberOfLines = 0
         return label
     }()
@@ -49,7 +49,7 @@ class CommentTableViewCell: UITableViewCell {
     private let timePassedLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
-        label.font = UIFont.systemFont(ofSize: 13)
+        label.font = CustomFonts.regularFont(ofSize: 12)
         label.textColor = .secondaryLabel
         label.text = "2h"
         return label
@@ -72,12 +72,12 @@ class CommentTableViewCell: UITableViewCell {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        profilePhotoImageView.layer.cornerRadius = 35 / 2
+        profilePhotoImageView.layer.cornerRadius = 40 / 2
     }
 
     func configure(with viewModel: CommentViewModel) {
         author = viewModel.author
-        messageLabel.text = viewModel.commentText
+        messageLabel.attributedText = viewModel.commentText.lineWithSpacing(2)
         messageLabel.sizeToFit()
         timePassedLabel.text = viewModel.datePostedText
         timePassedLabel.sizeToFit()
@@ -102,13 +102,13 @@ class CommentTableViewCell: UITableViewCell {
         NSLayoutConstraint.activate([
             profilePhotoImageView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 15),
             profilePhotoImageView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 15),
-            profilePhotoImageView.heightAnchor.constraint(equalToConstant: 35),
-            profilePhotoImageView.widthAnchor.constraint(equalToConstant: 35),
+            profilePhotoImageView.heightAnchor.constraint(equalToConstant: 40),
+            profilePhotoImageView.widthAnchor.constraint(equalToConstant: 40),
 
             usernameLabel.topAnchor.constraint(equalTo: profilePhotoImageView.topAnchor),
             usernameLabel.leadingAnchor.constraint(equalTo: profilePhotoImageView.trailingAnchor, constant: 10),
 
-            messageLabel.topAnchor.constraint(equalTo: usernameLabel.bottomAnchor, constant: 5),
+            messageLabel.topAnchor.constraint(equalTo: usernameLabel.bottomAnchor, constant: 8),
             messageLabel.leadingAnchor.constraint(equalTo: profilePhotoImageView.trailingAnchor, constant: 10),
             messageLabel.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -30),
 

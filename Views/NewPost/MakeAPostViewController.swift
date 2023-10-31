@@ -41,7 +41,7 @@ class MakeAPostViewController: UIViewController {
         textView.layer.shadowOpacity = 0.2
         textView.layer.shadowRadius = 5
         textView.textContainerInset = UIEdgeInsets(top: 15, left: 10, bottom: 10, right: 10)
-        textView.font = UIFont.systemFont(ofSize: 17)
+        textView.font = CustomFonts.regularFont(ofSize: 17)
         textView.textColor = .placeholderText
         return textView
     }()
@@ -149,6 +149,7 @@ class MakeAPostViewController: UIViewController {
        guard viewModel.post.image != nil else {
            return
        }
+       viewModel.post.caption = viewModel.post.caption?.trimmingCharacters(in: NSCharacterSet.whitespacesAndNewlines)
        delegate?.makeANewPost(post: viewModel.post) {
 //           self.dismiss(animated: true)
        }

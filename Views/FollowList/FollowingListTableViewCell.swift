@@ -32,7 +32,7 @@ class FollowingListTableViewCell: UITableViewCell {
         let label = UILabel()
 //        label.text = "Пухляш220_🐈"
         label.translatesAutoresizingMaskIntoConstraints = false
-        label.font = UIFont.boldSystemFont(ofSize: 14)
+        label.font = CustomFonts.boldFont(ofSize: 14)
         label.textColor = .label
         label.numberOfLines = 1
         return label
@@ -41,7 +41,7 @@ class FollowingListTableViewCell: UITableViewCell {
     let nameLabel: UILabel = {
         let label = UILabel()
 //        label.text = "Пухляш :3"
-        label.font = UIFont.systemFont(ofSize: 14)
+        label.font = CustomFonts.regularFont(ofSize: 14)
         label.textColor = .lightGray
         label.translatesAutoresizingMaskIntoConstraints = false
         label.numberOfLines = 0
@@ -81,12 +81,12 @@ class FollowingListTableViewCell: UITableViewCell {
             followUnfollowButton.topAnchor.constraint(equalTo: usernameLabel.topAnchor),
 
             usernameLabel.leadingAnchor.constraint(equalTo: profileImageView.trailingAnchor, constant: 15),
-            usernameLabel.trailingAnchor.constraint(lessThanOrEqualTo: followUnfollowButton.leadingAnchor, constant: -5),
+            usernameLabel.trailingAnchor.constraint(lessThanOrEqualTo: followUnfollowButton.leadingAnchor, constant: -10),
             usernameLabel.heightAnchor.constraint(equalToConstant: 15),
             usernameLabel.bottomAnchor.constraint(equalTo: profileImageView.centerYAnchor, constant: -5),
 
             nameLabel.leadingAnchor.constraint(equalTo: profileImageView.trailingAnchor, constant: 15),
-            nameLabel.trailingAnchor.constraint(equalTo: followUnfollowButton.leadingAnchor, constant: -5),
+            nameLabel.trailingAnchor.constraint(equalTo: followUnfollowButton.leadingAnchor, constant: -10),
             nameLabel.topAnchor.constraint(equalTo: profileImageView.centerYAnchor),
         ])
 

@@ -62,12 +62,12 @@ class FollowEventTableViewCell: UITableViewCell {
         self.event = event
         switchFollowUnfollowButton(followStatus: event.user?.followStatus)
 
-        let attributedUsername = NSAttributedString(string: "\(event.user!.username) ", attributes: [NSAttributedString.Key.font: UIFont.boldSystemFont(ofSize: 14), NSAttributedString.Key.foregroundColor: UIColor.label])
+        let attributedUsername = NSAttributedString(string: "\(event.user!.username) ", attributes: [NSAttributedString.Key.font: CustomFonts.boldFont(ofSize: 14), NSAttributedString.Key.foregroundColor: UIColor.label])
         let attributedEventMessage = NSAttributedString(string: "started following you. ",
-                                                        attributes: [.font: UIFont.systemFont(ofSize: 14),
+                                                        attributes: [.font: CustomFonts.regularFont(ofSize: 14),
                                                                      .foregroundColor: UIColor.label])
         let attributedTimeStamp = NSAttributedString(string: event.date.timeAgoDisplay(),
-                                                     attributes: [.font: UIFont.systemFont(ofSize: 14),
+                                                     attributes: [.font: CustomFonts.regularFont(ofSize: 14),
                                                                   .foregroundColor: UIColor.secondaryLabel])
 
         let wholeMessage = NSMutableAttributedString()
@@ -77,6 +77,7 @@ class FollowEventTableViewCell: UITableViewCell {
 
         // adding lineSpacing attribute
         let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.lineBreakStrategy = .pushOut
         paragraphStyle.lineSpacing = 2
         wholeMessage.addAttribute(NSAttributedString.Key.paragraphStyle,
                                   value: paragraphStyle,

@@ -65,10 +65,10 @@ class PostCommentedEventTableViewCell: UITableViewCell {
         self.event = event
         self.postPhotoImageView.image = event.post?.image
 
-        let attributedUsername = NSAttributedString(string: "\(event.user!.username) ", attributes: [NSAttributedString.Key.font: UIFont.boldSystemFont(ofSize: 14), NSAttributedString.Key.foregroundColor: UIColor.label])
-        let attributedEventMessage = NSAttributedString(string: "commented: \n\(comment) ", attributes: [NSAttributedString.Key.font: UIFont.systemFont(ofSize: 14), .foregroundColor: UIColor.label])
+        let attributedUsername = NSAttributedString(string: "\(event.user!.username) ", attributes: [NSAttributedString.Key.font: CustomFonts.boldFont(ofSize: 14), NSAttributedString.Key.foregroundColor: UIColor.label])
+        let attributedEventMessage = NSAttributedString(string: "commented: \n\(comment) ", attributes: [NSAttributedString.Key.font: CustomFonts.regularFont(ofSize: 14), .foregroundColor: UIColor.label])
         let attributedTimeStamp = NSAttributedString(string: event.date.timeAgoDisplay(),
-                                                     attributes: [.font: UIFont.systemFont(ofSize: 14), .foregroundColor: UIColor.secondaryLabel])
+                                                     attributes: [.font: CustomFonts.regularFont(ofSize: 14), .foregroundColor: UIColor.secondaryLabel])
 
         let wholeMessage = NSMutableAttributedString()
         wholeMessage.append(attributedUsername)
@@ -77,7 +77,8 @@ class PostCommentedEventTableViewCell: UITableViewCell {
 
         // adding lineSpacing attribute
         let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.lineSpacing = 1
+        paragraphStyle.lineSpacing = 2
+        paragraphStyle.lineBreakStrategy = .pushOut
         wholeMessage.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSMakeRange(0, wholeMessage.length))
 
         let url = URL(string: event.user!.profilePhotoURL)

@@ -5,7 +5,25 @@
 	<key>UIAppFonts</key>
 	<array>
 		<string>Katto.otf</string>
+		<string>TTRounds-Bold.ttf</string>
+		<string>TTRounds-Light.ttf</string>
+		<string>TTRounds-Regular.ttf</string>
+		<string>TTRounds-Thin.ttf</string>
+		<string>MPLUSRounded1c-Bold.ttf</string>
+		<string>MPLUSRounded1c-Light.ttf</string>
+		<string>MPLUSRounded1c-Medium.ttf</string>
+		<string>MPLUSRounded1c-Regular.ttf</string>
+		<string>WixMadeforDisplay-Bold.ttf</string>
+		<string>WixMadeforDisplay-ExtraBold.ttf</string>
+		<string>WixMadeforDisplay-Medium.ttf</string>
+		<string>WixMadeforDisplay-Regular.ttf</string>
+		<string>WixMadeforDisplay-SemiBold.ttf</string>
 		<string>Gaegu-Bold.ttf</string>
+		<string>Comfortaa-Bold.ttf</string>
+		<string>Comfortaa-Light.ttf</string>
+		<string>Comfortaa-Medium.ttf</string>
+		<string>Comfortaa-Regular.ttf</string>
+		<string>Comfortaa-SemiBold.ttf</string>
 		<string>Gaegu-Light.ttf</string>
 		<string>Gaegu-Regular.ttf</string>
 	</array>

@@ -14,7 +14,7 @@ class RegistrationForm: UIView {
         label.translatesAutoresizingMaskIntoConstraints = false
         label.textColor = .label
         label.textAlignment = .center
-        label.font = .rounded(ofSize: 35, weight: .bold)
+        label.font = CustomFonts.boldFont(ofSize: 35)
         label.sizeToFit()
         return label
     }()
@@ -37,7 +37,7 @@ class RegistrationForm: UIView {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
         label.textColor = .systemRed
-        label.font = UIFont.boldSystemFont(ofSize: 14)
+        label.font = CustomFonts.boldFont(ofSize: 14)
         label.sizeToFit()
         return label
     }()

@@ -45,7 +45,7 @@ class ActivityViewController: UIViewController {
     let activityNavBarlabel: UILabel = {
         let label = UILabel()
         label.text = "Activity"
-        label.font = UIFont.boldSystemFont(ofSize: 20)
+        label.font = CustomFonts.boldFont(ofSize: 20)
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()

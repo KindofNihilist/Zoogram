@@ -40,7 +40,7 @@ extension Date {
             unit = "month"
         }
 
-        return "\(quotient) \(unit)\(quotient == 1 ? "" : "s") ago"
+        return "\(quotient) \(unit)\(quotient == 1 ? "" : "s")"
 
     }
 }
@@ -104,6 +104,13 @@ extension UIStackView {
 extension String {
     func safeDatabaseKey() -> String {
         return self.replacingOccurrences(of: ".", with: "-")
+    }
+
+    func lineWithSpacing(_ spacing: CGFloat) -> NSAttributedString {
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.lineSpacing = spacing
+        let attributedString = NSAttributedString(string: self, attributes: [NSAttributedString.Key.paragraphStyle: paragraphStyle])
+        return attributedString
     }
 }
 

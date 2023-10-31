@@ -15,16 +15,15 @@ class CommentCellController: GenericCellController<CommentTableViewCell> {
 
     var editingStyle: UITableViewCell.EditingStyle = .none
 
-    var canEdit: Bool = false
-
     private let isAPostCaption: Bool
 
     init(viewModel: CommentViewModel, isAPostCaption: Bool = false, delegate: CommentCellProtocol) {
         self.viewModel = viewModel
         self.delegate = delegate
         self.isAPostCaption = isAPostCaption
-        self.canEdit = viewModel.canBeEdited
-        if self.canEdit {
+        super.init()
+        self.allowsEditing = viewModel.canBeEdited
+        if self.allowsEditing {
             editingStyle = .delete
         }
     }
@@ -39,6 +38,6 @@ class CommentCellController: GenericCellController<CommentTableViewCell> {
     }
 
     func isCellEditable() -> Bool {
-        return self.canEdit
+        return self.allowsEditing
     }
 }

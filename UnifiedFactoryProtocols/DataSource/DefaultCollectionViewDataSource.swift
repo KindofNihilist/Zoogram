@@ -48,7 +48,6 @@ class DefaultCollectionViewDataSource: NSObject, CollectionViewDataSource {
     }
 
     func collectionView(_ collectionView: UICollectionView, viewForSupplementaryElementOfKind kind: String, at indexPath: IndexPath) -> UICollectionReusableView {
-        print("viewForSupplementaryElementOfKind is called")
         return sections[indexPath.section].getSupplementaryView(of: kind, at: indexPath)
     }
 

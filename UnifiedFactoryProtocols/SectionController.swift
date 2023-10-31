@@ -135,9 +135,7 @@ class CollectionSectionController: SectionController<UICollectionView> {
     }
 
     func getSupplementaryView(of kind: SupplementaryViewKind, at indexPath: IndexPath) -> UICollectionReusableView {
-        print("inside getSupplementaryView")
         if kind == UICollectionView.elementKindSectionHeader {
-            print("returning header from getSupplementaryView")
             return header(at: indexPath)
         } else if kind == UICollectionView.elementKindSectionFooter {
             return footer(at: indexPath)
@@ -149,7 +147,6 @@ class CollectionSectionController: SectionController<UICollectionView> {
     public func registerSupplementaryViews() {}
 
     func calculateSupplementaryViewHeight(for view: UICollectionReusableView) -> CGSize {
-        print("section holder frame width: ", sectionHolder.frame.width)
         let headerViewSize = CGSize(width: sectionHolder.frame.width, height: UIView.layoutFittingCompressedSize.height)
         return view.systemLayoutSizeFitting(headerViewSize,
                                             withHorizontalFittingPriority: .required,
