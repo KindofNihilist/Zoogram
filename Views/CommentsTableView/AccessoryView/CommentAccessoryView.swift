@@ -17,17 +17,16 @@ class CommentAccessoryView: UIInputView {
 
     var isEditing: Bool = false
     let elementsHeight: CGFloat = 40
-    let textViewMaxHeight: CGFloat = 100
+    var inputViewHeight: CGFloat = 0
+    let textViewMaxLinesCount = 11
+    var numberOfLines = 1
+    let textViewCharacterLimit = 300
+    var charactersLeft = 300
     let placeholder = "Enter comment"
 
-     var intrinsicHeight: CGFloat = 0 {
-        didSet {
-            print("Intrinsic height set to:", intrinsicHeight)
-            animateHeightChange()
-        }
-    }
-
-     var accessoryViewHeight: CGFloat = 50
+    private lazy var postButtonBottomConstraint = postButton.bottomAnchor.constraint(equalTo: commentTextView.bottomAnchor, constant: -5)
+    private lazy var postButtonCenterYConstraint = postButton.centerYAnchor.constraint(equalTo: userProfilePicture.centerYAnchor)
+    private lazy var postButtonTrailingConstraint = postButton.trailingAnchor.constraint(equalTo: inputContainerView.trailingAnchor, constant: -3)
 
     private var separator: UIView = {
         let separator = UIView()
@@ -50,7 +49,7 @@ class CommentAccessoryView: UIInputView {
         let view = UIView()
         view.translatesAutoresizingMaskIntoConstraints = false
         view.clipsToBounds = true
-        view.backgroundColor = .systemGreen
+//        view.backgroundColor = .systemGreen
         view.layer.cornerCurve = .continuous
         view.layer.borderWidth = 1
         view.layer.borderColor = UIColor.placeholderText.cgColor
@@ -60,11 +59,30 @@ class CommentAccessoryView: UIInputView {
     private var commentTextView: VerticallyCenteredTextView = {
         let textView = VerticallyCenteredTextView()
         textView.translatesAutoresizingMaskIntoConstraints = false
-        textView.backgroundColor = .systemRed
+//        textView.backgroundColor = .systemRed
         textView.font = CustomFonts.regularFont(ofSize: 16)
         textView.clipsToBounds = true
+        textView.layer.masksToBounds = true
         textView.isScrollEnabled = false
         return textView
+    }()
+
+    private var placeholderLabel: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.font = CustomFonts.regularFont(ofSize: 16)
+        label.sizeToFit()
+        label.textColor = .placeholderText
+        return label
+    }()
+
+    private var charLimitLabel: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.sizeToFit()
+        label.font = CustomFonts.boldFont(ofSize: 14)
+        label.alpha = 0
+        return label
     }()
 
     private lazy var postButton: UIButton = {
@@ -81,12 +99,11 @@ class CommentAccessoryView: UIInputView {
 
     override init(frame: CGRect, inputViewStyle: UIInputView.Style) {
         super.init(frame: frame, inputViewStyle: inputViewStyle)
-        setupConstraints()
-        backgroundColor = .systemBackground
-        commentTextView.delegate = self
-        commentTextView.text = placeholder
-        commentTextView.textColor = .placeholderText
         autoresizingMask = .flexibleHeight
+        backgroundColor = .systemBackground
+        setupConstraints()
+        placeholderLabel.text = placeholder
+        commentTextView.delegate = self
     }
 
     required init?(coder: NSCoder) {
@@ -95,26 +112,19 @@ class CommentAccessoryView: UIInputView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-
         setViewCornerRadius()
+    }
+
+    override var intrinsicContentSize: CGSize {
+        if commentTextView.isScrollEnabled {
+            return CGSizeMake(UIView.noIntrinsicMetric, inputViewHeight)
+        } else {
+            return .zero
+        }
     }
 
     func configure(with profilePhoto: UIImage?) {
         self.userProfilePicture.image = profilePhoto
-    }
-
-    func animateHeightChange() {
-        var duration: Double = 0.6
-        if self.intrinsicHeight > 50 {
-            duration = 0
-        }
-        self.invalidateIntrinsicContentSize()
-        self.superview?.setNeedsLayout()
-
-        UIView.animate(withDuration: duration, delay: 0) {
-            print("inside animation block")
-            self.superview?.layoutIfNeeded()
-        }
     }
 
     func setViewCornerRadius() {
@@ -123,14 +133,13 @@ class CommentAccessoryView: UIInputView {
     }
    private func setupConstraints() {
        self.addSubviews(separator, userProfilePicture, inputContainerView)
-        inputContainerView.addSubviews(commentTextView, postButton)
+        inputContainerView.addSubviews(commentTextView, postButton, placeholderLabel, charLimitLabel)
 
         NSLayoutConstraint.activate([
 
             separator.topAnchor.constraint(equalTo: self.topAnchor),
             separator.heightAnchor.constraint(equalToConstant: 1),
             separator.widthAnchor.constraint(equalTo: self.widthAnchor),
-            separator.bottomAnchor.constraint(equalTo: userProfilePicture.topAnchor, constant: -10),
 
             userProfilePicture.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -10),
             userProfilePicture.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: 10),
@@ -138,24 +147,27 @@ class CommentAccessoryView: UIInputView {
             userProfilePicture.heightAnchor.constraint(equalToConstant: elementsHeight),
 
             inputContainerView.leadingAnchor.constraint(equalTo: userProfilePicture.trailingAnchor, constant: 10),
-            inputContainerView.bottomAnchor.constraint(equalTo: userProfilePicture.bottomAnchor),
-            inputContainerView.topAnchor.constraint(equalTo: userProfilePicture.topAnchor),
+            inputContainerView.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -10),
+            inputContainerView.topAnchor.constraint(equalTo: separator.topAnchor, constant: 10),
             inputContainerView.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -10),
 
             commentTextView.topAnchor.constraint(equalTo: inputContainerView.topAnchor),
             commentTextView.leadingAnchor.constraint(equalTo: inputContainerView.leadingAnchor, constant: 10),
             commentTextView.bottomAnchor.constraint(equalTo: inputContainerView.bottomAnchor),
             commentTextView.trailingAnchor.constraint(equalTo: postButton.leadingAnchor),
+            commentTextView.heightAnchor.constraint(greaterThanOrEqualToConstant: elementsHeight),
 
-            postButton.trailingAnchor.constraint(equalTo: inputContainerView.trailingAnchor, constant: -3),
-            postButton.centerYAnchor.constraint(equalTo: userProfilePicture.centerYAnchor),
+            placeholderLabel.leadingAnchor.constraint(equalTo: commentTextView.leadingAnchor, constant: 5),
+            placeholderLabel.centerYAnchor.constraint(equalTo: commentTextView.centerYAnchor),
+
+            postButtonTrailingConstraint,
+            postButtonCenterYConstraint,
             postButton.widthAnchor.constraint(equalToConstant: elementsHeight - 3),
-            postButton.heightAnchor.constraint(equalToConstant: elementsHeight - 3)
-        ])
-    }
+            postButton.heightAnchor.constraint(equalToConstant: elementsHeight - 3),
 
-    override var intrinsicContentSize: CGSize {
-        return CGSize(width: UIView.noIntrinsicMetric, height: self.intrinsicHeight)
+            charLimitLabel.bottomAnchor.constraint(equalTo: postButton.topAnchor),
+            charLimitLabel.centerXAnchor.constraint(equalTo: postButton.centerXAnchor),
+        ])
     }
 
     @objc func didTapPostButton() {
@@ -163,49 +175,115 @@ class CommentAccessoryView: UIInputView {
             return
         }
         delegate?.postButtonTapped(commentText: text) {
-            self.commentTextView.text = ""
-            self.sizeTextViewToItsContent(textView: self.commentTextView)
+            self.commentTextView.text.removeAll()
+            self.numberOfLines = self.commentTextView.numberOfLines()
+            self.handleLinesCount()
+            self.handlePlaceholder(for: self.commentTextView)
+            self.layoutPostButton()
         }
+    }
+
+    private func handlePlaceholder(for textView: UITextView) {
+        if textView.text.isEmpty {
+            placeholderLabel.isHidden = false
+        } else {
+            placeholderLabel.isHidden = true
+        }
+    }
+
+    private func handleCharacterLimit(for textView: UITextView) {
+        if charactersLeft == 50 {
+            UIView.animate(withDuration: 0.3) {
+                self.charLimitLabel.alpha = 1
+            }
+        } else if charactersLeft > 50 {
+            UIView.animate(withDuration: 0.3) {
+                self.charLimitLabel.alpha = 0
+            }
+        }
+
+        guard charactersLeft <= 50 else {
+            return
+        }
+        charLimitLabel.text = "\(charactersLeft)"
+        if charactersLeft < 0 {
+            UIView.animate(withDuration: 0.3) {
+                self.charLimitLabel.textColor = .systemRed
+                self.formatTextPastCharacterLimit(in: textView)
+            }
+        } else if charactersLeft <= 30 {
+            charLimitLabel.textColor = .systemYellow
+        } else {
+            charLimitLabel.textColor = .systemGreen
+        }
+    }
+
+    private func handleLinesCount() {
+        if numberOfLines > textViewMaxLinesCount {
+            self.inputViewHeight = self.frame.height
+            commentTextView.isScrollEnabled = true
+            self.invalidateIntrinsicContentSize()
+
+        } else if commentTextView.isScrollEnabled && numberOfLines <= textViewMaxLinesCount {
+            commentTextView.isScrollEnabled = false
+            self.invalidateIntrinsicContentSize()
+        }
+    }
+
+    private func handlePostButton() {
+        if charactersLeft < 0 {
+            UIView.animate(withDuration: 0.3) {
+                self.postButton.isEnabled = false
+            }
+        } else {
+            UIView.animate(withDuration: 0.3) {
+                self.postButton.isEnabled = true
+            }
+        }
+    }
+
+    private func layoutPostButton() {
+        if  numberOfLines > 1 {
+            postButtonTrailingConstraint.constant = -5
+            postButtonCenterYConstraint.isActive = false
+            postButtonBottomConstraint.isActive = true
+        } else if numberOfLines == 1 {
+            postButtonTrailingConstraint.constant = -3
+            postButtonBottomConstraint.isActive = false
+            postButtonCenterYConstraint.isActive = true
+        }
+        self.setNeedsLayout()
+        UIView.animate(withDuration: 0.3) {
+            self.superview?.layoutIfNeeded()
+        }
+    }
+
+    private func formatTextPastCharacterLimit(in textView: UITextView) {
+        let extraCharactersCount = abs(charactersLeft)
+        let excessiveTextColor = UIColor.systemRed.withAlphaComponent(0.5)
+
+        let fittingText = NSAttributedString(string: String(textView.text.prefix(textViewCharacterLimit)), 
+                                             attributes: [.font: commentTextView.font])
+
+        var textPastTheLimit = NSAttributedString(string: String(textView.text.suffix(extraCharactersCount)), 
+                                                  attributes: [.backgroundColor: excessiveTextColor, .font: commentTextView.font])
+
+        let wholeAttributedText = NSMutableAttributedString()
+        wholeAttributedText.append(fittingText)
+        wholeAttributedText.append(textPastTheLimit)
+        textView.attributedText = wholeAttributedText
     }
 }
 
 extension CommentAccessoryView: UITextViewDelegate {
 
-    func textViewDidBeginEditing(_ textView: UITextView) {
-        self.isEditing = true
-        if textView.text == placeholder {
-            textView.text = ""
-            textView.textColor = .label
-        }
-    }
-
-    func textViewDidEndEditing(_ textView: UITextView) {
-        isEditing = false
-        guard textView.text != "" else {
-            textView.text = placeholder
-            textView.textColor = .placeholderText
-            return
-        }
-    }
-
     func textViewDidChange(_ textView: UITextView) {
-        sizeTextViewToItsContent(textView: textView)
-    }
-
-    func sizeTextViewToItsContent(textView: UITextView) {
-        let size = CGSize(width: frame.size.width, height: .infinity)
-        let estimatedSize = textView.sizeThatFits(size)
-
-        if estimatedSize.height > textViewMaxHeight {
-            print("estimated size > max height enabling scrolling")
-            commentTextView.isScrollEnabled = true
-        } else if estimatedSize.height > 40 {
-            self.intrinsicHeight = estimatedSize.height
-            self.accessoryViewHeight = intrinsicHeight
-        } else if estimatedSize.height < 40 {
-            commentTextView.isScrollEnabled = false
-            self.intrinsicHeight = 50
-            self.accessoryViewHeight = 50
-        }
+        numberOfLines = commentTextView.numberOfLines()
+        charactersLeft = textViewCharacterLimit - textView.text.count
+        handleCharacterLimit(for: textView)
+        handlePlaceholder(for: textView)
+        layoutPostButton()
+        handlePostButton()
+        handleLinesCount()
     }
 }

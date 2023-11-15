@@ -12,9 +12,9 @@ class BookmarkedPostsServiceAdapter: PostsService {
     let bookmarksService: BookmarksService
     let likeSystemService: LikeSystemService
     let userPostsService: UserPostsService
-
     var listOfBookmarks = ListOfBookmarks()
 
+    var numberOfPostsToGet: UInt = 21
     var lastReceivedPostKey: String = ""
     var isAlreadyPaginating: Bool = false
     var isPaginationAllowed: Bool = true
@@ -30,7 +30,7 @@ class BookmarkedPostsServiceAdapter: PostsService {
     }
 
     func getPosts(completion: @escaping ([PostViewModel]) -> Void) {
-        bookmarksService.getBookmarkedPosts(numberOfPostsToGet: 21) { posts, lastRetrievedPostKey in
+        bookmarksService.getBookmarkedPosts(numberOfPostsToGet: numberOfPostsToGet) { posts, lastRetrievedPostKey in
             print("got bookmarked posts")
             self.lastReceivedPostKey = lastRetrievedPostKey
             self.getAdditionalPostDataFor(postsOfMultipleUsers: posts) { postsWithAdditionalData in
@@ -43,7 +43,7 @@ class BookmarkedPostsServiceAdapter: PostsService {
     }
 
     func getMorePosts(completion: @escaping ([PostViewModel]?) -> Void) {
-        bookmarksService.getMoreBookmarkedPosts(after: lastReceivedPostKey, numberOfPostsToGet: 21) { posts, lastRetrievedPostKey in
+        bookmarksService.getMoreBookmarkedPosts(after: lastReceivedPostKey, numberOfPostsToGet: numberOfPostsToGet) { posts, lastRetrievedPostKey in
             self.lastReceivedPostKey = lastRetrievedPostKey
             self.getAdditionalPostDataFor(postsOfMultipleUsers: posts) { postsWithAdditionalData in
                 let postsViewModels = postsWithAdditionalData.map { post in

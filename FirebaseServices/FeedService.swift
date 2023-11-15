@@ -16,12 +16,12 @@ class FeedService {
 
     private let databaseRef = Database.database(url: "https://catogram-58487-default-rtdb.europe-west1.firebasedatabase.app").reference()
 
-    func getPostsForTimeline(completion: @escaping CompletionBlockWithPosts) {
+    func getPostsForTimeline(quantity: UInt, completion: @escaping CompletionBlockWithPosts) {
 
         let currentUserID = AuthenticationManager.shared.getCurrentUserUID()
         print("inside getPosts for timeline")
 
-        databaseRef.child("Timelines/\(currentUserID)").queryOrderedByKey().queryLimited(toLast: 6).observeSingleEvent(of: .value) { snapshot in
+        databaseRef.child("Timelines/\(currentUserID)").queryOrderedByKey().queryLimited(toLast: quantity).observeSingleEvent(of: .value) { snapshot in
 
             var retrievedPosts = [UserPost]()
             var lastReceivedPost = ""
@@ -60,11 +60,11 @@ class FeedService {
         }
     }
 
-    func getMorePostsForTimeline(after lastSeenPostKey: String, completion: @escaping CompletionBlockWithPosts) {
+    func getMorePostsForTimeline(quantity: UInt, after lastSeenPostKey: String, completion: @escaping CompletionBlockWithPosts) {
 
         let currentUserID = AuthenticationManager.shared.getCurrentUserUID()
 
-        databaseRef.child("Timelines/\(currentUserID)").queryOrderedByKey().queryEnding(beforeValue: lastSeenPostKey).queryLimited(toLast: 6).observeSingleEvent(of: .value) { snapshot in
+        databaseRef.child("Timelines/\(currentUserID)").queryOrderedByKey().queryEnding(beforeValue: lastSeenPostKey).queryLimited(toLast: quantity).observeSingleEvent(of: .value) { snapshot in
 
             var retrievedPosts = [UserPost]()
             var lastReceivedPost = ""

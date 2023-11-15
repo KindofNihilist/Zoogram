@@ -13,9 +13,13 @@ class CommentsViewController: UIViewController {
 
     let viewModel: CommentsTableViewVM
 
-    private(set) var factory: CommentListFactory?
+    private(set) var factory: CommentListFactory!
 
     private(set) var dataSource: TableViewDataSource?
+
+    private var hasFinishedAppearing: Bool = false
+
+    private var previousAccessoryViewHeight: CGFloat = 0
 
     private var tableView: UITableView = {
         let tableView = UITableView()
@@ -25,10 +29,17 @@ class CommentsViewController: UIViewController {
         tableView.estimatedRowHeight = UITableView.automaticDimension
         tableView.separatorStyle = .none
         tableView.allowsSelection = false
+        tableView.alpha = 0
         return tableView
     }()
 
-    var keyboardAccessoryView: CommentAccessoryView = {
+    private lazy var loadingIndicator: UIActivityIndicatorView = {
+        let indicatorView = UIActivityIndicatorView(style: .medium)
+        indicatorView.translatesAutoresizingMaskIntoConstraints = false
+        return indicatorView
+    }()
+
+    private lazy var keyboardAccessoryView: CommentAccessoryView = {
         let commentAccessoryView = CommentAccessoryView()
         return commentAccessoryView
     }()
@@ -49,7 +60,6 @@ class CommentsViewController: UIViewController {
             shouldShowRelatedPost: shouldShowRelatedPost,
             service: service)
         super.init(nibName: nil, bundle: nil)
-        observeKeyboardEvents()
         keyboardAccessoryView.delegate = self
     }
 
@@ -60,7 +70,6 @@ class CommentsViewController: UIViewController {
             shouldShowRelatedPost: shouldShowRelatedPost,
             service: service)
         super.init(nibName: nil, bundle: nil)
-        observeKeyboardEvents()
         keyboardAccessoryView.delegate = self
     }
 
@@ -69,30 +78,27 @@ class CommentsViewController: UIViewController {
     }
 
     // MARK: Lifecycle
-    override func viewWillLayoutSubviews() {
-        keyboardAccessoryView.intrinsicHeight = keyboardAccessoryView.accessoryViewHeight + view.safeAreaInsets.bottom
-    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.addSubview(tableView)
+        self.view.backgroundColor = .systemBackground
+        view.addSubviews(tableView, loadingIndicator)
+        setupKeyboardEventsObservers()
         setupConstraints()
+        self.loadingIndicator.startAnimating()
         keyboardAccessoryView.configure(with: viewModel.getCurrentUserProfilePicture())
         self.viewModel.hasInitialzied.bind { hasIntialized in
             if hasIntialized {
                 self.setupFactory()
                 self.setupDataSource()
-                self.tableView.reloadData()
+                self.showTableView()
             }
         }
     }
 
     override func viewDidAppear(_ animated: Bool) {
-        scrollToSelectedCommentIfNeeded()
-    }
-
-    deinit {
-        NotificationCenter.default.removeObserver(self)
+        self.hasFinishedAppearing = true
+        showTableView()
     }
 
     // MARK: Constraints setup
@@ -101,15 +107,72 @@ class CommentsViewController: UIViewController {
             tableView.topAnchor.constraint(equalTo: view.topAnchor),
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            tableView.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor)
+            tableView.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor),
+
+            loadingIndicator.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
+            loadingIndicator.centerYAnchor.constraint(equalTo: self.view.centerYAnchor),
+            loadingIndicator.heightAnchor.constraint(equalToConstant: 50),
+            loadingIndicator.widthAnchor.constraint(equalToConstant: 50)
         ])
+    }
+
+    private func setupKeyboardEventsObservers() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardWillHide),
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil)
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(self.keyboardWillShow),
+            name: UIResponder.keyboardWillShowNotification,
+            object: nil)
+    }
+
+    private func showTableView() {
+        guard viewModel.hasInitialzied.value == true,
+        self.hasFinishedAppearing,
+        tableView.alpha == 0
+        else {
+            return
+        }
+
+        UIView.animateKeyframes(withDuration: 0.7, delay: 0) {
+            UIView.addKeyframe(withRelativeStartTime: 0.0, relativeDuration: 0.5) {
+                self.loadingIndicator.transform = CGAffineTransform(scaleX: 0.4, y: 0.4)
+                self.loadingIndicator.alpha = 0
+            }
+
+            UIView.addKeyframe(withRelativeStartTime: 0.5, relativeDuration: 0.5) {
+                self.tableView.alpha = 1
+            }
+        } completion: { _ in
+            self.loadingIndicator.stopAnimating()
+            self.loadingIndicator.removeFromSuperview()
+            self.scrollToSelectedCommentIfNeeded()
+        }
     }
 
     private func scrollToSelectedCommentIfNeeded() {
         if let indexPath = viewModel.indexPathOfCommentToToFocusOn,
            viewModel.hasAlreadyFocusedOnComment != true {
-            print("should scroll")
             tableView.scrollToRow(at: indexPath, at: .top, animated: true)
+        }
+    }
+
+    private func markNewlyCreatedCommentAsSeen(comment: CommentViewModel) {
+        guard let indexPath = viewModel.indexPathOfCommentToToFocusOn else {
+            return
+        }
+        let cell = tableView.cellForRow(at: indexPath) as? CommentTableViewCell
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            UIView.animate(withDuration: 0.6) {
+                cell?.backgroundColor = .systemBackground
+            } completion: { _ in
+                comment.shouldBeMarkedUnseed = false
+                self.viewModel.hasAlreadyFocusedOnComment = true
+            }
         }
     }
 
@@ -121,7 +184,7 @@ class CommentsViewController: UIViewController {
         }
         let cell = tableView.cellForRow(at: indexPath) as? CommentTableViewCell
 
-        UIView.animate(withDuration: 0.5) {
+        UIView.animate(withDuration: 0.5, delay: 0.5) {
             cell?.backgroundColor = ColorScheme.unseenEventLightBlue
         } completion: { _ in
             UIView.animate(withDuration: 0.3) {
@@ -131,64 +194,59 @@ class CommentsViewController: UIViewController {
         }
     }
 
-    private func showCreatedCommentIfNeeded() {
-        guard isCommentsScrolledToTop() else {
-            scrollToFirstRow()
-            return
-        }
+    private func showCreatedCommentIfNeeded(isTriggeredAfterScroll: Bool = false) {
         guard viewModel.shouldShowNewlyCreatedComment else {
+            print("shouldShowCreatedComment Guard")
             return
         }
-        let createdComment = viewModel.getComment(for: IndexPath(row: 0, section: 0))
-        factory?.insertCommentCell(with: createdComment, with: .automatic) {
-            self.viewModel.shouldShowNewlyCreatedComment = false
+
+        guard isCommentsScrolledToTop() else {
+            self.scrollToFirstRow()
+            print("isCommentsScrolledToTop Guard")
+            return
+        }
+
+        guard let createdComment = viewModel.getLatestComment() else {
+            print("let createdComment Guard")
+            return
+        }
+
+        let delay = isTriggeredAfterScroll ? 0.3 : 0.0
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            let indexPath = IndexPath(row: 0, section: self.factory.getCommentSectionIndex())
+            self.factory?.insertComment(with: createdComment, at: indexPath) {
+                self.viewModel.shouldShowNewlyCreatedComment = false
+                self.markNewlyCreatedCommentAsSeen(comment: createdComment)
+            }
         }
     }
 
     func scrollToFirstRow() {
-        guard let factory = factory else {
-            return
+        if viewModel.shouldShowRelatedPost {
+            let areaToFocusOn = areaToFocusOnCommentPost()
+            self.tableView.scrollRectToVisible(areaToFocusOn, animated: true)
+        } else {
+            self.tableView.scrollToRow(at: IndexPath(item: 0, section: 0), at: .top, animated: true)
         }
-        let commentSection = factory.getCommentSectionIndex()
-        if let commentSectionRect = factory.getCommentSectionRect() {
-            self.tableView.setContentOffset(CGPoint(x: 0, y: commentSectionRect.minY.rounded() - 2), animated: true)
-        }
-//        self.tableView.scrollToRow(at: IndexPath(row: 0, section: commentSection), at: .top, animated: true)
+        viewModel.isAlreadyScrolling = true
     }
 
     private func isCommentsScrolledToTop() -> Bool {
-        guard let commentSectionIndex = factory?.getCommentSectionIndex(),
-              let commentSectionRect = factory?.getCommentSectionRect() else {
-            return true
+        let areaToFocusOnMinY = Int(areaToFocusOnCommentPost().minY)
+        let currentYContentOffset = Int(tableView.contentOffset.y)
+        return areaToFocusOnMinY == currentYContentOffset
+    }
+
+    private func areaToFocusOnCommentPost() -> CGRect {
+        if viewModel.shouldShowRelatedPost {
+            let firstRowRect = tableView.rectForRow(at: IndexPath(row: 0, section: factory.getCommentSectionIndex()))
+            let rectWithOffset = firstRowRect.inset(by: UIEdgeInsets(top: -100, left: 0, bottom: 0, right: 0))
+            return rectWithOffset
+        } else {
+            return tableView.rect(forSection: 0)
         }
-        let rectOfFirstComment = tableView.rectForRow(at: IndexPath(row: 0, section: commentSectionIndex))
-        let rectRelativeToSuperview = tableView.convert(commentSectionRect, to: tableView.superview)
-        let contentOffset = tableView.contentOffset.y
-        return contentOffset == commentSectionRect.minY.rounded() - 2 ? true : false
-    }
 
-
-}
-
-// MARK: Keyboard events
-
-extension CommentsViewController {
-
-    private func observeKeyboardEvents() {
-        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillAppear), name: UIResponder.keyboardWillShowNotification, object: nil)
-
-        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillDisappear), name: UIResponder.keyboardWillHideNotification, object: nil)
-    }
-
-    @objc func keyboardWillAppear() {
-        if keyboardAccessoryView.isEditing {
-            self.keyboardAccessoryView.intrinsicHeight = keyboardAccessoryView.accessoryViewHeight
-        }
-    }
-
-    @objc func keyboardWillDisappear() {
-        print("keyboardWillDisappear triggered")
-        self.keyboardAccessoryView.intrinsicHeight = keyboardAccessoryView.accessoryViewHeight + view.safeAreaInsets.bottom
     }
 }
 
@@ -197,37 +255,68 @@ extension CommentsViewController {
 extension CommentsViewController {
 
     func setupFactory() {
-        let post = viewModel.getPostViewModel()
-        let comments = viewModel.getComments()
         self.factory = CommentListFactory(
-            post: post,
-            comments: comments,
+            for: self.tableView,
             shouldShowRelatedPost: viewModel.shouldShowRelatedPost,
-            tableView: self.tableView,
             delegate: self)
     }
 
     func setupDataSource() {
-        guard let sections = factory?.buildSections() else {
-            return
-        }
-        let dataSource = DefaultTableViewDataSource(sections: sections)
+        self.factory.buildSections(for: self.viewModel)
+        let dataSource = DefaultTableViewDataSource(sections: factory.sections)
         dataSource.delegate = self
         self.dataSource = dataSource
         self.tableView.dataSource = dataSource
         self.tableView.delegate = dataSource
+        self.tableView.reloadData()
     }
 }
 
+extension CommentsViewController {
+
+    @objc func keyboardWillShow(_ notification: NSNotification) {
+        moveTableViewWithKeyboard(notification: notification, keyboardWillShow: true)
+    }
+
+    @objc func keyboardWillHide(_ notification: NSNotification) {
+        moveTableViewWithKeyboard(notification: notification, keyboardWillShow: false)
+    }
+
+    func moveTableViewWithKeyboard(notification: NSNotification, keyboardWillShow: Bool) {
+        guard let beginKeyboardSize = (notification.userInfo?[UIResponder.keyboardFrameBeginUserInfoKey] as? NSValue)?.cgRectValue else { return }
+        guard let endKeyboardSize = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue else { return }
+
+        let keyboardAnimationDuration = notification.userInfo![UIResponder.keyboardAnimationDurationUserInfoKey] as! Double
+        let keyboardAnimationCurve = UIView.AnimationCurve(rawValue: notification.userInfo![UIResponder.keyboardAnimationCurveUserInfoKey] as! Int)!
+
+        var contentOffset = tableView.contentOffset
+
+        let safeAreaBottomInset = self.view.safeAreaInsets.bottom
+        let accessoryViewHeight = keyboardAccessoryView.frame.height
+        var bottomInset = safeAreaBottomInset + accessoryViewHeight
+
+        if keyboardWillShow && beginKeyboardSize.height == bottomInset {
+            contentOffset.y += (endKeyboardSize.height - bottomInset)
+        } else {
+            contentOffset.y += (accessoryViewHeight - previousAccessoryViewHeight)
+        }
+
+        let animator = UIViewPropertyAnimator(duration: keyboardAnimationDuration, curve: keyboardAnimationCurve) { [weak self] in
+            self?.tableView.setContentOffset(contentOffset, animated: false)
+        }
+
+        self.previousAccessoryViewHeight = accessoryViewHeight
+
+        animator.startAnimation()
+    }
+}
+
+// MARK: Post button tapped
 extension CommentsViewController: CommentAccessoryViewProtocol {
     func postButtonTapped(commentText: String, completion: @escaping () -> Void) {
         viewModel.postComment(commentText: commentText) { newlyCreatedComment in
             self.viewModel.insertNewlyCreatedComment(comment: newlyCreatedComment)
-            if self.isCommentsScrolledToTop() {
-                self.showCreatedCommentIfNeeded()
-            } else {
-                self.scrollToFirstRow()
-            }
+            self.showCreatedCommentIfNeeded()
             completion()
         }
     }
@@ -271,7 +360,6 @@ extension CommentsViewController: CommentsTableViewActionsProtocol {
             completion(bookmarkState)
         }
     }
-
 }
 
 extension CommentsViewController: TableViewDataSourceDelegate {
@@ -280,14 +368,15 @@ extension CommentsViewController: TableViewDataSourceDelegate {
     }
 
     func scrollViewDidEndScrollingAnimation() {
+        showCreatedCommentIfNeeded(isTriggeredAfterScroll: true)
         focusOnCommentIfNeeded()
-        showCreatedCommentIfNeeded()
+        viewModel.isAlreadyScrolling = false
     }
 
     func didCommit(editingStyle: UITableViewCell.EditingStyle, at indexPath: IndexPath) {
         if editingStyle == .delete {
             viewModel.deleteComment(at: indexPath) {
-                self.factory?.removeCommentCell(at: indexPath, with: .automatic)
+                self.factory?.deleteComment(at: indexPath)
             }
         }
     }

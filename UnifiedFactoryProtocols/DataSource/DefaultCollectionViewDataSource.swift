@@ -11,9 +11,7 @@ protocol CollectionViewDataSourceDelegate: AnyObject {
     func scrollViewDidScroll(scrollView: UIScrollView)
 }
 
-protocol CollectionViewDataSource: UICollectionViewDelegate, UICollectionViewDataSource {
-    func updateSections(with sections: [CollectionSectionController])
-}
+protocol CollectionViewDataSource: UICollectionViewDelegate, UICollectionViewDataSource {}
 
 class DefaultCollectionViewDataSource: NSObject, CollectionViewDataSource {
 
@@ -25,17 +23,11 @@ class DefaultCollectionViewDataSource: NSObject, CollectionViewDataSource {
         self.sections = sections
     }
 
-    func updateSections(with sections: [CollectionSectionController]) {
-        self.sections = sections
-    }
-
     func numberOfSections(in collectionView: UICollectionView) -> Int {
-        print("Sections count: ", sections.count)
         return sections.count
     }
 
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        print("Section \(section) containts \(sections[section].numberOfCells()) cells")
         return sections[section].numberOfCells()
     }
 

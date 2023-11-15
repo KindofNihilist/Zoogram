@@ -23,27 +23,29 @@ class UserProfileFactory {
 
     private var loadingIndicatorSection: PaginationIndicatorSection!
 
+    private var isAlreadyShowingLoadingIndicator: Bool = false
+
     init(for collectionView: UICollectionView, headerDelegate: ProfileHeaderDelegate) {
         self.collectionView = collectionView
         self.headerDelegate = headerDelegate
     }
 
     func buildSections(profileViewModel: UserProfileViewModel) {
+        self.sections.removeAll()
         let headerController = ProfileHeaderController(for: profileViewModel)
         headerController.delegate = headerDelegate
-        headerSection = ProfileHeaderSection(userProfileViewModel: profileViewModel, sectionHolder: collectionView, cellControllers: [headerController])
+        headerSection = ProfileHeaderSection(userProfileViewModel: profileViewModel, sectionHolder: collectionView, cellControllers: [headerController], sectionIndex: 0)
         sections.append(headerSection)
 
         guard profileViewModel.posts.value.isEmpty != true else {
-            let noPostsSection = NoPostsSection(sectionHolder: collectionView, cellControllers: [NoPostsCellController()])
+            let noPostsSection = NoPostsSection(sectionHolder: collectionView, cellControllers: [NoPostsCellController()], sectionIndex: 1)
             sections.append(noPostsSection)
             return
         }
         postsSection = createPostsSection(with: profileViewModel.posts.value)
-        postsSection?.registerSupplementaryViews()
         sections.append(postsSection)
 
-        loadingIndicatorSection = PaginationIndicatorSection(sectionHolder: collectionView, cellControllers: [LoadingIndicatorController()])
+        loadingIndicatorSection = PaginationIndicatorSection(sectionHolder: collectionView, cellControllers: [], sectionIndex: 2)
         sections.append(loadingIndicatorSection)
     }
 
@@ -70,20 +72,23 @@ class UserProfileFactory {
     }
 
     func hideLoadingFooter() {
-        guard let sectionIndex = loadingIndicatorSection.sectionIndex else {
+        guard self.isAlreadyShowingLoadingIndicator else {
             return
         }
+        let sectionIndex = loadingIndicatorSection.sectionIndex
         loadingIndicatorSection.cellControllers.removeAll()
         collectionView.reloadSections(IndexSet(integer: sectionIndex))
+        self.isAlreadyShowingLoadingIndicator = false
     }
 
     func showLoadingIndicator() {
-        guard let sectionIndex = loadingIndicatorSection.sectionIndex else {
+        guard self.isAlreadyShowingLoadingIndicator == false else {
             return
         }
-
+        let sectionIndex = loadingIndicatorSection.sectionIndex
         loadingIndicatorSection.cellControllers.append(LoadingIndicatorController())
         collectionView.reloadSections(IndexSet(integer: sectionIndex))
+        self.isAlreadyShowingLoadingIndicator = true
     }
 
     func setShouldDisplayLoadingFooter(_ status: Bool) {
@@ -96,7 +101,7 @@ class UserProfileFactory {
                 self.postCellAction?(indexPath)
             }
         }
-        return PostsSection(sectionHolder: collectionView, cellControllers: cellControllers)
+        return PostsSection(sectionHolder: collectionView, cellControllers: cellControllers, sectionIndex: 1)
     }
 
 }

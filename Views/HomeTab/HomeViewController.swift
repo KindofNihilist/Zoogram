@@ -21,7 +21,6 @@ class HomeViewController: UIViewController {
         self.service = service
         self.tableView = {
             let tableView = PostsTableView(service: service)
-            tableView.setupRefreshControl()
             tableView.allowsSelection = false
             tableView.separatorStyle = .none
             return tableView

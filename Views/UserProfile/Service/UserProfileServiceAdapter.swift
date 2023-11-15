@@ -11,6 +11,8 @@ typealias HasHitTheEnd = Bool
 
 class UserProfileServiceAPIAdapter: UserProfileService, ImageService {
 
+    var numberOfPostsToGet: UInt = 12
+
     var userID: String
 
     let followService: FollowSystemService
@@ -64,7 +66,7 @@ class UserProfileServiceAPIAdapter: UserProfileService, ImageService {
     }
 
     func getPosts(completion: @escaping ([PostViewModel]) -> Void) {
-        userPostsService.getPosts(quantity: 12, for: userID) { [weak self] posts, lastObtainedPostKey in
+        userPostsService.getPosts(quantity: numberOfPostsToGet, for: userID) { [weak self] posts, lastObtainedPostKey in
             self?.lastReceivedPostKey = lastObtainedPostKey
             print("got user profile posts")
             print(posts)
@@ -74,6 +76,13 @@ class UserProfileServiceAPIAdapter: UserProfileService, ImageService {
                 completion(postsWithAdditionalData.map { post in
                     PostViewModel(post: post)
                 })
+            }
+            if posts.count < self!.numberOfPostsToGet {
+                self?.hasHitTheEndOfPosts = true
+                self?.isPaginationAllowed = false
+            } else {
+                self?.hasHitTheEndOfPosts = false
+                self?.isPaginationAllowed = true
             }
         }
     }
@@ -86,9 +95,11 @@ class UserProfileServiceAPIAdapter: UserProfileService, ImageService {
         }
         isAlreadyPaginating = true
         isPaginationAllowed = false
-        userPostsService.getMorePosts(quantity: 12, after: lastReceivedPostKey, for: userID) { [weak self] posts, lastDownloadedPostKey in
+        userPostsService.getMorePosts(quantity: numberOfPostsToGet, after: lastReceivedPostKey, for: userID) { [weak self] posts, lastDownloadedPostKey in
             guard posts.isEmpty != true, lastDownloadedPostKey != self?.lastReceivedPostKey else {
                 self?.hasHitTheEndOfPosts = true
+                self?.isAlreadyPaginating = false
+                self?.isPaginationAllowed = false
                 print("has hit the end of user posts")
                 completion(nil)
                 return

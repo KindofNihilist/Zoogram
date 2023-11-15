@@ -22,9 +22,9 @@ typealias TableViewDataSource = UITableViewDelegate & UITableViewDataSource
 
 class DefaultTableViewDataSource: NSObject, TableViewDataSource {
 
-    weak var delegate: TableViewDataSourceDelegate?
-
     private var sections: [TableSectionController]
+
+    weak var delegate: TableViewDataSourceDelegate?
 
     init(sections: [TableSectionController]) {
         self.sections = sections

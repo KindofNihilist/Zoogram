@@ -16,19 +16,24 @@ class ProfileHeaderController: GenericCellController<ProfileHeaderCell> {
     init(for profileViewModel: UserProfileViewModel) {
         self.userProfileViewModel = profileViewModel
     }
-    override func configureCell(_ cell: ProfileHeaderCell) {
+
+    override func configureCell(_ cell: ProfileHeaderCell, at indexPath: IndexPath? = nil) {
         cell.configureWith(viewModel: userProfileViewModel)
         cell.delegate = self.delegate
     }
+//    override func configureCell(_ cell: ProfileHeaderCell) {
+//        cell.configureWith(viewModel: userProfileViewModel)
+//        cell.delegate = self.delegate
+//    }
 }
 
 class ProfileHeaderSection: CollectionSectionController {
 
     private var userProfileViewModel: UserProfileViewModel
 
-    init(userProfileViewModel: UserProfileViewModel, sectionHolder: UICollectionView, cellControllers: [CellController<UICollectionView>]) {
+    init(userProfileViewModel: UserProfileViewModel, sectionHolder: UICollectionView, cellControllers: [CellController<UICollectionView>], sectionIndex: Int) {
         self.userProfileViewModel = userProfileViewModel
-        super.init(sectionHolder: sectionHolder, cellControllers: cellControllers)
+        super.init(sectionHolder: sectionHolder, cellControllers: cellControllers, sectionIndex: sectionIndex)
     }
     override func itemSize() -> CGSize {
         guard let superview = sectionHolder.superview else {

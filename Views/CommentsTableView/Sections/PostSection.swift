@@ -7,4 +7,6 @@
 
 import UIKit
 
-class PostSection: TableSectionController { }
+class PostSection: TableSectionController { 
+    
+}

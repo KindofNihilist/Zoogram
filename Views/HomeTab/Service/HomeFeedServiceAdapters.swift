@@ -8,6 +8,7 @@
 import Foundation
 
 class HomeFeedPostsAPIServiceAdapter: HomeFeedService {
+    var numberOfPostsToGet: UInt = 8
 
     let feedService: FeedService
     let likeSystemService: LikeSystemService
@@ -54,18 +55,20 @@ class HomeFeedPostsAPIServiceAdapter: HomeFeedService {
     }
 
     func getPosts(completion: @escaping ([PostViewModel]) -> Void) {
-        feedService.getPostsForTimeline { [weak self] posts, lastPostKey in
+        feedService.getPostsForTimeline(quantity: numberOfPostsToGet) { [weak self] posts, lastPostKey in
             guard posts.isEmpty != true else {
                 completion([PostViewModel]())
                 return
             }
-//            print("Downloaded posts, last post key: \(lastPostKey)")
             self?.lastReceivedPostKey = lastPostKey
             self?.hasHitTheEndOfPosts = false
             self?.getAdditionalPostDataFor(postsOfMultipleUsers: posts) { postsWithAditionalData in
                 completion(postsWithAditionalData.map({ post in
                     PostViewModel(post: post)
                 }))
+            }
+            if posts.count < self!.numberOfPostsToGet {
+                self?.hasHitTheEndOfPosts = true
             }
         }
     }
@@ -78,7 +81,7 @@ class HomeFeedPostsAPIServiceAdapter: HomeFeedService {
 
         isAlreadyPaginating = true
 
-        feedService.getMorePostsForTimeline(after: lastReceivedPostKey) { [weak self] posts, lastPostKey in
+        feedService.getMorePostsForTimeline(quantity: numberOfPostsToGet, after: lastReceivedPostKey) { [weak self] posts, lastPostKey in
             guard posts.isEmpty != true, lastPostKey != self?.lastReceivedPostKey else {
                 self?.isAlreadyPaginating = false
                 self?.hasHitTheEndOfPosts = true

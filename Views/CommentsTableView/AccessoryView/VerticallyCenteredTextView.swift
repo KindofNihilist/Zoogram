@@ -11,9 +11,10 @@ class VerticallyCenteredTextView: UITextView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-
-        let rect = layoutManager.usedRect(for: textContainer)
-        let topInset = (bounds.size.height - rect.height) / 2
+        guard let textContainerHeight = textLayoutManager?.textContainer?.size.height else {
+            return
+        }
+        let topInset = (bounds.size.height - textContainerHeight) / 2
         textContainerInset.top = max(0, topInset)
     }
 }

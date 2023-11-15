@@ -22,9 +22,14 @@ class PostCellController: GenericCellController<PostTableViewCell> {
         self.delegate = delegate
     }
 
-    override func configureCell(_ cell: PostTableViewCell) {
+    override func configureCell(_ cell: PostTableViewCell, at indexPath: IndexPath? = nil) {
         cell.configure(with: viewModel)
         cell.delegate = self.delegate
     }
+
+//    override func configureCell(_ cell: PostTableViewCell) {
+//        cell.configure(with: viewModel)
+//        cell.delegate = self.delegate
+//    }
 
 }

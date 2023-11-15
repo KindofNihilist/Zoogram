@@ -9,7 +9,7 @@ import UIKit.UITableView
 
 class CommentCellController: GenericCellController<CommentTableViewCell> {
 
-    private let viewModel: CommentViewModel
+     let viewModel: CommentViewModel
 
     private let delegate: CommentCellProtocol
 
@@ -28,14 +28,29 @@ class CommentCellController: GenericCellController<CommentTableViewCell> {
         }
     }
 
-    override func configureCell(_ cell: CommentTableViewCell) {
+//    override func configureCell(_ cell: DefaultTableViewCell, at indexPath: IndexPath? = nil) {
+//        var config = cell.defaultContentConfiguration()
+//        config.text = viewModel.commentText
+//        cell.contentConfiguration = config
+//    }
+
+    override func configureCell(_ cell: CommentTableViewCell, at indexPath: IndexPath? = nil) {
         if isAPostCaption {
             cell.configurePostCaption(with: viewModel)
         } else {
+            print("Comment: \(viewModel.commentText) on indexPath: \(indexPath)")
             cell.configure(with: viewModel)
         }
         cell.delegate = self.delegate
     }
+//    override func configureCell(_ cell: CommentTableViewCell) {
+//        if isAPostCaption {
+//            cell.configurePostCaption(with: viewModel)
+//        } else {
+//            cell.configure(with: viewModel)
+//        }
+//        cell.delegate = self.delegate
+//    }
 
     func isCellEditable() -> Bool {
         return self.allowsEditing

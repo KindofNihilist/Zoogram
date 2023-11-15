@@ -228,12 +228,11 @@ class UserPostsService {
         }
     }
 
-    func getPosts(quantity: Int, for userID: String, completion: @escaping ([UserPost], LastRetrievedPostKey) -> Void) {
+    func getPosts(quantity: UInt, for userID: String, completion: @escaping ([UserPost], LastRetrievedPostKey) -> Void) {
 
         let databaseKey = "Posts/\(userID)/"
-        let numberOfPostsToGet = UInt(quantity)
 
-        databaseRef.child(databaseKey).queryOrderedByKey().queryLimited(toLast: numberOfPostsToGet).observeSingleEvent(of: .value) { snapshot in
+        databaseRef.child(databaseKey).queryOrderedByKey().queryLimited(toLast: quantity).observeSingleEvent(of: .value) { snapshot in
 
             var retrievedPosts = [UserPost]()
             var lastPostKey = ""
@@ -276,12 +275,11 @@ class UserPostsService {
         }
     }
 
-    func getMorePosts(quantity: Int, after postKey: String, for userID: String, completion: @escaping ([UserPost], LastRetrievedPostKey) -> Void) {
+    func getMorePosts(quantity: UInt, after postKey: String, for userID: String, completion: @escaping ([UserPost], LastRetrievedPostKey) -> Void) {
 
         let databaseKey = "Posts/\(userID)/"
-        let numberOfPostsToGet = UInt(quantity)
 
-        databaseRef.child(databaseKey).queryOrderedByKey().queryEnding(beforeValue: postKey).queryLimited(toLast: numberOfPostsToGet).observeSingleEvent(of: .value) { snapshot in
+        databaseRef.child(databaseKey).queryOrderedByKey().queryEnding(beforeValue: postKey).queryLimited(toLast: quantity).observeSingleEvent(of: .value) { snapshot in
 
             var lastRetrievedPostKey = ""
             var retrievedPosts = [UserPost]()

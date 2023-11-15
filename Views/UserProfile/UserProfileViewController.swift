@@ -21,6 +21,10 @@ final class UserProfileViewController: UIViewController {
 
     private var postTableViewController: PostViewController
 
+    private var profileRefreshControl: UIRefreshControl?
+
+    private var isTabBarItem: Bool
+
     private var collectionView: UICollectionView = {
         let layout = UICollectionViewFlowLayout.init()
         layout.scrollDirection = .vertical
@@ -51,14 +55,10 @@ final class UserProfileViewController: UIViewController {
         self.service = service
         self.viewModel.insertUserIfPreviouslyObtained(user: user)
         self.postTableViewController = PostViewController(posts: viewModel.posts.value, service: self.service)
+        self.isTabBarItem = isTabBarItem
         super.init(nibName: nil, bundle: nil)
         self.setupCollectionView()
-        service.getUserProfileViewModel { viewModel in
-            self.viewModel.updateValuesWithViewModel(viewModel)
-            if isTabBarItem {
-                self.configureNavigationBar()
-            }
-        }
+        self.setupRefreshControl()
 
         self.viewModel.posts.bind { posts in
             self.postTableViewController.updatePostsArrayWith(posts: posts)
@@ -70,30 +70,17 @@ final class UserProfileViewController: UIViewController {
     }
 
     override func viewDidLoad() {
-        service.getPosts { posts in
-            self.viewModel.posts.value = posts
-            self.factory = UserProfileFactory(for: self.collectionView, headerDelegate: self)
-            self.setupDatasource()
-            self.collectionView.reloadData()
-        }
-    }
-
-    func refreshUserPosts() {
-        service.getPosts { posts in
-            self.viewModel.posts.value = posts
-            self.factory.refreshPostsSection(with: posts)
-        }
-    }
-
-    func refreshProfileData() {
-        service.getUserProfileViewModel { viewModel in
-            self.viewModel.updateValuesWithViewModel(viewModel)
-            self.configureNavigationBar()
-        }
+        getUserProfileData()
     }
 
     func getCurrentUserProfile() -> ZoogramUser {
         return viewModel.user
+    }
+
+    func setupRefreshControl() {
+        profileRefreshControl = UIRefreshControl()
+        profileRefreshControl?.addTarget(self, action: #selector(getUserProfileData), for: .valueChanged)
+        collectionView.refreshControl = profileRefreshControl
     }
 
     private func configureNavigationBar() {
@@ -127,6 +114,38 @@ final class UserProfileViewController: UIViewController {
         self.collectionView.setContentOffset(CGPoint.zero, animated: true)
     }
 
+    @objc func getUserProfileData() {
+        let dispatchGroup = DispatchGroup()
+
+        dispatchGroup.enter()
+        service.getUserProfileViewModel { viewModel in
+            self.viewModel.updateValuesWithViewModel(viewModel)
+
+            if self.isTabBarItem {
+                self.configureNavigationBar()
+            }
+            dispatchGroup.leave()
+        }
+
+        dispatchGroup.enter()
+        service.getPosts { posts in
+            self.viewModel.posts.value = posts
+            dispatchGroup.leave()
+        }
+
+        dispatchGroup.notify(queue: .main) {
+            self.factory = UserProfileFactory(for: self.collectionView, headerDelegate: self)
+            self.setupDatasource()
+
+            if self.service.hasHitTheEndOfPosts {
+                self.factory.hideLoadingFooter()
+            } else {
+                self.factory.showLoadingIndicator()
+            }
+            self.collectionView.refreshControl?.endRefreshing()
+        }
+    }
+
     @objc private func didTapSettingsButton() {
         let settingsVC = SettingsViewController()
         settingsVC.hidesBottomBarWhenPushed = true
@@ -148,7 +167,7 @@ extension UserProfileViewController {
         self.factory.postCellAction = { indexPath in
             self.postSelectAction(at: indexPath)
         }
-//        print("Data source set up")
+        self.collectionView.reloadData()
     }
 }
 
@@ -160,13 +179,11 @@ extension UserProfileViewController: CollectionViewDataSourceDelegate {
         if position > (collectionView.contentSize.height - 100 - scrollView.frame.size.height) {
             guard service.hasHitTheEndOfPosts == false && service.isPaginationAllowed else {
                 if service.hasHitTheEndOfPosts {
-//                    print("should display loading footer is set to false")
                     factory.setShouldDisplayLoadingFooter(false)
                     factory.hideLoadingFooter()
                 }
                 return
             }
-//            print("PROFILE PAGGINATION TRIGGERED")
             service.getMorePosts { paginatedPosts in
                 if let unwrappedPosts = paginatedPosts {
                     let postsCountBeforeUpdate = self.viewModel.posts.value.count
@@ -184,7 +201,6 @@ extension UserProfileViewController: CollectionViewDataSourceDelegate {
                         } completion: { _ in
                             self.service.isPaginationAllowed = true
                             if self.service.hasHitTheEndOfPosts {
-//                                print("should hide loading footer")
                                 self.factory.hideLoadingFooter()
                             }
                         }
@@ -266,6 +282,6 @@ extension UserProfileViewController: ProfileTabsCollectionViewDelegate {
 
 extension UserProfileViewController: UserProfilePostsTableViewProtocol {
     func updateUserProfilePosts() {
-        self.refreshUserPosts()
+        self.getUserProfileData()
     }
 }

@@ -77,7 +77,6 @@ class PostWithCommentsServiceAdapter: CommentsService {
             let dispatchGroup = DispatchGroup()
 
             for comment in comments {
-                print(comment.commentText)
                 dispatchGroup.enter()
                 self.getImage(for: comment.author.profilePhotoURL) { image in
                     comment.author.profilePhoto = image

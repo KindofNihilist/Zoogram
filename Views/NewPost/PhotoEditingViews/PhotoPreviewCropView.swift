@@ -312,7 +312,8 @@ class PhotoPreviewCropView: UIView {
 
         let centerX = lastImageCenterXOffset + trans.x
         let centerY = lastImageCenterYOffset + trans.y
-
+        
+        print("Translated Y: \(centerY)")
         self.imageCenterXConstraint?.constant = centerX
         self.imageCenterYConstraint?.constant = centerY
 

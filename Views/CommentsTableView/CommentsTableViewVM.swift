@@ -20,15 +20,17 @@ class CommentsTableViewVM {
 
     var shouldShowNewlyCreatedComment: Bool = false
 
-    var hasAlreadyFocusedOnComment: Bool = false
+    var hasAlreadyFocusedOnComment: Bool = true
+
+    var isAlreadyScrolling: Bool = false
 
     var indexPathOfCommentToToFocusOn: IndexPath?
 
     private var commentIDToFocusOn: String?
 
-    private var postViewModel: PostViewModel
+    var postViewModel: PostViewModel
 
-    private var comments = [CommentViewModel]()
+    var comments = [CommentViewModel]()
 
     init(post: UserPost, commentIDToFocusOn: String?, shouldShowRelatedPost: Bool, service: CommentsService) {
         self.service = service
@@ -61,9 +63,10 @@ class CommentsTableViewVM {
 
         dispatchGroup.enter()
         service.getComments { comments in
-            self.comments = comments.enumerated().map({ index, comment in
+            self.comments = comments.reversed().enumerated().map({ index, comment in
                 if comment.commentID == self.commentIDToFocusOn {
                     self.indexPathOfCommentToToFocusOn = IndexPath(row: index, section: 1)
+                    self.hasAlreadyFocusedOnComment = false
                 }
                 let canBeEdited = self.checkIfCommentCanBeEdited(comment: comment)
                 return CommentViewModel(comment: comment, canBeEdited: canBeEdited)
@@ -102,9 +105,9 @@ class CommentsTableViewVM {
     }
 
     func insertNewlyCreatedComment(comment: CommentViewModel) {
+        comment.shouldBeMarkedUnseed = true
         self.comments.insert(comment, at: 0)
         self.shouldShowNewlyCreatedComment = true
-        self.hasAlreadyFocusedOnComment = false
         self.indexPathOfCommentToToFocusOn = IndexPath(row: 0, section: 1)
     }
 
@@ -116,6 +119,10 @@ class CommentsTableViewVM {
         return comments[indexPath.row]
     }
 
+    func getLatestComment() -> CommentViewModel? {
+        return comments.first
+    }
+
     func postComment(commentText: String, completion: @escaping (CommentViewModel) -> Void) {
 
         let newComment = PostComment.createPostComment(text: commentText)
@@ -123,7 +130,6 @@ class CommentsTableViewVM {
         service.postComment(comment: newComment) { newlyCreatedComment in
             newlyCreatedComment.author = self.currentUser
             let commentViewModel = CommentViewModel(comment: newlyCreatedComment, canBeEdited: true)
-            self.comments.append(commentViewModel)
             completion(commentViewModel)
         }
     }
