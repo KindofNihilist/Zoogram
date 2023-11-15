@@ -8,9 +8,12 @@
 import UIKit
 
 class LoadingIndicatorController: GenericCellController<LoadingIndicatorCell> {
-    override func configureCell(_ cell: LoadingIndicatorCell) {
+    override func configureCell(_ cell: LoadingIndicatorCell, at indexPath: IndexPath? = nil) {
         cell.spinner.startAnimating()
     }
+//    override func configureCell(_ cell: LoadingIndicatorCell) {
+//        cell.spinner.startAnimating()
+//    }
 }
 
 class LoadingIndicatorCell: UICollectionViewCell {

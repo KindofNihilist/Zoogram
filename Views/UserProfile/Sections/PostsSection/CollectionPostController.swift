@@ -19,9 +19,12 @@ class CollectionPostController: GenericCellController<PhotoCollectionViewCell> {
 //        print("Creating post controller for \(post.postID)")
     }
 
-    override func configureCell(_ cell: PhotoCollectionViewCell) {
+    override func configureCell(_ cell: PhotoCollectionViewCell, at indexPath: IndexPath? = nil) {
         cell.configure(with: postPhoto)
     }
+//    override func configureCell(_ cell: PhotoCollectionViewCell) {
+//        cell.configure(with: postPhoto)
+//    }
 
     override func didSelectCell(at indexPath: IndexPath) {
         action?(indexPath)

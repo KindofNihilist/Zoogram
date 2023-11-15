@@ -43,6 +43,7 @@ class CommentTableViewCell: UITableViewCell {
         label.textColor = .label
         label.font = CustomFonts.regularFont(ofSize: 14)
         label.numberOfLines = 0
+        label.sizeToFit()
         return label
     }()
 
@@ -78,21 +79,18 @@ class CommentTableViewCell: UITableViewCell {
     func configure(with viewModel: CommentViewModel) {
         author = viewModel.author
         messageLabel.attributedText = viewModel.commentText.lineWithSpacing(2)
-        messageLabel.sizeToFit()
         timePassedLabel.text = viewModel.datePostedText
-        timePassedLabel.sizeToFit()
         usernameLabel.text = viewModel.author.username
-        usernameLabel.sizeToFit()
         profilePhotoImageView.image = viewModel.author.profilePhoto
+        if viewModel.shouldBeMarkedUnseed {
+            backgroundColor = ColorScheme.unseenEventLightBlue
+        }
     }
 
     func configurePostCaption(with viewModel: CommentViewModel) {
         messageLabel.text = viewModel.commentText
-        messageLabel.sizeToFit()
         timePassedLabel.text = viewModel.datePostedText
-        timePassedLabel.sizeToFit()
         usernameLabel.text = viewModel.author.username
-        usernameLabel.sizeToFit()
         profilePhotoImageView.image = viewModel.author.profilePhoto
     }
 

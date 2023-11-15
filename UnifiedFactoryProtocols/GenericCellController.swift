@@ -16,10 +16,15 @@ open class GenericCellController<T: ReusableCell>: CellController<T.CellHolder> 
         return T.self
     }
 
-    public final override func configureCell(_ cell: T.CellHolder.CellType) {
+    open override func configureCell(_ cell: T.CellHolder.CellType, at indexPath: IndexPath? = nil) {
         let cell = cell as! T
-        configureCell(cell)
+        configureCell(cell, at: indexPath)
     }
+
+//    public final override func configureCell(_ cell: T.CellHolder.CellType) {
+//        let cell = cell as! T
+//        configureCell(cell)
+//    }
 
     public final override func willDisplayCell(_ cell: T.CellHolder.CellType) {
         let cell = cell as! T
@@ -31,7 +36,7 @@ open class GenericCellController<T: ReusableCell>: CellController<T.CellHolder> 
         didEndDisplayingCell(cell)
     }
 
-    open func configureCell(_ cell: T) {
+    open func configureCell(_ cell: T, at indexPath: IndexPath? = nil) {
         // Overrides by subclass
     }
 

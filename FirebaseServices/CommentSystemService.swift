@@ -54,7 +54,7 @@ class CommentSystemService {
         var comments = [PostComment]()
 
         databaseRef.child(databaseKey).queryOrderedByKey().observeSingleEvent(of: .value) { snapshot in
-            print(snapshot)
+//            print(snapshot)
 
             for (index, snapshotChild) in snapshot.children.enumerated() {
 
@@ -77,11 +77,11 @@ class CommentSystemService {
                 }
             }
             dispatchGroup.notify(queue: .main) {
-                print("\n")
-                for comment in comments {
-                    print(comment.commentText)
-                }
-                completion(comments.reversed())
+//                print("\n")
+//                for comment in comments {
+//                    print(comment.commentText)
+//                }
+                completion(comments)
             }
         }
     }

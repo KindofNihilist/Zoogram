@@ -15,6 +15,7 @@ class CommentViewModel {
     let datePostedText: String
     let author: ZoogramUser
     let canBeEdited: Bool
+    var shouldBeMarkedUnseed: Bool = false
 
     init(comment: PostComment, canBeEdited: Bool) {
         self.commentID = comment.commentID

@@ -31,8 +31,6 @@ public protocol ReusableCellHolder: AnyObject {
     func register(_ cellClass: AnyClass?, forCellWithReuseIdentifier identifier: String)
     func dequeueReusableCell(withCellIdentifier identifier: String, for indexPath: IndexPath) -> CellType
     func cell(at indexPath: IndexPath) -> CellType?
-    func insertCell(at indexPath: IndexPath)
-    func removeCell(at indexPath: IndexPath)
 }
 
 extension UITableViewCell: ReusableCell {
@@ -59,15 +57,6 @@ extension UITableView: ReusableCellHolder {
     public func cell(at indexPath: IndexPath) -> UITableViewCell? {
         return cellForRow(at: indexPath)
     }
-
-    public func insertCell(at indexPath: IndexPath) {
-        insertRows(at: [indexPath], with: .automatic)
-    }
-
-    public func removeCell(at indexPath: IndexPath) {
-        deleteRows(at: [indexPath], with: .automatic)
-    }
-
 }
 
 extension UICollectionView: ReusableCellHolder {
@@ -85,17 +74,5 @@ extension UICollectionView: ReusableCellHolder {
 
     public func cell(at indexPath: IndexPath) -> UICollectionViewCell? {
         cellForItem(at: indexPath)
-    }
-
-    public func insertCell(at indexPath: IndexPath) {
-        performBatchUpdates {
-            insertItems(at: [indexPath])
-        }
-    }
-
-    public func removeCell(at indexPath: IndexPath) {
-        performBatchUpdates {
-            deleteItems(at: [indexPath])
-        }
     }
 }

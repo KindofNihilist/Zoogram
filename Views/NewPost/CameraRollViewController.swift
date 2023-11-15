@@ -21,12 +21,27 @@ class CameraRollViewController: UIViewController {
     weak var delegate: NewPostProtocol?
 
     var userPhotos: PHFetchResult<PHAsset>?
+    
+    var panStartingPoint: CGPoint?
+    var panEndPoint: CGPoint?
+    var distanceDifference: CGFloat?
+    
     let cellsPerRow: CGFloat = 4
     let interItemSpacing: CGFloat = 1
+    
     var lastPreviewBottomXOffset: CGFloat = 0
     var previewContainerViewTopAnchor: NSLayoutConstraint?
-    var scrollBeginningPosition: CGFloat = 0
+    var previewInitialMinY: CGFloat = 0
+    
+    var allowsCollectionViewPaning: Bool = false
+    
     var gestureRecognizer: UIPanGestureRecognizer?
+    
+    var previewContainerView: UIView = {
+        var view = UIView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        return view
+    }()
 
     var previewCropView: PhotoPreviewCropView = {
         let previewView = PhotoPreviewCropView(image: UIImage())
@@ -40,12 +55,6 @@ class CameraRollViewController: UIViewController {
         return view
     }()
 
-    var cameraRollHeaderCointainerView: UIView = {
-        var view = UIView()
-        view.translatesAutoresizingMaskIntoConstraints = false
-        return view
-    }()
-
     lazy var cameraRollCollectionView: UICollectionView = {
         let layout = UICollectionViewFlowLayout()
         layout.scrollDirection = .vertical
@@ -54,6 +63,7 @@ class CameraRollViewController: UIViewController {
         collectionView.contentInsetAdjustmentBehavior = .always
         collectionView.register(UICollectionViewCell.self, forCellWithReuseIdentifier: "cell")
         collectionView.register(PhotoCollectionViewCell.self, forCellWithReuseIdentifier: PhotoCollectionViewCell.identifier)
+//        collectionView.isScrollEnabled = false
         collectionView.backgroundColor = .black
         return collectionView
     }()
@@ -69,17 +79,26 @@ class CameraRollViewController: UIViewController {
         cameraRollCollectionView.delegate = self
         cameraRollCollectionView.dataSource = self
         self.gestureRecognizer = UIPanGestureRecognizer(target: self, action: #selector(dragCollectionViewHeader))
-        gestureRecognizer!.delegate = self
+//        gestureRecognizer!.delegate = self
         self.view.backgroundColor = .black
-        self.previewCropView.addGestureRecognizer(gestureRecognizer!)
+        self.view.addGestureRecognizer(gestureRecognizer!)
+        self.cameraRollCollectionView.addGestureRecognizer(self.gestureRecognizer!)
     }
 
     override func viewWillAppear(_ animated: Bool) {
+        previewContainerViewTopAnchor?.constant = 0
         fetchUserPhotos {
             self.selectPhotoAsPreview(at: 0)
             print("Fetched photos")
         }
 
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        self.previewInitialMinY = previewContainerView.frame.minY
+        print("previewContainerView maxY: \(previewContainerView.frame.maxY)")
+        print("previewContainerView minY: \(previewContainerView.frame.minY)")
     }
 
     // MARK: Setup methods
@@ -112,33 +131,33 @@ class CameraRollViewController: UIViewController {
     }
 
     func setupViews() {
-        self.view.addSubviews(cameraRollHeaderCointainerView, cameraRollCollectionView)
-        self.cameraRollHeaderCointainerView.addSubviews(previewCropView, spacerWithCameraButton)
+        self.view.addSubviews(previewContainerView, cameraRollCollectionView)
+        self.previewContainerView.addSubviews(previewCropView, spacerWithCameraButton)
         let viewWidth = view.frame.size.width
         let spacerHeight: CGFloat = 50
         //        let previewContainerViewBottomAnchor = cameraRollHeaderCointainerView.bottomAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.topAnchor, constant: 0)
-        let previewContainerViewTopAnchor = cameraRollHeaderCointainerView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor)
+        let previewContainerViewTopAnchor = previewContainerView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor)
         previewContainerViewTopAnchor.priority = .required
         self.previewContainerViewTopAnchor = previewContainerViewTopAnchor
 
         NSLayoutConstraint.activate([
             previewContainerViewTopAnchor,
-            cameraRollHeaderCointainerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            cameraRollHeaderCointainerView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            cameraRollHeaderCointainerView.heightAnchor.constraint(equalToConstant: viewWidth + spacerHeight),
+            previewContainerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            previewContainerView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            previewContainerView.heightAnchor.constraint(equalToConstant: viewWidth + spacerHeight),
             //            previewContainerViewBottomAnchor,
 
-            previewCropView.topAnchor.constraint(equalTo: cameraRollHeaderCointainerView.topAnchor),
-            previewCropView.leadingAnchor.constraint(equalTo: cameraRollHeaderCointainerView.leadingAnchor),
-            previewCropView.trailingAnchor.constraint(equalTo: cameraRollHeaderCointainerView.trailingAnchor),
+            previewCropView.topAnchor.constraint(equalTo: previewContainerView.topAnchor),
+            previewCropView.leadingAnchor.constraint(equalTo: previewContainerView.leadingAnchor),
+            previewCropView.trailingAnchor.constraint(equalTo: previewContainerView.trailingAnchor),
             previewCropView.heightAnchor.constraint(equalToConstant: viewWidth),
 
             spacerWithCameraButton.topAnchor.constraint(equalTo: previewCropView.bottomAnchor),
-            spacerWithCameraButton.leadingAnchor.constraint(equalTo: cameraRollHeaderCointainerView.leadingAnchor),
-            spacerWithCameraButton.trailingAnchor.constraint(equalTo: cameraRollHeaderCointainerView.trailingAnchor),
-            spacerWithCameraButton.bottomAnchor.constraint(equalTo: cameraRollHeaderCointainerView.bottomAnchor),
+            spacerWithCameraButton.leadingAnchor.constraint(equalTo: previewContainerView.leadingAnchor),
+            spacerWithCameraButton.trailingAnchor.constraint(equalTo: previewContainerView.trailingAnchor),
+            spacerWithCameraButton.bottomAnchor.constraint(equalTo: previewContainerView.bottomAnchor),
 
-            cameraRollCollectionView.topAnchor.constraint(equalTo: cameraRollHeaderCointainerView.bottomAnchor),
+            cameraRollCollectionView.topAnchor.constraint(equalTo: previewContainerView.bottomAnchor),
             cameraRollCollectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             cameraRollCollectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             cameraRollCollectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
@@ -227,27 +246,89 @@ class CameraRollViewController: UIViewController {
 
     @objc func dragCollectionViewHeader(_ pan: UIPanGestureRecognizer) {
         guard let topAnchorConstant = self.previewContainerViewTopAnchor?.constant else {
+            print("Inside guard")
             return
         }
-
+        
+        
         if pan.state == .began {
+            print("Pan gesture began")
             self.lastPreviewBottomXOffset = topAnchorConstant
+            panEndPoint = nil
+            panStartingPoint = pan.location(in: view)
+            distanceDifference = pan.location(in: view).y - previewContainerView.frame.maxY
         }
-
-        let location = pan.location(in: self.view)
-
-        if cameraRollHeaderCointainerView.frame.contains(location) {
-            let translation = pan.translation(in: self.view)
-            if (topAnchorConstant + translation.y) <= 0 {
-                self.previewContainerViewTopAnchor?.constant = (self.lastPreviewBottomXOffset + translation.y)
-            }
-            //            cameraRollHeaderCointainerView.transform = CGAffineTransform(translationX: 0, y: bottomCoordinate + translation.y)
+        
+        if pan.state == .ended {
+            print("Pan gesture ended")
+            self.allowsCollectionViewPaning = false
+            panEndPoint = pan.location(in: view)
+            panStartingPoint = nil
         }
+        
+        let translatedPoint = pan.translation(in: self.view)
+        let currentPoint = pan.location(in: self.view)
+        print("TranslatedPointY: \(translatedPoint.y)")
+        handleCollectionViewPaning(for: currentPoint, translatedPoint: translatedPoint)
+
+//        if cameraRollHeaderCointainerView.frame.contains(location) {
+//            let translation = pan.translation(in: self.view)
+//                self.previewContainerViewTopAnchor?.constant = (self.lastPreviewBottomXOffset + translation.y)
+//                        cameraRollHeaderCointainerView.transform = CGAffineTransform(translationX: 0, y: bottomCoordinate + translation.y)
+//        }
+    }
+    
+    private func handleCollectionViewPaning(for currentPoint: CGPoint, translatedPoint: CGPoint) {
+        guard var startingPoint = self.panStartingPoint,
+              let distanceDifference = self.distanceDifference
+        else {
+            return
+        }
+        
+        if currentPoint.y <= (previewContainerView.frame.maxY - 100) {
+            self.allowsCollectionViewPaning = true
+        }
+        print("START")
+        print("Inital touch point before translation: \(startingPoint.y)")
+        let translation = translatedPoint.y + distanceDifference
+//        startingPoint.y += translation
+        print("Inital touch point after translation: \(startingPoint.y)")
+        var containsStartingPoint = cameraRollCollectionView.frame.contains(startingPoint)
+        var containsCurrentPoint = previewContainerView.frame.contains(currentPoint)
+        var notOutOfBounds = previewContainerView.frame.maxY >= 150 && previewContainerView.frame.minY <= previewInitialMinY
+        
+        print("\npreviewContainer current minY \(previewContainerView.frame.minY)")
+        print("previewContainer initial minY \(previewInitialMinY)")
+        
+        print("\nhandling paning")
+        print("Finger point: \(currentPoint.y)")
+        print("\ncollectionView containts initial touch Point: \(containsStartingPoint)")
+        print("CameraRoll header contains finger point: \(containsCurrentPoint)")
+        print("NotOutOfBounds: \(notOutOfBounds)")
+        print("\nCollectionView minY: \(cameraRollCollectionView.frame.minY)")
+        print("CollectionView maxY: \(cameraRollCollectionView.frame.maxY)")
+        
+        if  containsCurrentPoint && containsStartingPoint && notOutOfBounds && allowsCollectionViewPaning {
+            print("Inside if")
+            print("Translation with distance difference: \(translation)")
+            self.previewContainerViewTopAnchor?.constant = ((self.lastPreviewBottomXOffset + translation) + 100)
+        } else {
+
+        }
+        print("END")
     }
 }
 
 // MARK: CollectionView delegate
 extension CameraRollViewController: UICollectionViewDelegate, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
+    
+    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        if gestureRecognizer == self.gestureRecognizer {
+            return false
+        } else {
+            return true
+        }
+    }
 
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         guard let photos = userPhotos else {
@@ -330,62 +411,42 @@ extension CameraRollViewController: CameraRollHeaderDelegate {
     }
 }
 
-extension CameraRollViewController: UIGestureRecognizerDelegate {
-
-    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-        if gestureRecognizer.view != otherGestureRecognizer.view {
-            return false
-        }
-
-        return false
-    }
-
-    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-//        if gestureRecognizer == self.cameraRollCollectionView.panGestureRecognizer && otherGestureRecognizer == self.gestureRecognizer {
-//            print("should be required to fail is true")
+//extension CameraRollViewController: UIGestureRecognizerDelegate {
+//    
+//
+//    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+////        if gestureRecognizer.view == cameraRollCollectionView && otherGestureRecognizer == self.gestureRecognizer {
+////            print("Should recognize simultaneously")
+////            return true
+////        }
+//        
+//        if gestureRecognizer == self.gestureRecognizer || otherGestureRecognizer == self.gestureRecognizer {
+//            print("\nshouldRecognizeSimultaneouslyWith")
 //            return true
 //        }
 //        return false
-
-        if otherGestureRecognizer == self.gestureRecognizer {
-            print("Returning true")
-            return true
-        }
-
-        return false
-    }
-
-//    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRequireFailureOf otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-//        print("content offset is \(self.cameraRollCollectionView.contentOffset.y)")
-//        if self.cameraRollCollectionView.contentOffset.y <= 0 {
-//            print("inside shouldRequireFailureOf")
-//            if gestureRecognizer == self.gestureRecognizer  && otherGestureRecognizer ==  cameraRollCollectionView.panGestureRecognizer {
-//                print("returning true")
-//                return true
-//            }
+//    }
+//
+//    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+////        if gestureRecognizer == self.cameraRollCollectionView.panGestureRecognizer && otherGestureRecognizer == self.gestureRecognizer {
+////            print("should be required to fail is true")
+////            return true
+////        }
+////        return false
+//
+//        if otherGestureRecognizer == self.gestureRecognizer {
+//            print("\nshouldBeRequiredToFailBy")
+//            return true
 //        }
+//        
 //        return false
 //    }
-}
-
-extension CameraRollViewController: UIScrollViewDelegate {
-    func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        let distanceScrolled = scrollView.panGestureRecognizer.location(in: self.view).y - self.scrollBeginningPosition
-        print(distanceScrolled)
-        if scrollView.contentOffset.y <= 0 && scrollView.isDragging {
-            self.previewContainerViewTopAnchor?.constant += 1
-        }
-    }
-
-    func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
-        self.scrollBeginningPosition = scrollView.panGestureRecognizer.location(in: self.view).y
-    }
-
-    func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
-        let distanceScrolled = scrollView.panGestureRecognizer.location(in: self.view).y - self.scrollBeginningPosition
-
-        if scrollView.contentOffset.y <= 0 && distanceScrolled >= 150 {
-            self.focusOnPreview(withDuration: 0.4)
-        }
-    }
-}
+//
+//    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRequireFailureOf otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+//        if gestureRecognizer == self.gestureRecognizer {
+//                print("\nshouldRequireFailureOf")
+//                return true
+//            }
+//        return false
+//    }
+//}

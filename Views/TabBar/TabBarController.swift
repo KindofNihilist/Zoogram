@@ -155,7 +155,7 @@ extension TabBarController: UITabBarControllerDelegate {
     }
 
     @objc func refreshUserProfile() {
-        userProfileVC.refreshProfileData()
+        userProfileVC.getUserProfileData()
     }
 
     @objc func refreshUserFeed() {
@@ -191,7 +191,7 @@ extension TabBarController: NewPostProtocol {
                 case .success():
                     post.author = currentUser
                     self.homeVC.animateInsertionOfCreatedPost(post: post)
-                    self.userProfileVC.refreshProfileData()
+                    self.userProfileVC.getUserProfileData()
 
                 case .failure(let error):
                     self.homeVC.show(error: error)

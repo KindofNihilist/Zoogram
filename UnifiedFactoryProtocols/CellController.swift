@@ -31,23 +31,14 @@ open class CellController<T: ReusableCellHolder> {
 
     public final func cellFromReusableCellHolder(_ reusableCellHolder: T, for indexPath: IndexPath) -> T.CellType {
         let cell = reusableCellHolder.dequeueReusableCell(withCellIdentifier: identifier, for: indexPath)
-        configureCell(cell)
+        configureCell(cell, at: indexPath)
         self.indexPath = indexPath
         self.reusableCellHolder = reusableCellHolder
         self.cell = cell
         return cell
     }
 
-    public final func removeCell() {
-        guard let indexPath = self.indexPath,
-              let cellHolder = self.reusableCellHolder
-        else {
-            return
-        }
-        cellHolder.removeCell(at: indexPath)
-    }
-
-    open func configureCell(_ cell: T.CellType) {
+    open func configureCell(_ cell: T.CellType, at indexPath: IndexPath? = nil) {
         // Must be overriden by children to configure a cell
     }
 

@@ -15,6 +15,7 @@ protocol PostActionsService {
 }
 
 protocol PostsService: PostActionsService, ImageService {
+    var numberOfPostsToGet: UInt {get set}
     var lastReceivedPostKey: String {get set}
     var isAlreadyPaginating: Bool {get set}
     var hasHitTheEndOfPosts: Bool {get set}

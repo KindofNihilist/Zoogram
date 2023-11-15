@@ -32,6 +32,7 @@ class PostsTableView: UITableView {
         self.init(frame: CGRect.zero)
         self.posts = posts
         self.service = service
+        setupRefreshControl()
     }
 
     override init(frame: CGRect, style: UITableView.Style) {
@@ -44,6 +45,7 @@ class PostsTableView: UITableView {
         showsVerticalScrollIndicator = false
         self.dataSource = self
         self.delegate = self
+        setupRefreshControl()
     }
 
     required init?(coder: NSCoder) {
@@ -123,18 +125,30 @@ class PostsTableView: UITableView {
         }
     }
 
+    private func removePaginationFooter() {
+        UIView.animate(withDuration: 0.6) {
+            self.tableFooterView?.alpha = 0
+        } completion: { _ in
+            self.tableFooterView = nil
+        }
+    }
+
     @objc func refreshUserFeed() {
         service.getPosts { posts in
-            guard posts.isEmpty != true else {
-                self.posts = posts
-                self.reloadData()
-                self.refreshControl?.endRefreshing()
-                self.showNoPostsNotification()
-                return
-            }
             self.posts = posts
             self.refreshControl?.endRefreshing()
-            self.removeNoPostsNotificationIfDisplayed()
+
+            if posts.isEmpty {
+                self.showNoPostsNotification()
+            } else {
+                self.removeNoPostsNotificationIfDisplayed()
+            }
+
+            if self.service.hasHitTheEndOfPosts {
+                self.removePaginationFooter()
+            } else {
+                self.tableFooterView = self.createFooterSpinnerView()
+            }
             self.reloadData()
         }
     }
@@ -163,17 +177,12 @@ extension PostsTableView: UITableViewDelegate, UITableViewDataSource {
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
         guard service.hasHitTheEndOfPosts != true && self.isPaginationAllowed else {
-            UIView.animate(withDuration: 0.6) {
-                self.tableFooterView?.alpha = 0
-            } completion: { _ in
-                self.tableFooterView = nil
-            }
+            removePaginationFooter()
             return
         }
         let position = scrollView.contentOffset.y
 
         if position > (self.contentSize.height - 100 - scrollView.frame.size.height) {
-            self.tableFooterView = createFooterSpinnerView()
             self.service.getMorePosts { retrievedPosts in
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
                     if let unwrapedPosts = retrievedPosts {
