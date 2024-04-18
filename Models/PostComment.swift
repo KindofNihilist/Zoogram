@@ -12,13 +12,18 @@ class PostComment: Codable {
     let authorID: String
     let commentText: String
     let datePosted: Date
+    let dateTitle: String
     var author: ZoogramUser!
+    var canBeEdited: Bool = false
+    var shouldBeMarkedUnseen: Bool = false
 
-    init(commentID: String, authorID: String, commentText: String, datePosted: Date) {
+    init(commentID: String, authorID: String, commentText: String, datePosted: Date, author: ZoogramUser? = nil) {
         self.commentID = commentID
         self.authorID = authorID
         self.commentText = commentText.trimmingCharacters(in: NSCharacterSet.whitespacesAndNewlines)
         self.datePosted = datePosted
+        self.author = author
+        self.dateTitle = datePosted.timeAgoDisplay()
     }
 
     required init(from decoder: Decoder) throws {
@@ -28,16 +33,6 @@ class PostComment: Codable {
         self.authorID = try container.decode(String.self, forKey: .authorID)
         self.commentText = commentText.trimmingCharacters(in: NSCharacterSet.whitespacesAndNewlines)
         self.datePosted = try container.decode(Date.self, forKey: .datePosted)
-    }
-
-    static func createPostComment(text: String) -> PostComment {
-        let commentUID = CommentSystemService.shared.createCommentUID()
-        let currentUserID = AuthenticationManager.shared.getCurrentUserUID()
-        let formattedText = text.trimmingCharacters(in: NSCharacterSet.whitespacesAndNewlines)
-        let postComent = PostComment(commentID: commentUID,
-                                     authorID: currentUserID,
-                                     commentText: formattedText,
-                                     datePosted: Date())
-        return postComent
+        self.dateTitle = datePosted.timeAgoDisplay()
     }
 }

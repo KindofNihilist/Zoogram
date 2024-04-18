@@ -8,72 +8,80 @@
 import Foundation
 import FirebaseDatabase
 
-class LikeSystemService {
-    
+protocol LikeSystemServiceProtocol {
+    typealias LikesCount = Int
+
+    func checkIfPostIsLiked(postID: String, completion: @escaping (Result<LikeState, Error>) -> Void)
+    func getLikesCountForPost(id: String, completion: @escaping (Result<LikesCount, Error>) -> Void)
+    func likePost(postID: String, completion: @escaping (VoidResult) -> Void)
+    func removeLikeFromPost(postID: String, completion: @escaping (VoidResult) -> Void)
+}
+
+class LikeSystemService: LikeSystemServiceProtocol {
+
     static let shared = LikeSystemService()
-    
+
     private let databaseRef = Database.database(url: "https://catogram-58487-default-rtdb.europe-west1.firebasedatabase.app").reference()
     
-    typealias LikesCount = Int
-    
-    typealias ResultBlock = (Result<String, Error>) -> Void
-    
-    func checkIfPostIsLiked(postID: String, completion: @escaping (LikeState) -> Void) {
-        let userID = AuthenticationManager.shared.getCurrentUserUID()
-        
+    func checkIfPostIsLiked(postID: String, completion: @escaping (Result<LikeState, Error>) -> Void) {
+        guard let currentUserID = AuthenticationService.shared.getCurrentUserUID() else { return }
         let databaseKey = "PostsLikes/\(postID)/"
-        
-        let query = databaseRef.child(databaseKey).queryOrdered(byChild: "userID").queryEqual(toValue: userID)
-        
-        query.observeSingleEvent(of: .value) { snapshot in
-            if snapshot.exists() {
-                completion(.liked)
-            } else {
-                completion(.notLiked)
+        let query = databaseRef.child(databaseKey).queryOrdered(byChild: "userID").queryEqual(toValue: currentUserID)
+
+        query.getData { error, snapshot in
+            if let error = error {
+                completion(.failure(ServiceError.couldntLoadData))
+                print(error)
+                return
+            } else if let snapshot = snapshot {
+
+                if snapshot.exists() {
+                    completion(.success(.liked))
+                } else {
+                    completion(.success(.notLiked))
+                }
             }
         }
     }
     
-    func getLikesCountForPost(id: String, completion: @escaping (LikesCount) -> Void) {
-        
+    func getLikesCountForPost(id: String, completion: @escaping (Result<LikesCount, Error>) -> Void) {
         let databaseKey = "PostsLikes/\(id)"
         
-        databaseRef.child(databaseKey).observeSingleEvent(of: .value) { snapshot in
-            completion(Int(snapshot.childrenCount))
-        }
-    }
-    
-    func getUsersLikedForPost(id: String, completion: @escaping () -> Void) {
-        
-    }
-    
-    func likePost(postID: String, completion: @escaping ResultBlock) {
-        let userID = AuthenticationManager.shared.getCurrentUserUID()
-        
-        let databaseKey = "PostsLikes/\(postID)/\(userID)"
-        print("inside post like method", databaseKey)
-        print(databaseKey)
-        databaseRef.child(databaseKey).setValue(["userID" : userID]) { error, _ in
-            if error == nil {
-                completion(.success("liked post \(postID)"))
-            } else {
-                completion(.failure(error!))
+        databaseRef.child(databaseKey).getData { error, snapshot in
+            if let error = error {
+                print(error)
+                completion(.failure(ServiceError.couldntLoadData))
+                return
+            } else if let snapshot = snapshot {
+                let likesCount = Int(snapshot.childrenCount)
+                completion(.success(likesCount))
             }
         }
     }
     
-    func removePostLike(postID: String, completion: @escaping ResultBlock) {
-        let userID = AuthenticationManager.shared.getCurrentUserUID()
-        
-        let databaseKey = "PostsLikes/\(postID)/\(userID)"
-        
+    func likePost(postID: String, completion: @escaping (VoidResult) -> Void) {
+        guard let currentUserID = AuthenticationService.shared.getCurrentUserUID() else { return }
+        let databaseKey = "PostsLikes/\(postID)/\(currentUserID)"
+
+        databaseRef.child(databaseKey).setValue(["userID" : currentUserID]) { error, _ in
+            if let error = error {
+                completion(.failure(ServiceError.couldntCompleteTheAction))
+            } else {
+                completion(.success)
+            }
+        }
+    }
+    
+    func removeLikeFromPost(postID: String, completion: @escaping (VoidResult) -> Void) {
+        guard let currentUserID = AuthenticationService.shared.getCurrentUserUID() else { return }
+        let databaseKey = "PostsLikes/\(postID)/\(currentUserID)"
+
         databaseRef.child(databaseKey).removeValue { error, _ in
-            if error == nil {
-                completion(.success("remove like from \(postID)"))
+            if let error = error {
+                completion(.failure(ServiceError.couldntCompleteTheAction))
             } else {
-                completion(.failure(error!))
+                completion(.success)
             }
         }
     }
-    
 }

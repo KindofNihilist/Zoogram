@@ -22,7 +22,7 @@ class CommentAccessoryView: UIInputView {
     var numberOfLines = 1
     let textViewCharacterLimit = 300
     var charactersLeft = 300
-    let placeholder = "Enter comment"
+    let placeholder = String(localized: "Enter comment")
 
     private lazy var postButtonBottomConstraint = postButton.bottomAnchor.constraint(equalTo: commentTextView.bottomAnchor, constant: -5)
     private lazy var postButtonCenterYConstraint = postButton.centerYAnchor.constraint(equalTo: userProfilePicture.centerYAnchor)
@@ -31,17 +31,13 @@ class CommentAccessoryView: UIInputView {
     private var separator: UIView = {
         let separator = UIView()
         separator.translatesAutoresizingMaskIntoConstraints = false
-        separator.backgroundColor = ColorScheme.separatorColor
+        separator.backgroundColor = Colors.detailGray
         return separator
     }()
 
-     var userProfilePicture: UIImageView = {
-        let imageView = UIImageView()
+     var userProfilePicture: ProfilePictureImageView = {
+        let imageView = ProfilePictureImageView()
         imageView.translatesAutoresizingMaskIntoConstraints = false
-        imageView.contentMode = .scaleAspectFit
-        imageView.clipsToBounds = true
-        imageView.backgroundColor = .secondarySystemBackground
-        imageView.contentMode = .scaleAspectFill
         return imageView
     }()
 
@@ -49,17 +45,17 @@ class CommentAccessoryView: UIInputView {
         let view = UIView()
         view.translatesAutoresizingMaskIntoConstraints = false
         view.clipsToBounds = true
-//        view.backgroundColor = .systemGreen
         view.layer.cornerCurve = .continuous
-        view.layer.borderWidth = 1
-        view.layer.borderColor = UIColor.placeholderText.cgColor
+        view.layer.borderWidth = 0.8
+        view.layer.borderColor = Colors.detailGray.cgColor
+        view.backgroundColor = Colors.backgroundSecondary
         return view
     }()
 
     private var commentTextView: VerticallyCenteredTextView = {
         let textView = VerticallyCenteredTextView()
         textView.translatesAutoresizingMaskIntoConstraints = false
-//        textView.backgroundColor = .systemRed
+        textView.backgroundColor = Colors.backgroundSecondary
         textView.font = CustomFonts.regularFont(ofSize: 16)
         textView.clipsToBounds = true
         textView.layer.masksToBounds = true
@@ -92,7 +88,7 @@ class CommentAccessoryView: UIInputView {
         button.layer.cornerRadius = 30/2
         button.setImage(UIImage(systemName: "arrow.up.circle.fill",
                                 withConfiguration: UIImage.SymbolConfiguration(pointSize: 35)), for: .normal)
-        button.tintColor = .systemBlue
+        button.tintColor = Colors.coolBlue
         button.addTarget(self, action: #selector(didTapPostButton), for: .touchUpInside)
         return button
     }()
@@ -100,7 +96,7 @@ class CommentAccessoryView: UIInputView {
     override init(frame: CGRect, inputViewStyle: UIInputView.Style) {
         super.init(frame: frame, inputViewStyle: inputViewStyle)
         autoresizingMask = .flexibleHeight
-        backgroundColor = .systemBackground
+        backgroundColor = Colors.background
         setupConstraints()
         placeholderLabel.text = placeholder
         commentTextView.delegate = self
@@ -123,6 +119,11 @@ class CommentAccessoryView: UIInputView {
         }
     }
 
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        inputContainerView.layer.borderColor = Colors.detailGray.cgColor
+    }
+
     func configure(with profilePhoto: UIImage?) {
         self.userProfilePicture.image = profilePhoto
     }
@@ -137,9 +138,9 @@ class CommentAccessoryView: UIInputView {
 
         NSLayoutConstraint.activate([
 
-            separator.topAnchor.constraint(equalTo: self.topAnchor),
-            separator.heightAnchor.constraint(equalToConstant: 1),
-            separator.widthAnchor.constraint(equalTo: self.widthAnchor),
+//            separator.topAnchor.constraint(equalTo: self.topAnchor),
+//            separator.heightAnchor.constraint(equalToConstant: 1),
+//            separator.widthAnchor.constraint(equalTo: self.widthAnchor),
 
             userProfilePicture.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -10),
             userProfilePicture.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: 10),
@@ -148,7 +149,7 @@ class CommentAccessoryView: UIInputView {
 
             inputContainerView.leadingAnchor.constraint(equalTo: userProfilePicture.trailingAnchor, constant: 10),
             inputContainerView.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -10),
-            inputContainerView.topAnchor.constraint(equalTo: separator.topAnchor, constant: 10),
+            inputContainerView.topAnchor.constraint(equalTo: self.topAnchor, constant: 10),
             inputContainerView.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -10),
 
             commentTextView.topAnchor.constraint(equalTo: inputContainerView.topAnchor),

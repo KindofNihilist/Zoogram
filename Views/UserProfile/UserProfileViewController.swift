@@ -4,25 +4,16 @@
 //
 //  Created by Artem Dolbiev on 17.01.2022.
 //
-import SDWebImage
-import FirebaseAuth
 import UIKit
-import AVFoundation
 
-final class UserProfileViewController: UIViewController {
+final class UserProfileViewController: ViewControllerWithLoadingIndicator {
 
-    var service: UserProfileService!
-
-    private var viewModel = UserProfileViewModel()
-
+    private let viewModel: UserProfileViewModel
     private(set) var dataSource: CollectionViewDataSource?
-
     private(set) var factory: UserProfileFactory!
 
-    private var postTableViewController: PostViewController
-
+    private var postTableViewController: PostsTableViewController
     private var profileRefreshControl: UIRefreshControl?
-
     private var isTabBarItem: Bool
 
     private var collectionView: UICollectionView = {
@@ -30,39 +21,41 @@ final class UserProfileViewController: UIViewController {
         layout.scrollDirection = .vertical
         layout.sectionInsetReference = .fromSafeArea
         let collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        collectionView.translatesAutoresizingMaskIntoConstraints = false
+        collectionView.backgroundColor = Colors.background
+        collectionView.showsVerticalScrollIndicator = false
         return collectionView
     }()
 
     private lazy var settingsButton: UIBarButtonItem = {
-        let button = UIButton(frame: CGRect(x: 0, y: 0, width: 5, height: 5))
+        let button = UIButton(frame: CGRect(x: 0, y: 0, width: 10, height: 10))
         button.setImage(UIImage(named: "menuIcon"), for: .normal)
         button.addTarget(self, action: #selector(didTapSettingsButton), for: .touchUpInside)
-        button.tintColor = .label
+        button.tintColor = Colors.label
         let barButtonItem = UIBarButtonItem(customView: button)
-        barButtonItem.customView?.widthAnchor.constraint(equalToConstant: 20).isActive = true
-        barButtonItem.customView?.heightAnchor.constraint(equalToConstant: 20).isActive = true
+        barButtonItem.customView?.widthAnchor.constraint(equalToConstant: 22).isActive = true
+        barButtonItem.customView?.heightAnchor.constraint(equalToConstant: 22).isActive = true
         return barButtonItem
     }()
 
-    lazy var userNicknameLabel: UILabel = {
+    private lazy var userNicknameLabel: UILabel = {
         let label = UILabel()
-        label.font = CustomFonts.boldFont(ofSize: 20)
+        label.font = CustomFonts.boldFont(ofSize: 21)
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
 
-    init(service: UserProfileService, user: ZoogramUser? = nil, isTabBarItem: Bool) {
-        self.service = service
-        self.viewModel.insertUserIfPreviouslyObtained(user: user)
-        self.postTableViewController = PostViewController(posts: viewModel.posts.value, service: self.service)
+    init(service: any UserProfileServiceProtocol, user: ZoogramUser, isTabBarItem: Bool) {
+        self.viewModel = UserProfileViewModel(service: service)
+        self.viewModel.user = user
+        self.postTableViewController = PostsTableViewController(posts: viewModel.posts.value, service: service)
         self.isTabBarItem = isTabBarItem
-        super.init(nibName: nil, bundle: nil)
+        super.init()
+        self.view.backgroundColor = Colors.background
+        self.mainView = collectionView
         self.setupCollectionView()
         self.setupRefreshControl()
-
-        self.viewModel.posts.bind { posts in
-            self.postTableViewController.updatePostsArrayWith(posts: posts)
-        }
+        self.postTableViewController.delegate = self
     }
 
     required init?(coder: NSCoder) {
@@ -70,11 +63,19 @@ final class UserProfileViewController: UIViewController {
     }
 
     override func viewDidLoad() {
+        super.viewDidLoad()
+        self.viewModel.posts.bind { posts in
+            self.postTableViewController.updatePostsArrayWith(posts: posts)
+        }
         getUserProfileData()
+        self.postTableViewController.updateTableViewFrame(to: self.view.frame)
+        self.reloadAction = {
+            self.getUserProfileData()
+        }
     }
 
-    func getCurrentUserProfile() -> ZoogramUser {
-        return viewModel.user
+    override func viewWillAppear(_ animated: Bool) {
+        navigationController?.setNavigationBarHidden(false, animated: true)
     }
 
     func setupRefreshControl() {
@@ -83,14 +84,16 @@ final class UserProfileViewController: UIViewController {
         collectionView.refreshControl = profileRefreshControl
     }
 
-    private func configureNavigationBar() {
-        setUserNickname()
-        navigationItem.rightBarButtonItem = settingsButton
-        navigationItem.leftBarButtonItem = UIBarButtonItem(customView: userNicknameLabel)
+    private func setupNotificationObservers() {
+        NotificationCenter.default.addObserver(forName: .didUpdateUserProfile, object: nil, queue: nil) { [weak self] notification in
+            self?.updateProfileHeader()
+        }
     }
 
-    private func setUserNickname() {
+    private func configureNavigationBar() {
         userNicknameLabel.text = viewModel.user.username
+        navigationItem.rightBarButtonItem = settingsButton
+        navigationItem.leftBarButtonItem = UIBarButtonItem(customView: userNicknameLabel)
     }
 
     private func updateTableViewPosts() {
@@ -98,9 +101,25 @@ final class UserProfileViewController: UIViewController {
         self.postTableViewController.updatePostsArrayWith(posts: posts)
     }
 
+    private func updatePostsCollectionView(with posts: [PostViewModel]) {
+        if self.viewModel.posts.value.count != posts.count {
+            viewModel.posts.value = posts
+            print("collectionView update postsCount ", posts.count)
+            self.setupDatasource()
+            hideLoadingFooterIfNeeded()
+        }
+    }
+
+    private func hideLoadingFooterIfNeeded() {
+        if self.viewModel.hasHitTheEndOfPosts() {
+            self.factory.hideLoadingFooter()
+        } else {
+            self.factory.showLoadingIndicator()
+        }
+    }
+
     // MARK: CollectionView Setup
     private func setupCollectionView() {
-        collectionView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(collectionView)
         NSLayoutConstraint.activate([
             collectionView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
@@ -114,42 +133,91 @@ final class UserProfileViewController: UIViewController {
         self.collectionView.setContentOffset(CGPoint.zero, animated: true)
     }
 
+    private func updateProfileHeader() {
+        viewModel.getUserProfileData { result in
+            switch result {
+            case .success:
+                self.factory.refreshProfileHeader(with: self.viewModel)
+            case .failure(let error):
+                self.showPopUp(issueText: error.localizedDescription)
+            }
+        }
+    }
+
+    func getUserProfileDataIfNeeded() {
+        if viewModel.hasLoadedData() == false {
+            getUserProfileData()
+        }
+    }
+
     @objc func getUserProfileData() {
         let dispatchGroup = DispatchGroup()
-
         dispatchGroup.enter()
-        service.getUserProfileViewModel { viewModel in
-            self.viewModel.updateValuesWithViewModel(viewModel)
-
-            if self.isTabBarItem {
-                self.configureNavigationBar()
+        viewModel.getUserProfileData { result in
+            if case .failure(let error) = result {
+                self.handleLoadingError(error: error)
+                return
             }
             dispatchGroup.leave()
         }
 
         dispatchGroup.enter()
-        service.getPosts { posts in
-            self.viewModel.posts.value = posts
+        viewModel.getPosts { result in
+            if case .failure(let error) = result {
+                self.handleLoadingError(error: error)
+                return
+            }
             dispatchGroup.leave()
         }
 
         dispatchGroup.notify(queue: .main) {
+            self.removeLoadingErrorNotificationIfDisplayed()
             self.factory = UserProfileFactory(for: self.collectionView, headerDelegate: self)
             self.setupDatasource()
-
-            if self.service.hasHitTheEndOfPosts {
-                self.factory.hideLoadingFooter()
-            } else {
-                self.factory.showLoadingIndicator()
-            }
+            self.showMainView()
+            self.hideLoadingFooterIfNeeded()
             self.collectionView.refreshControl?.endRefreshing()
+            if self.viewModel.isCurrentUserProfile && self.isTabBarItem {
+                self.configureNavigationBar()
+                self.setupNotificationObservers()
+            }
+        }
+    }
+
+    private func getMorePosts() {
+        factory.showLoadingIndicator()
+        viewModel.getMorePosts { result in
+            switch result {
+            case .success(let paginatedPosts):
+                if let unwrappedPosts = paginatedPosts {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        self.factory.updatePostsSection(with: unwrappedPosts) {
+                            self.updateTableViewPosts()
+                            self.viewModel.hasFinishedPaginating()
+                            self.hideLoadingFooterIfNeeded()
+                        }
+                    }
+                }
+
+            case .failure(let error):
+                self.factory.showPaginationRetryButton(error: error, delegate: self)
+            }
+        }
+    }
+
+    private func handleLoadingError(error: Error) {
+        if isMainViewVisible {
+            self.showPopUp(issueText: error.localizedDescription)
+            self.collectionView.refreshControl?.endRefreshing()
+        } else {
+            self.showLoadingErrorNotification(text: error.localizedDescription)
         }
     }
 
     @objc private func didTapSettingsButton() {
-        let settingsVC = SettingsViewController()
+        let settingsVC = SettingsViewController(currentUserViewModel: self.viewModel)
         settingsVC.hidesBottomBarWhenPushed = true
-        settingsVC.title = "Settings"
+        settingsVC.title = String(localized: "Settings")
         self.navigationController?.pushViewController(settingsVC, animated: true)
     }
 }
@@ -158,64 +226,32 @@ final class UserProfileViewController: UIViewController {
 extension UserProfileViewController {
 
     func setupDatasource() {
-        self.factory.buildSections(profileViewModel: self.viewModel)
-        let dataSource = DefaultCollectionViewDataSource(sections: factory.sections)
+        factory.buildSections(profileViewModel: self.viewModel)
+        let dataSource = DefaultCollectionViewDataSource(sections: factory.getSections())
         dataSource.delegate = self
         self.dataSource = dataSource
         self.collectionView.dataSource = dataSource
         self.collectionView.delegate = dataSource
         self.factory.postCellAction = { indexPath in
-            self.postSelectAction(at: indexPath)
+            guard self.viewModel.posts.value.isEmpty != true else { return }
+            self.postTableViewController.focusTableViewOnPostWith(index: indexPath)
+            self.navigationController?.pushViewController(self.postTableViewController, animated: true)
         }
         self.collectionView.reloadData()
     }
 }
 
 extension UserProfileViewController: CollectionViewDataSourceDelegate {
+
     func scrollViewDidScroll(scrollView: UIScrollView) {
-
+        guard viewModel.isPaginationAllowed() else { return }
         let position = scrollView.contentOffset.y
+        let contentHeight = collectionView.contentSize.height
+        let scrollViewHeight = scrollView.frame.size.height
 
-        if position > (collectionView.contentSize.height - 100 - scrollView.frame.size.height) {
-            guard service.hasHitTheEndOfPosts == false && service.isPaginationAllowed else {
-                if service.hasHitTheEndOfPosts {
-                    factory.setShouldDisplayLoadingFooter(false)
-                    factory.hideLoadingFooter()
-                }
-                return
-            }
-            service.getMorePosts { paginatedPosts in
-                if let unwrappedPosts = paginatedPosts {
-                    let postsCountBeforeUpdate = self.viewModel.posts.value.count
-                    self.viewModel.posts.value.append(contentsOf: unwrappedPosts)
-                    self.factory.updatePostsSection(with: unwrappedPosts)
-                    self.updateTableViewPosts()
-
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                        let postsCountAfterUpdate = self.viewModel.posts.value.count
-                        let indexPaths = (postsCountBeforeUpdate ..< postsCountAfterUpdate).map {
-                            IndexPath(row: $0, section: 1)
-                        }
-                        self.collectionView.performBatchUpdates {
-                            self.collectionView.insertItems(at: indexPaths)
-                        } completion: { _ in
-                            self.service.isPaginationAllowed = true
-                            if self.service.hasHitTheEndOfPosts {
-                                self.factory.hideLoadingFooter()
-                            }
-                        }
-                    }
-                }
-            }
+        if position > (contentHeight - scrollViewHeight - 100) {
+            self.getMorePosts()
         }
-    }
-
-    func postSelectAction(at indexPath: IndexPath) {
-        guard viewModel.posts.value.isEmpty != true else {
-            return
-        }
-        self.postTableViewController.focusTableViewOnPostWith(index: indexPath)
-        self.navigationController?.pushViewController(self.postTableViewController, animated: true)
     }
 }
 
@@ -231,57 +267,62 @@ extension UserProfileViewController: ProfileHeaderDelegate {
     }
 
     func followingButtonTapped() {
-        let user = viewModel.user
         // open tableview of people user follows
-        let followListVC = FollowListViewController(for: user.userID,
-                                                    isUserProfile: viewModel.isCurrentUserProfile,
-                                                    viewKind: .following)
-        followListVC.title = "Following"
+        let user = viewModel.user
+        let service = FollowedListService(for: user.userID, followSystemService: FollowSystemService.shared)
+        let followListVC = FollowedListViewController(service: service, isUserProfile: user.isCurrentUserProfile)
+        followListVC.title = String(localized: "Following")
         navigationController?.pushViewController(followListVC, animated: true)
     }
 
     func followersButtonTapped() {
-        let user = viewModel.user
         // open viewcontroller with tableview of people following user
-        let followListVC = FollowListViewController(for: user.userID,
-                                                    isUserProfile: viewModel.isCurrentUserProfile,
-                                                    viewKind: .followers)
-        followListVC.title = "Followers"
+        let user = viewModel.user
+        let service = FollowersListService(for: user.userID, followSystemService: FollowSystemService.shared)
+        let followListVC = FollowersListViewController(service: service, isUserProfile: user.isCurrentUserProfile)
+        followListVC.title = String(localized: "Followers")
         navigationController?.pushViewController(followListVC, animated: true)
     }
 
     func editProfileButtonTapped() {
-        let profileEditingVC = ProfileEdditingViewController(userProfileViewModel: self.viewModel)
-        present(UINavigationController(rootViewController: profileEditingVC), animated: true)
+        let service = UserDataValidationService()
+        let profileEditingVC = ProfileEdditingViewController(userProfileViewModel: self.viewModel, service: service)
+        let navigationController = UINavigationController(rootViewController: profileEditingVC)
+        navigationController.modalPresentationStyle = .fullScreen
+        present(navigationController, animated: true)
     }
 
     func followButtonTapped(completion: @escaping (FollowStatus) -> Void) {
-        service.followUser { [weak self] followStatus in
-            self?.viewModel.user.followStatus = followStatus
-            completion(followStatus)
+        viewModel.followUser { result in
+            switch result {
+            case .success(let followStatus):
+                completion(followStatus)
+            case .failure(let error):
+                self.showPopUp(issueText: error.localizedDescription)
+            }
         }
     }
 
     func unfollowButtonTapped(completion: @escaping (FollowStatus) -> Void) {
-        service.unfollowUser { [weak self] followStatus in
-            self?.viewModel.user.followStatus = followStatus
-            completion(followStatus)
+        viewModel.unfollowUser { result in
+            switch result {
+            case .success(let followStatus):
+                completion(followStatus)
+            case .failure(let error):
+                self.showPopUp(issueText: error.localizedDescription)
+            }
         }
     }
 }
 
-extension UserProfileViewController: ProfileTabsCollectionViewDelegate {
-    func didTapGridTabButton() {
-
-    }
-
-    func didTapTaggedTabButton() {
-
+extension UserProfileViewController: PostsTableViewDelegate {
+    func updateCollectionView(with postViewModels: [PostViewModel]) {
+        updatePostsCollectionView(with: postViewModels)
     }
 }
 
-extension UserProfileViewController: UserProfilePostsTableViewProtocol {
-    func updateUserProfilePosts() {
-        self.getUserProfileData()
+extension UserProfileViewController: PaginationIndicatorCellDelegate {
+    func didTapRetryPaginationButton() {
+        getMorePosts()
     }
 }

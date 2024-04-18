@@ -11,9 +11,13 @@ open class CellController<T: ReusableCellHolder> {
 
     private weak var reusableCellHolder: T?
 
+    var relatedSection: SectionController<T>?
+
     var cell: T.CellType?
 
     var allowsEditing: Bool = false
+
+    var didSelectAction: ((IndexPath) -> Void)?
 
     public var indexPath: IndexPath?
 
@@ -51,6 +55,5 @@ open class CellController<T: ReusableCellHolder> {
     }
 
     open func didSelectCell(at indexPath: IndexPath) {
-
     }
 }

@@ -8,97 +8,93 @@
 import Foundation
 import FirebaseDatabase
 
-class UserPostsService {
+typealias PostCount = Int
+typealias PhotoURLString = String
+
+protocol UserPostsServiceProtocol {
+    func insertNewPost(post: UserPost, completion: @escaping (VoidResult) -> Void)
+    func deletePost(postID: String, postImageURL: String, completion: @escaping (VoidResult) -> Void)
+    func deletePostFromFollowersTimeline(postID: String, completion: @escaping (VoidResult) -> Void)
+    func getPost(ofUser user: String, postID: String, completion: @escaping (Result<UserPost, Error>) -> Void)
+    func getPostCount(for userID: String, completion: @escaping (Result<PostCount, Error>) -> Void)
+    func getPosts(quantity: UInt, for userID: String, completion: @escaping CompletionBlockWithPosts)
+    func getMorePosts(quantity: UInt, after postKey: String, for userID: String, completion: @escaping CompletionBlockWithPosts)
+}
+
+class UserPostsService: UserPostsServiceProtocol {
 
     static let shared = UserPostsService()
 
     private let databaseRef = Database.database(url: "https://catogram-58487-default-rtdb.europe-west1.firebasedatabase.app").reference()
 
-    private let currentUserID = AuthenticationManager.shared.getCurrentUserUID()
-
     func createPostUID() -> String {
         return databaseRef.child("Posts").childByAutoId().key!
     }
-
-    typealias PostCount = Int
-
-    typealias PhotoURLString = String
 
     // MARK: Create post
 
     // By using multipath batch updates this method creates new post entry for user, fans it out to every follower timeline and changes hasPosts bool status all in one write. So it either succeeds or fails, no midpoint results.
 
-    func insertNewPost(post: UserPost, completion: @escaping (Result<Void, Error>) -> Void) {
-        let userID = AuthenticationManager.shared.getCurrentUserUID()
-        let databaseKey = "Posts/\(userID)/\(post.postID)"
+    func insertNewPost(post: UserPost, completion: @escaping (VoidResult) -> Void) {
+        guard let currentUserID = AuthenticationService.shared.getCurrentUserUID() else {
+            return
+        }
+        let databaseKey = "Posts/\(currentUserID)/\(post.postID)"
+        
+        databaseRef.child("Followers/\(currentUserID)").getData { [weak self] error, snapshot in
+            if let error = error {
+                completion(.failure(ServiceError.couldntUploadPost))
+                return
+            } else if let followersSnapshot = snapshot {
 
-        databaseRef.child("Followers/\(userID)").observeSingleEvent(of: .value) { followersSnapshot in
+                var fanoutObj = [String: Any]()
+                let postDictionary = post.createDictionary()
 
-            var fanoutObj = [String: Any]()
-            let postDictionary = post.createDictionary()
-
-            if let followersData = followersSnapshot.value as? [String: AnyObject] {
-                let followers = followersData.keys
-                followers.forEach { follower in
-                    fanoutObj["/Timelines/\(follower)/\(post.postID)"] = postDictionary
+                if let followersData = followersSnapshot.value as? [String: AnyObject] {
+                    let followers = followersData.keys
+                    followers.forEach { follower in
+                        fanoutObj["/Timelines/\(follower)/\(post.postID)"] = postDictionary
+                    }
                 }
-            }
-            fanoutObj["Posts/\(userID)/\(post.postID)"] = postDictionary
-            fanoutObj["/Timelines/\(userID)/\(post.postID)"] = postDictionary
-            fanoutObj["Users/\(userID)/hasPosts"] = true
+                fanoutObj["Posts/\(currentUserID)/\(post.postID)"] = postDictionary
+                fanoutObj["Timelines/\(currentUserID)/\(post.postID)"] = postDictionary
+                fanoutObj["DiscoverPosts/\(post.postID)"] = postDictionary
+                fanoutObj["Users/\(currentUserID)/hasPosts"] = true
 
-            print("Fanout object:", fanoutObj)
-
-            self.databaseRef.updateChildValues(fanoutObj) { error, _ in
-                if let error = error {
-                    print(error.localizedDescription)
-                } else {
-                    print("succesfully fanned out the data")
-                    completion(Result.success(()))
+                self?.databaseRef.updateChildValues(fanoutObj) { error, _ in
+                    if let error = error {
+                        completion(.failure(ServiceError.couldntUploadPost))
+                    } else {
+                        completion(.success)
+                    }
                 }
             }
         }
     }
 
-//    func fanoutPost(post: UserPost, completion: @escaping () -> Void) {
-//        let uid = AuthenticationManager.shared.getCurrentUserUID()
-//
-//        databaseRef.child("Followers/\(uid)").observeSingleEvent(of: .value) { followersSnapshot in
-//
-//            var fanoutObj = [String : Any]()
-//            let postDictionary = post.createDictionary()
-//
-//            if let followersData = followersSnapshot.value as? [String: AnyObject] {
-//                let followers = followersData.keys
-//                followers.forEach { follower in
-//                    fanoutObj["/Timelines/\(follower)/\(post.postID)"] = postDictionary
-//                }
-//            }
-//
-//            fanoutObj["/Timelines/\(uid)/\(post.postID)"] = postDictionary
-//            print("Fanout object:", fanoutObj)
-//
-//            self.databaseRef.updateChildValues(fanoutObj) { error, _ in
-//                if let error = error {
-//                    print(error.localizedDescription)
-//                } else {
-//                    print("succesfully fanned out the data")
-//                    completion()
-//                }
-//            }
-//        }
-//    }
-
     // MARK: Delete Post
 
-    func deletePost(postID: String, postImageURL: String, completion: @escaping () -> Void) {
-        let userID = AuthenticationManager.shared.getCurrentUserUID()
+    func deletePost(postID: String, postImageURL: String, completion: @escaping (VoidResult) -> Void) {
+        guard let currentUserID = AuthenticationService.shared.getCurrentUserUID() else {
+            return
+        }
         let dispatchGroup = DispatchGroup()
-        print("inside UserPostsService delete method")
+
         dispatchGroup.enter()
-        databaseRef.child("Posts/\(userID)/\(postID)").removeValue { error, _ in
+        databaseRef.child("Posts/\(currentUserID)/\(postID)").removeValue { error, _ in
             if let error = error {
-                print(error.localizedDescription)
+                completion(.failure(ServiceError.couldntDeletePost))
+                return
+            } else {
+                dispatchGroup.leave()
+            }
+        }
+
+        dispatchGroup.enter()
+        databaseRef.child("DiscoverPosts/\(postID)").removeValue { error, _ in
+            if let error = error {
+                completion(.failure(ServiceError.couldntDeletePost))
+                return
             } else {
                 dispatchGroup.leave()
             }
@@ -107,7 +103,8 @@ class UserPostsService {
         dispatchGroup.enter()
         databaseRef.child("PostComments/\(postID)").removeValue { error, _ in
             if let error = error {
-                print(error.localizedDescription)
+                completion(.failure(ServiceError.couldntDeletePost))
+                return
             } else {
                 dispatchGroup.leave()
             }
@@ -116,208 +113,298 @@ class UserPostsService {
         dispatchGroup.enter()
         databaseRef.child("PostsLikes/\(postID)").removeValue { error, _ in
             if let error = error {
-
-                print(error.localizedDescription)
+                completion(.failure(ServiceError.couldntDeletePost))
+                return
             }
             dispatchGroup.leave()
         }
 
         dispatchGroup.enter()
-
         StorageManager.shared.deletePostPhoto(photoURL: postImageURL) { result in
+            if case .failure(let error) = result {
+                completion(.failure(ServiceError.couldntDeletePost))
+                return
+            }
+            dispatchGroup.leave()
+        }
+
+        dispatchGroup.enter()
+        deletePostFromFollowersTimeline(postID: postID) { result in
+            if case .failure(let error) = result {
+                completion(.failure(error))
+                return
+            }
+            dispatchGroup.leave()
+        }
+
+        dispatchGroup.enter()
+        deletePostFromBookmarks(postID: postID) { result in
+            if case .failure(let error) = result {
+                completion(.failure(error))
+                return
+            }
+            dispatchGroup.leave()
+        }
+
+        dispatchGroup.enter()
+        ActivitySystemService.shared.removePostRelatedActivityEvents(postID: postID) { result in
+            if case .failure(let error) = result {
+                completion(.failure(ServiceError.couldntDeletePost))
+                return
+            }
+            dispatchGroup.leave()
+        }
+
+        dispatchGroup.enter()
+        getPostCount(for: currentUserID) { result in
             switch result {
-            case .success(_):
-                print("Successfully deleted post photo")
-            case .failure(let error):
-                print(error.localizedDescription)
-            }
-            dispatchGroup.leave()
-        }
-
-        dispatchGroup.enter()
-        deletePostFromFollowersTimeline(postID: postID) { error in
-            if let error = error {
-                print("Couldn't delete post from timelines", error.localizedDescription)
-            } else {
-                dispatchGroup.leave()
-            }
-        }
-
-        dispatchGroup.enter()
-        ActivitySystemService.shared.removePostRelatedActivityEvents(postID: postID) {
-            print("Removed related activity events")
-            dispatchGroup.leave()
-        }
-
-        dispatchGroup.enter()
-        getPostCount(for: userID) { postsCount in
-            print("got posts count on deletion. Count: \(postsCount)")
-            if postsCount == 0 {
-                UserService.shared.changeHasPostsStatus(hasPostsStatus: false) {
+            case .success(let postsCount):
+                if postsCount == 0 {
+                    UserDataService.shared.changeHasPostsStatus(hasPostsStatus: false) { result in
+                        if case .failure(let error) = result {
+                            completion(.failure(ServiceError.couldntDeletePost))
+                            return
+                        }
+                        dispatchGroup.leave()
+                    }
+                } else {
                     dispatchGroup.leave()
                 }
-            } else {
-                dispatchGroup.leave()
+            case .failure(let error):
+                completion(.failure(ServiceError.couldntDeletePost))
+                return
             }
         }
 
         dispatchGroup.notify(queue: .main) {
-            completion()
+            completion(.success)
         }
     }
 
-    func deletePostFromFollowersTimeline(postID: String, completion: @escaping (Error?) -> Void) {
-        let uid = AuthenticationManager.shared.getCurrentUserUID()
-        let followersRef = Database.database(url: "https://catogram-58487-default-rtdb.europe-west1.firebasedatabase.app").reference()
+    func deletePostFromFollowersTimeline(postID: String, completion: @escaping (VoidResult) -> Void) {
+        guard let currentUserID = AuthenticationService.shared.getCurrentUserUID() else { return }
+        let followersRef = databaseRef.child("Followers/\(currentUserID)")
 
-        followersRef.child("Followers/\(uid)").observeSingleEvent(of: .value) { followersSnapshot in
-            var postsToDelete = [String: Any]()
+        followersRef.getData { error, snapshot in
+            if let error = error {
+                completion(.failure(ServiceError.couldntDeletePost))
+                return
+            } else if let followersSnapshot = snapshot {
 
-            if let followersDictionary = followersSnapshot.value as? [String: AnyObject] {
-                let followers = followersDictionary.keys
-                followers.forEach { follower in
-                    postsToDelete["/Timelines/\(follower)/\(postID)"] = NSNull()
+                var postsToDelete = [String: Any]()
+
+                if let followersDictionary = followersSnapshot.value as? [String: AnyObject] {
+                    let followers = followersDictionary.keys
+                    followers.forEach { follower in
+                        postsToDelete["/Timelines/\(follower)/\(postID)"] = NSNull()
+                    }
                 }
-            }
 
-            postsToDelete["/Timelines/\(uid)/\(postID)"] = NSNull()
+                postsToDelete["/Timelines/\(currentUserID)/\(postID)"] = NSNull()
 
-            self.databaseRef.updateChildValues(postsToDelete) { error, _ in
-                if let error = error {
-                    completion(error)
-                } else {
-                    print("Posts removed from followers timelines")
-                    completion(nil)
+                self.databaseRef.updateChildValues(postsToDelete) { error, _ in
+                    if let error = error {
+                        completion(.failure(ServiceError.couldntDeletePost))
+                    } else {
+                        completion(.success)
+                    }
                 }
             }
         }
     }
 
+    func deletePostFromBookmarks(postID: String, completion: @escaping (VoidResult) -> Void) {
+        let reverseIndexBookmarksPath = "BookmarksReverseIndex/\(postID)"
+
+        databaseRef.child(reverseIndexBookmarksPath).getData { error, snapshot in
+            if let error = error {
+                completion(.failure(ServiceError.couldntDeletePost))
+                return
+            } else if let snapshot = snapshot {
+
+                var bookmarksToRemove = [String: Any]()
+
+                if let usersBookmarkedThePost = snapshot.value as? [String: [String: Any]] {
+                    usersBookmarkedThePost.map { userID, bookmarkDict in
+                        if let bookmarkID = bookmarkDict["bookmarkID"] {
+                            bookmarksToRemove["Bookmarks/\(userID)/\(bookmarkID)"] = NSNull()
+                            bookmarksToRemove[reverseIndexBookmarksPath + "/\(userID)"] = NSNull()
+                        }
+                    }
+                }
+
+                self.databaseRef.updateChildValues(bookmarksToRemove) { error, _ in
+                    if let error = error {
+                        completion(.failure(ServiceError.couldntDeletePost))
+                    } else {
+                        completion(.success)
+                    }
+                }
+            }
+        }
+    }
+
+    func getPostCount(for userID: String, completion: @escaping (Result<PostCount, Error>) -> Void) {
+        let databaseKey = "Posts/\(userID)/"
+
+        databaseRef.child(databaseKey).getData { error, snapshot in
+            if let error = error {
+                completion(.failure(ServiceError.couldntLoadData))
+                return
+            } else if let snapshot = snapshot {
+                completion(.success(Int(snapshot.childrenCount)))
+            }
+        }
+    }
 
     //MARK: Get Post
-    func getPost(ofUser user: String, postID: String, completion: @escaping (UserPost) -> Void) {
+    func getPost(ofUser user: String, postID: String, completion: @escaping (Result<UserPost, Error>) -> Void) {
         let databaseKey = "Posts/\(user)/\(postID)"
 
-        databaseRef.child(databaseKey).observeSingleEvent(of: .value) { snapshot in
-            guard let postDictionary = snapshot.value as? [String: Any] else {
+        databaseRef.child(databaseKey).getData { error, snapshot in
+            if let error = error {
+                completion(.failure(ServiceError.couldntLoadData))
                 return
-            }
-            print("getting post")
-            do {
-                let jsonData = try JSONSerialization.data(withJSONObject: postDictionary as Any)
-                let decodedPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
-                UserService.shared.getUser(for: decodedPost.userID) { user in
-                    decodedPost.author = user
-                    print("Completing get post")
-                    completion(decodedPost)
-                }
-            } catch { error
-                print("catching error")
-                print(error)
-            }
-        }
-    }
+            } else if let snapshot = snapshot {
 
-
-
-    func getPostCount(for userID: String, completion: @escaping (PostCount) -> Void) {
-        let databaseKey = "Posts/\(userID)/"
-
-        databaseRef.child(databaseKey).observeSingleEvent(of: .value) { snapshot in
-            completion(Int(snapshot.childrenCount))
-        }
-    }
-
-    func getPosts(quantity: UInt, for userID: String, completion: @escaping ([UserPost], LastRetrievedPostKey) -> Void) {
-
-        let databaseKey = "Posts/\(userID)/"
-
-        databaseRef.child(databaseKey).queryOrderedByKey().queryLimited(toLast: quantity).observeSingleEvent(of: .value) { snapshot in
-
-            var retrievedPosts = [UserPost]()
-            var lastPostKey = ""
-            var postsAuthor = ZoogramUser()
-            let dispatchGroup = DispatchGroup()
-
-            for snapshotChild in snapshot.children.reversed() {
-
-                guard let postSnapshot = snapshotChild as? DataSnapshot,
-                      let postDictionary = postSnapshot.value as? [String: Any]
-                else {
-                    print("Couldn't cast snapshot as DataSnapshot")
+                guard let postDictionary = snapshot.value as? [String: Any] else {
+                    completion(.failure(ServiceError.snapshotCastingError))
                     return
                 }
-                dispatchGroup.enter()
-                lastPostKey = postSnapshot.key
-
                 do {
                     let jsonData = try JSONSerialization.data(withJSONObject: postDictionary as Any)
                     let decodedPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
-                    retrievedPosts.append(decodedPost)
-                    dispatchGroup.leave()
+                    UserDataService.shared.getUser(for: decodedPost.userID) { result in
+                        switch result {
+                        case .success(let user):
+                            decodedPost.author = user
+                        case .failure(let error):
+                            completion(.failure(ServiceError.couldntLoadData))
+                        }
+                        completion(.success(decodedPost))
+                    }
                 } catch {
-                    print("Couldn't create UserPost from postDictionary")
+                    completion(.failure(ServiceError.jsonParsingError))
                 }
-            }
-
-            dispatchGroup.enter()
-            UserService.shared.getUser(for: userID) { author in
-                postsAuthor = author
-                dispatchGroup.leave()
-            }
-
-            dispatchGroup.notify(queue: .main) {
-                for post in retrievedPosts {
-                    post.author = postsAuthor
-                }
-                completion(retrievedPosts, lastPostKey)
             }
         }
     }
 
-    func getMorePosts(quantity: UInt, after postKey: String, for userID: String, completion: @escaping ([UserPost], LastRetrievedPostKey) -> Void) {
-
+    func getPosts(quantity: UInt, for userID: String, completion: @escaping CompletionBlockWithPosts) {
         let databaseKey = "Posts/\(userID)/"
 
-        databaseRef.child(databaseKey).queryOrderedByKey().queryEnding(beforeValue: postKey).queryLimited(toLast: quantity).observeSingleEvent(of: .value) { snapshot in
+        databaseRef.child(databaseKey).queryOrderedByKey().queryLimited(toLast: quantity).getData { error, snapshot in
+            if let error = error {
+                completion(.failure(ServiceError.couldntLoadPosts))
+                return
+            } else if let snapshot = snapshot {
 
-            var lastRetrievedPostKey = ""
-            var retrievedPosts = [UserPost]()
-            var postsAuthor = ZoogramUser()
-            let dispatchGroup = DispatchGroup()
+                var retrievedPosts = [UserPost]()
+                var lastPostKey = ""
+                var postsAuthor = ZoogramUser()
+                let dispatchGroup = DispatchGroup()
 
-            for snapshotChild in snapshot.children.reversed() {
+                for snapshotChild in snapshot.children.reversed() {
 
-                guard let postSnapshot = snapshotChild as? DataSnapshot,
-                      let postDictionary = postSnapshot.value as? [String: Any]
-                else {
-                    print("Couldn't cast snapshot as DataSnapshot")
-                    return
+                    guard let postSnapshot = snapshotChild as? DataSnapshot,
+                          let postDictionary = postSnapshot.value as? [String: Any]
+                    else {
+                        completion(.failure(ServiceError.snapshotCastingError))
+                        break
+                    }
+                    dispatchGroup.enter()
+                    lastPostKey = postSnapshot.key
+
+                    do {
+                        let jsonData = try JSONSerialization.data(withJSONObject: postDictionary as Any)
+                        let decodedPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
+                        retrievedPosts.append(decodedPost)
+                        dispatchGroup.leave()
+                    } catch {
+                        completion(.failure(ServiceError.jsonParsingError))
+                        break
+                    }
                 }
+
                 dispatchGroup.enter()
-                lastRetrievedPostKey = postSnapshot.key
-
-                do {
-                    let jsonData = try JSONSerialization.data(withJSONObject: postDictionary as Any)
-                    let decodedPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
-                    retrievedPosts.append(decodedPost)
+                UserDataService.shared.getUser(for: userID) { result in
+                    switch result {
+                    case .success(let author):
+                        postsAuthor = author
+                    case .failure(let error):
+                        completion(.failure(ServiceError.couldntLoadPosts))
+                        break
+                    }
                     dispatchGroup.leave()
-                } catch {
-                    print("Couldn't decode post")
+                }
+
+                dispatchGroup.notify(queue: .main) {
+                    let postsWithAuthors = retrievedPosts.map { post in
+                        post.author = postsAuthor
+                        return post
+                    }
+                    print("retrieved posts: ", postsWithAuthors)
+                    completion(.success((postsWithAuthors, lastPostKey)))
                 }
             }
+        }
+    }
 
-            dispatchGroup.enter()
-            UserService.shared.getUser(for: userID) { author in
-                postsAuthor = author
-                dispatchGroup.leave()
-            }
+    func getMorePosts(quantity: UInt, after postKey: String, for userID: String, completion: @escaping CompletionBlockWithPosts) {
+        let databaseKey = "Posts/\(userID)/"
 
-            dispatchGroup.notify(queue: .main) {
-                for post in retrievedPosts {
-                    post.author = postsAuthor
+        databaseRef.child(databaseKey).queryOrderedByKey().queryEnding(beforeValue: postKey).queryLimited(toLast: quantity).getData { error, snapshot in
+            if let error = error {
+                completion(.failure(ServiceError.couldntLoadPosts))
+                return
+            } else if let snapshot = snapshot {
+
+                var lastRetrievedPostKey = ""
+                var retrievedPosts = [UserPost]()
+                var postsAuthor = ZoogramUser()
+                let dispatchGroup = DispatchGroup()
+
+                for snapshotChild in snapshot.children.reversed() {
+
+                    guard let postSnapshot = snapshotChild as? DataSnapshot,
+                          let postDictionary = postSnapshot.value as? [String: Any]
+                    else {
+                        completion(.failure(ServiceError.snapshotCastingError))
+                        break
+                    }
+                    dispatchGroup.enter()
+                    lastRetrievedPostKey = postSnapshot.key
+
+                    do {
+                        let jsonData = try JSONSerialization.data(withJSONObject: postDictionary as Any)
+                        let decodedPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
+                        retrievedPosts.append(decodedPost)
+                        dispatchGroup.leave()
+                    } catch {
+                        completion(.failure(ServiceError.jsonParsingError))
+                        break
+                    }
                 }
-                completion(retrievedPosts, lastRetrievedPostKey)
+
+                dispatchGroup.enter()
+                UserDataService.shared.getUser(for: userID) { result in
+                    switch result {
+                    case .success(let author):
+                        postsAuthor = author
+                    case .failure(let error):
+                        completion(.failure(ServiceError.couldntLoadPosts))
+                        break
+                    }
+                    dispatchGroup.leave()
+                }
+
+                dispatchGroup.notify(queue: .main) {
+                    let postsWithAuthor = retrievedPosts.map { post in
+                        post.author = postsAuthor
+                        return post
+                    }
+                    completion(.success((postsWithAuthor, lastRetrievedPostKey)))
+                }
             }
         }
     }

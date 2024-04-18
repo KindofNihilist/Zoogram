@@ -12,9 +12,12 @@ class CustomButtonWithLabels: UIButton {
     private let label: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
-        label.font = CustomFonts.regularFont(ofSize: 15)
-        label.textColor = .label
+        label.font = CustomFonts.regularFont(ofSize: 14)
+        label.textColor = Colors.label
         label.textAlignment = .center
+        label.numberOfLines = 1
+        label.adjustsFontSizeToFitWidth = true
+        label.minimumScaleFactor = 0.6
         return label
     }()
     
@@ -22,7 +25,7 @@ class CustomButtonWithLabels: UIButton {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
         label.font = CustomFonts.boldFont(ofSize: 17)
-        label.textColor = .label
+        label.textColor = Colors.label
         label.textAlignment = .center
         return label
     }()

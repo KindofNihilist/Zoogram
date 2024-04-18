@@ -20,6 +20,7 @@ class SectionController<T: ReusableCellHolder> {
         self.sectionIndex = sectionIndex
         self.sectionHolder = sectionHolder
         self.cellControllers = cellControllers
+        self.registerSupplementaryViews()
     }
 
     public final func numberOfCells() -> Int {
@@ -28,7 +29,8 @@ class SectionController<T: ReusableCellHolder> {
 
     public final func cell(at indexPath: IndexPath) -> T.CellType {
         let cellController = cellControllers[indexPath.row]
-        registerCell()
+        cellController.relatedSection = self
+        registerCell(at: indexPath)
         let cell = cellController.cellFromReusableCellHolder(sectionHolder, for: indexPath)
         return cell
     }
@@ -38,10 +40,8 @@ class SectionController<T: ReusableCellHolder> {
         return cellController
     }
 
-    final func registerCell() {
-        guard let cell = cellControllers.first else {
-            return
-        }
+    final func registerCell(at indexPath: IndexPath) {
+        let cell = cellControllers[indexPath.row]
         cell.registerCell(in: sectionHolder)
     }
 
@@ -50,14 +50,14 @@ class SectionController<T: ReusableCellHolder> {
     }
 
     final func appendCellController(controller: CellController<T>, at position: Int) {
-        let cellController = self.cellControllers[position] as? CommentCellController
         self.cellControllers.insert(controller, at: position)
-        let newCellController = self.cellControllers[position] as? CommentCellController
     }
 
     final func removeCellController(at indexPath: IndexPath) {
         self.cellControllers.remove(at: indexPath.row)
     }
+
+    public func registerSupplementaryViews() {}
 }
 
 class TableSectionController: SectionController<UITableView> {
@@ -108,6 +108,10 @@ class TableSectionController: SectionController<UITableView> {
 }
 
 class CollectionSectionController: SectionController<UICollectionView> {
+    
+    override init(sectionHolder: UICollectionView, cellControllers: [CellController<UICollectionView>], sectionIndex: Int) {
+        super.init(sectionHolder: sectionHolder, cellControllers: cellControllers, sectionIndex: sectionIndex)
+    }
 
     public func itemSize() -> CGSize {
         return CGSize.zero
@@ -133,14 +137,14 @@ class CollectionSectionController: SectionController<UICollectionView> {
         return UICollectionReusableView()
     }
 
-    public func headerHeight() -> CGSize {
-        return CGSize.zero
+    public func headerHeight() -> CGSize? {
+        return nil
     }
 
-    public func footerHeight() -> CGSize {
-        return CGSize.zero
+    public func footerHeight() -> CGSize? {
+        return nil
     }
-
+   
     func getSupplementaryView(of kind: SupplementaryViewKind, at indexPath: IndexPath) -> UICollectionReusableView {
         if kind == UICollectionView.elementKindSectionHeader {
             return header(at: indexPath)
@@ -150,8 +154,16 @@ class CollectionSectionController: SectionController<UICollectionView> {
             return UICollectionReusableView()
         }
     }
-
-    public func registerSupplementaryViews() {}
+    
+    func getHeader() -> UICollectionReusableView? {
+        let supplementaryView = sectionHolder.supplementaryView(forElementKind: UICollectionView.elementKindSectionHeader, at: IndexPath(row: 0, section: sectionIndex))
+        return supplementaryView
+    }
+    
+    func getFooter() -> UICollectionReusableView? {
+        let supplementaryView = sectionHolder.supplementaryView(forElementKind: UICollectionView.elementKindSectionFooter, at: IndexPath(row: 0, section: sectionIndex))
+        return supplementaryView
+    }
 
     func calculateSupplementaryViewHeight(for view: UICollectionReusableView) -> CGSize {
         let headerViewSize = CGSize(width: sectionHolder.frame.width, height: UIView.layoutFittingCompressedSize.height)

@@ -23,12 +23,9 @@ class FollowEventTableViewCell: UITableViewCell {
 
     private let profileImageViewSize: CGFloat = 45
 
-    private let profileImageView: UIImageView = {
-        let imageView = UIImageView()
+    private let profileImageView: ProfilePictureImageView = {
+        let imageView = ProfilePictureImageView()
         imageView.translatesAutoresizingMaskIntoConstraints = false
-        imageView.layer.masksToBounds = true
-        imageView.contentMode = .scaleAspectFit
-        imageView.backgroundColor = .secondarySystemBackground
         return imageView
     }()
 
@@ -40,7 +37,7 @@ class FollowEventTableViewCell: UITableViewCell {
     }()
 
     private lazy var followUnfollowButton: FollowUnfollowButton = {
-        let button = FollowUnfollowButton()
+        let button = FollowUnfollowButton(followStatus: .notFollowing)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.addTarget(self, action: #selector(didTapFollowUnfollowButton), for: .touchUpInside)
         return button
@@ -60,15 +57,19 @@ class FollowEventTableViewCell: UITableViewCell {
 
     public func configure(with event: ActivityEvent) {
         self.event = event
-        switchFollowUnfollowButton(followStatus: event.user?.followStatus)
-
-        let attributedUsername = NSAttributedString(string: "\(event.user!.username) ", attributes: [NSAttributedString.Key.font: CustomFonts.boldFont(ofSize: 14), NSAttributedString.Key.foregroundColor: UIColor.label])
-        let attributedEventMessage = NSAttributedString(string: "started following you. ",
-                                                        attributes: [.font: CustomFonts.regularFont(ofSize: 14),
-                                                                     .foregroundColor: UIColor.label])
-        let attributedTimeStamp = NSAttributedString(string: event.date.timeAgoDisplay(),
-                                                     attributes: [.font: CustomFonts.regularFont(ofSize: 14),
-                                                                  .foregroundColor: UIColor.secondaryLabel])
+        if let followStatus = event.user?.followStatus {
+            self.followUnfollowButton.followStatus = followStatus
+        }
+        let attributedUsername = NSAttributedString(
+            string: "\(event.user!.username) ",
+            attributes: [.font: CustomFonts.boldFont(ofSize: 14), .foregroundColor: Colors.label])
+        let localizedMessage = String(localized: "started following you. ")
+        let attributedEventMessage = NSAttributedString(
+            string: localizedMessage,
+            attributes: [.font: CustomFonts.regularFont(ofSize: 14), .foregroundColor: Colors.label])
+        let attributedTimeStamp = NSAttributedString(
+            string: event.date.timeAgoDisplay(),
+            attributes: [.font: CustomFonts.regularFont(ofSize: 14), .foregroundColor: UIColor.secondaryLabel])
 
         let wholeMessage = NSMutableAttributedString()
         wholeMessage.append(attributedUsername)
@@ -85,13 +86,12 @@ class FollowEventTableViewCell: UITableViewCell {
 
         activityMessageLabel.attributedText = wholeMessage
 
-        let url = URL(string: event.user!.profilePhotoURL)
-        profileImageView.sd_setImage(with: url, completed: nil)
+        profileImageView.image = event.user?.getProfilePhoto()
 
         if event.seen == false {
-            self.contentView.backgroundColor = ColorScheme.unseenEventLightBlue
+            self.contentView.backgroundColor = Colors.unseenBlue
         } else {
-            self.contentView.backgroundColor = .systemBackground
+            self.contentView.backgroundColor = Colors.background
         }
     }
 
@@ -103,32 +103,20 @@ class FollowEventTableViewCell: UITableViewCell {
             profileImageView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 15),
             profileImageView.heightAnchor.constraint(equalToConstant: profileImageViewSize),
             profileImageView.widthAnchor.constraint(equalToConstant: profileImageViewSize),
-            profileImageView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -10),
+            profileImageView.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant: -10),
 
             activityMessageLabel.leadingAnchor.constraint(equalTo: profileImageView.trailingAnchor, constant: 15),
-            activityMessageLabel.trailingAnchor.constraint(equalTo: followUnfollowButton.leadingAnchor, constant: -10),
-            activityMessageLabel.topAnchor.constraint(equalTo: profileImageView.topAnchor, constant: 5),
-            activityMessageLabel.bottomAnchor.constraint(lessThanOrEqualTo: profileImageView.bottomAnchor),
+            activityMessageLabel.trailingAnchor.constraint(lessThanOrEqualTo: followUnfollowButton.leadingAnchor, constant: -10),
+            activityMessageLabel.topAnchor.constraint(equalTo: profileImageView.topAnchor, constant: 2),
+            activityMessageLabel.bottomAnchor.constraint(equalTo: self.contentView.bottomAnchor, constant: -10),
 
             followUnfollowButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -15),
-            followUnfollowButton.centerYAnchor.constraint(equalTo: activityMessageLabel.centerYAnchor),
-            followUnfollowButton.widthAnchor.constraint(equalToConstant: 80),
+            followUnfollowButton.centerYAnchor.constraint(equalTo: profileImageView.centerYAnchor),
+            followUnfollowButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 90),
             followUnfollowButton.heightAnchor.constraint(equalToConstant: 30)
         ])
 
         profileImageView.layer.cornerRadius = profileImageViewSize / 2
-    }
-
-    private func switchFollowUnfollowButton(followStatus: FollowStatus?) {
-        guard let followStatus = followStatus else {
-            return
-        }
-        switch followStatus {
-        case .notFollowing:
-            followUnfollowButton.changeAppearenceToFollow()
-        case .following:
-            followUnfollowButton.changeAppearenceToUnfollow()
-        }
     }
 
     @objc func didTapFollowUnfollowButton() {
@@ -141,15 +129,14 @@ class FollowEventTableViewCell: UITableViewCell {
         case .notFollowing:
             delegate?.followUserTapped(user: user) { followStatus in
                 self.event?.user?.followStatus = followStatus
-                self.switchFollowUnfollowButton(followStatus: followStatus)
+                self.followUnfollowButton.followStatus = followStatus
             }
 
         case .following:
             delegate?.unfollowUserTapped(user: user) { followStatus in
                 self.event?.user?.followStatus = followStatus
-                self.switchFollowUnfollowButton(followStatus: followStatus)
+                self.followUnfollowButton.followStatus = followStatus
             }
-
         case .none: return
         }
     }

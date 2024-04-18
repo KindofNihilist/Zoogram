@@ -8,9 +8,9 @@
 import Foundation
 
 enum ActivityEventType: String, Codable {
-    case postLiked = "postLiked"
-    case followed = "followed"
-    case postCommented = "postCommented"
+    case postLiked
+    case followed
+    case postCommented
 }
 
 class ActivityEvent: Codable, Hashable {
@@ -75,7 +75,7 @@ class ActivityEvent: Codable, Hashable {
     }
 
     static func createActivityEventFor(likedPostID: String) -> ActivityEvent {
-        let currentUserID = AuthenticationManager.shared.getCurrentUserUID()
+        let currentUserID = AuthenticationService.shared.getCurrentUserUID()!
         let eventID = ActivitySystemService.shared.createEventUID()
 
         return ActivityEvent(

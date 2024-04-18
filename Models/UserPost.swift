@@ -26,8 +26,8 @@ public class UserPost: Codable {
 
     // Used locally
     var author: ZoogramUser!
-    var likesCount: Int?
-    var commentsCount: Int?
+    var likesCount: Int = 0
+    var commentsCount: Int = 0
     var likeState: LikeState = .notLiked
     var bookmarkState: BookmarkState = .notBookmarked
     var image: UIImage?
@@ -59,8 +59,10 @@ public class UserPost: Codable {
         self.postedDate = try container.decode(Date.self, forKey: .postedDate)
     }
 
+
+
     static func createNewPostModel() -> UserPost {
-        let userUID = AuthenticationManager.shared.getCurrentUserUID()
+        let userUID = AuthenticationService.shared.getCurrentUserUID()!
         let postUID = UserPostsService.shared.createPostUID()
         return UserPost(userID: userUID,
                         postID: postUID,
@@ -77,14 +79,14 @@ public class UserPost: Codable {
         return dictionary
     }
 
-    func checkIfLikedByCurrentUser(completion: @escaping (LikeState) -> Void) {
-        LikeSystemService.shared.checkIfPostIsLiked(postID: postID) { likeState in
-            completion(likeState)
+    func checkIfLikedByCurrentUser(completion: @escaping (Result<LikeState, Error>) -> Void) {
+        LikeSystemService.shared.checkIfPostIsLiked(postID: postID) { result in
+            completion(result)
         }
     }
 
     func isMadeByCurrentUser() -> Bool {
-        let currentUserID = AuthenticationManager.shared.getCurrentUserUID()
+        let currentUserID = AuthenticationService.shared.getCurrentUserUID()
         return userID == currentUserID
     }
 
@@ -95,7 +97,12 @@ public class UserPost: Codable {
         case caption
         case postedDate
     }
+}
 
+extension UserPost: PostViewModelProvider {
+    func getPostViewModel() -> PostViewModel? {
+        return PostViewModel(post: self)
+    }
 }
 
 

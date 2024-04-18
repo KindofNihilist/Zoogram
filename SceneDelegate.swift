@@ -11,25 +11,66 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     var window: UIWindow?
 
+    private var shouldListenToAuthenticationStateChanges: Bool = true
+
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
 
         guard let windowScene = (scene as? UIWindowScene) else { return }
         window = UIWindow(frame: UIScreen.main.bounds)
-        window?.backgroundColor = .systemBackground
-        if Auth.auth().currentUser == nil {
-            let navigationController = UINavigationController(rootViewController: LoginViewController())
-            navigationController.navigationBar.backgroundColor = .systemBackground
-            navigationController.navigationBar.isTranslucent = false
-            navigationController.tabBarController?.tabBar.isTranslucent = false
-            navigationController.tabBarController?.tabBar.backgroundColor = .systemBackground
-            window?.rootViewController = navigationController
-        } else {
-            UserService.shared.getCurrentUser {
-                self.window?.rootViewController = TabBarController()
+        window?.backgroundColor = Colors.background
+        AuthenticationService.shared.listenToAuthenticationState { user in
+            guard self.shouldListenToAuthenticationStateChanges else { return }
+            guard let unwrappedUser = user else {
+                self.hideCurrentRootViewControllerIfNeeded {
+                    self.showLoginView(for: windowScene)
+                }
+                return
+            }
+            let dummyViewModel = ZoogramUser(isCurrentUser: true)
+            let tabBarController = TabBarController(currentUser: dummyViewModel, showAppearAnimation: false)
+            self.window?.windowScene = windowScene
+            self.window?.rootViewController = tabBarController
+            self.window?.makeKeyAndVisible()
+            UserDataService.shared.getCurrentUser { result in
+                switch result {
+                case .success(let currentUser):
+                    tabBarController.updateCurrentUserModel(with: currentUser)
+                case .failure(let error):
+                    tabBarController.selectedViewController?.showPopUp(issueText: ServiceError.couldntLoadUserData.localizedDescription)
+                }
             }
         }
-        window?.makeKeyAndVisible()
-        window?.windowScene = windowScene
+    }
+
+    private func hideCurrentRootViewControllerIfNeeded(completion: @escaping () -> Void) {
+        if let rootViewController = window?.rootViewController {
+            rootViewController.hideUIElements(animate: true) {
+                completion()
+            }
+        } else {
+            completion()
+        }
+    }
+
+    private func showLoginView(for windowScene: UIWindowScene, error: Error? = nil) {
+        let service = LoginService()
+        let loginViewController = LoginViewController(service: service)
+        loginViewController.shouldShowOnAppearAnimation = true
+        self.shouldListenToAuthenticationStateChanges = false
+        loginViewController.hasFinishedLogginIn.bind { hasFinishedLogginIn in
+            self.shouldListenToAuthenticationStateChanges = hasFinishedLogginIn
+        }
+        let navigationController = UINavigationController(rootViewController: loginViewController)
+        navigationController.navigationBar.backgroundColor = Colors.background
+        navigationController.navigationBar.isTranslucent = false
+        navigationController.tabBarController?.tabBar.isTranslucent = false
+        navigationController.tabBarController?.tabBar.backgroundColor = Colors.background
+        window?.rootViewController = navigationController
+        self.window?.makeKeyAndVisible()
+        self.window?.windowScene = windowScene
+        if let error = error {
+            navigationController.show(error: error)
+        }
     }
 
     func sceneDidDisconnect(_ scene: UIScene) {

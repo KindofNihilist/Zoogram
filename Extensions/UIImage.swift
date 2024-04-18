@@ -8,6 +8,7 @@
 import UIKit.UIImage
 
 extension UIImage {
+
     func croppedInRect(rect: CGRect) -> UIImage {
         func rad(_ degree: Double) -> CGFloat {
             return CGFloat(degree / 180.0 * .pi)
@@ -31,20 +32,15 @@ extension UIImage {
         return result
     }
 
-    func compressed() -> UIImage? {
-        let originalImageSize = NSData(data: self.jpegData(compressionQuality: 1)!).count
-        print("Original image size in KB: %f", Double(originalImageSize).rounded())
-        let jpegData = self.jpegData(compressionQuality: 1)
-        print("Compressed image size in KB: %f", Double(jpegData!.count).rounded())
-        let compressedImage = UIImage(data: jpegData!)
-        return compressedImage
-    }
-
     func ratio() -> CGFloat {
         return self.size.width / self.size.height
     }
 
     func isWidthDominant() -> Bool {
-        return self.size.width / self.size.height > 1
+        let ratio = ratio()
+        print("width: \(self.size.width)")
+        print("height: \(self.size.height)")
+        print("width/height = \(ratio)")
+        return ratio > 1
     }
 }

@@ -13,6 +13,7 @@ class PostViewModel {
     let author: ZoogramUser
     let isMadeByCurrentUser: Bool
     var isNewlyCreated: Bool
+    var datePosted: Date
     var shouldShowBlankCell: Bool = false
 
     let postImage: UIImage
@@ -38,20 +39,19 @@ class PostViewModel {
     var likesCount: Int {
         didSet {
             likesCountTitle = PostViewModel.createTitleFor(likesCount: likesCount)
-            print(likesCountTitle)
         }
     }
 
     var commentsCount: Int? {
         didSet {
             commentsCountTitle = PostViewModel.createTitleFor(commentsCount: commentsCount)
-            print(commentsCountTitle)
         }
     }
 
     init(post: UserPost) {
         self.postID = post.postID
         self.author = post.author
+        self.datePosted = post.postedDate
         self.isMadeByCurrentUser = post.isMadeByCurrentUser()
         self.postImage = post.image ?? UIImage()
         self.postImageURL = post.photoURL
@@ -60,17 +60,17 @@ class PostViewModel {
         self.bookmarkState = post.bookmarkState
         self.likeState = post.likeState
         self.isNewlyCreated = post.isNewlyCreated
-
         self.likesCountTitle = PostViewModel.createTitleFor(likesCount: post.likesCount)
         self.commentsCountTitle = PostViewModel.createTitleFor(commentsCount: post.commentsCount)
         self.timeSincePostedTitle = PostViewModel.createTitleFor(timeSincePosted: post.postedDate)
-        self.likesCount = post.likesCount ?? 0
+        self.likesCount = post.likesCount
         self.commentsCount = post.commentsCount
     }
 
     init() {
         self.postID = ""
         self.author = ZoogramUser()
+        self.datePosted = Date()
         self.isMadeByCurrentUser = true
         self.postImage = UIImage(systemName: "photo")!
         self.postImageURL = ""
@@ -98,42 +98,28 @@ class PostViewModel {
         }
 
         let usernameWithCaption = NSMutableAttributedString()
-
-
-        let attributedUsername = NSAttributedString(string: "\(username) ",
-                                                    attributes: [NSAttributedString.Key.font: CustomFonts.boldFont(ofSize: 14), NSAttributedString.Key.foregroundColor: UIColor.label])
+        let attributedUsername = NSAttributedString(
+            string: "\(username) ",
+            attributes: [.font: CustomFonts.boldFont(ofSize: 14), .foregroundColor: Colors.label])
         usernameWithCaption.append(attributedUsername)
 
-        let attributedCaption = NSAttributedString(string: caption,
-                                                   attributes: [NSAttributedString.Key.font: CustomFonts.regularFont(ofSize: 14), NSAttributedString.Key.foregroundColor: UIColor.label])
-
+        let attributedCaption = NSAttributedString(
+            string: caption,
+            attributes: [.font: CustomFonts.regularFont(ofSize: 14), .foregroundColor: Colors.label])
         usernameWithCaption.append(attributedCaption)
 
         return usernameWithCaption
     }
 
-    class func createTitleFor(likesCount: Int?) -> String {
-        guard let likesCount = likesCount else {
-            return "0 likes"
-        }
-
-        if likesCount == 1 {
-            return "\(likesCount) like"
-        } else {
-            return "\(likesCount) likes"
-        }
+    class func createTitleFor(likesCount: Int) -> String {
+        return String(localized: "\(likesCount) like")
     }
 
     class func createTitleFor(commentsCount: Int?) -> String? {
         guard let count = commentsCount, count > 0 else {
             return nil
         }
-
-        if commentsCount == 1 {
-            return "View \(count) comment"
-        } else {
-            return "View all \(count) comments"
-        }
+        return String(localized: "View \(count) comment")
     }
 
     class func createTitleFor(timeSincePosted: Date) -> String {

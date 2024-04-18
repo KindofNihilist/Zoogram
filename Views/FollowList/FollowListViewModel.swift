@@ -9,45 +9,49 @@ import Foundation
 
 class FollowListViewModel {
 
-    var uid: String!
+    let service: FollowListServiceProtocol
 
-    var users = [ZoogramUser]()
+    let isUserProfile: Bool
 
-    func getFollowers(completion: @escaping () -> Void) {
-        FollowSystemService.shared.getFollowers(for: uid) { [weak self] followers in
-            self?.users = followers
-            completion()
+    var userList = [ZoogramUser]()
+
+    init(service: FollowListServiceProtocol, isUserProfile: Bool) {
+        self.service = service
+        self.isUserProfile = isUserProfile
+    }
+
+    func getUserList(completion: @escaping (VoidResult) -> Void) {
+        service.getUserList { result in
+            switch result {
+            case .success(let userList):
+                self.userList = userList
+                completion(.success)
+            case .failure(let error):
+                completion(.failure(error))
+            }
         }
     }
 
-    func getFollowing(completion: @escaping () -> Void) {
-        FollowSystemService.shared.getFollowing(for: uid) { followed in
-            self.users = followed
-            completion()
-        }
-    }
-
-    func followUser(uid: String, completion: @escaping (FollowStatus) -> Void) {
-        FollowSystemService.shared.followUser(uid: uid) { followStatus in
-            completion(followStatus)
-        }
-    }
-
-    func unfollowUser(uid: String, completion: @escaping (FollowStatus) -> Void) {
-        FollowSystemService.shared.unfollowUser(uid: uid) { followStatus in
-            ActivitySystemService.shared.removeFollowEventForUser(userID: uid)
-            completion(followStatus)
-        }
-    }
-
-    func removeUserFollowingMe(uid: String, completion: @escaping (Bool) -> Void) {
-        FollowSystemService.shared.forcefullyRemoveFollower(uid: uid) { result in
+    func followUser(uid: String, completion: @escaping (Result<FollowStatus, Error>) -> Void) {
+        service.followUser(uid: uid) { result in
             completion(result)
         }
     }
 
-    func undoUserRemoval(uid: String, completion: @escaping (Bool) -> Void) {
-        FollowSystemService.shared.undoForcefullRemoval(ofUser: uid) { result in
+    func unfollowUser(uid: String, completion: @escaping (Result<FollowStatus, Error>) -> Void) {
+        service.unfollowUser(uid: uid) { result in
+            completion(result)
+        }
+    }
+
+    func removeUserFollowingMe(uid: String, completion: @escaping (VoidResult) -> Void) {
+        service.removeUserFollowingMe(uid: uid) { result in
+            completion(result)
+        }
+    }
+
+    func undoUserRemoval(uid: String, completion: @escaping (VoidResult) -> Void) {
+        service.undoUserRemoval(uid: uid) { result in
             completion(result)
         }
     }

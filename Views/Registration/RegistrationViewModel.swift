@@ -10,77 +10,76 @@ import UIKit
 
 class RegistrationViewModel {
 
-    private var newUser: ZoogramUser!
+    private let service: RegistrationServiceProtocol
 
-    func fillInBasicZoogramUserModel(userID: String, email: String, username: String) {
-        newUser = ZoogramUser(userID: userID,
-                              profilePhotoURL: "",
-                              email: email,
-                              username: username,
-                              name: "",
-                              birthday: "",
-                              posts: 0,
-                              joinDate: Date().timeIntervalSince1970)
+    var email: String?
+    var username: String?
+    var password: String?
+    var name: String?
+    var bio: String?
+    var profilePicture: UIImage?
+    var dateOfBirth: String?
+    var gender: String?
+
+    init(service: RegistrationServiceProtocol) {
+        self.service = service
     }
 
-    func registerNewUserWith(email: String, username: String, password: String, completion: @escaping (Bool, String) -> Void) {
+    func createZoogramUserModel() -> NewUser? {
+        guard let email = self.email,
+              let username = self.username,
+              let name = self.name,
+              let birthday = self.dateOfBirth,
+              let gender = self.gender
+        else {
+            return nil
+        }
+        return NewUser(
+            userID: "",
+            profilePhotoURL: nil,
+            email: email,
+            username: username,
+            name: name,
+            bio: self.bio,
+            birthday: birthday,
+            gender: gender,
+            posts: 0,
+            joinDate: Date().timeIntervalSince1970)
+    }
 
-        AuthenticationManager.shared.createNewUser(email: email, password: password) { [weak self, newUser] success, userID, errorDescription in
-            if success {
-                self?.fillInBasicZoogramUserModel(userID: userID, email: email, username: username)
-
-                UserService.shared.insertNewUser(with: newUser!) { success in
-                    if success {
-                        completion(true, "")
-                    } else {
-                        completion(false, "Firebase user insertion error")
-                    }
-                }
-            } else {
-                completion(false, errorDescription)
-            }
+    func registerNewUser(completion: @escaping (Result<ZoogramUser, Error>) -> Void) {
+        let newUser = createZoogramUserModel()
+        newUser?.setProfilePhoto(self.profilePicture)
+        service.registerNewUser(for: newUser, password: self.password) { result in
+            completion(result)
         }
     }
 
-    func addUserInfo(name: String, bio: String, profilePic: UIImage?, completion: @escaping () -> Void) {
-        let dict = ["name": name, "bio": bio]
-
-        if let image = profilePic {
-            UserService.shared.updateUserProfilePicture(newProfilePic: image)
-        }
-
-        UserService.shared.updateUserProfile(with: dict) {
-            completion()
+    func checkIfEmailIsAvailable(email: String, completion: @escaping (Result<IsAvailable, Error>) -> Void) {
+        service.checkIfEmailIsAvailable(email: email) { result in
+            completion(result)
         }
     }
 
-    func finishSignUp(dateOfBirth: String, gender: String, completion: @escaping () -> Void) {
-        let dict = ["gender": gender, "birthday": dateOfBirth]
-        UserService.shared.updateUserProfile(with: dict) {
-            completion()
+    func checkIfUsernameIsAvailable(username: String, completion: @escaping (Result<IsAvailable, Error>) -> Void) {
+        service.checkIfUsernameIsAvailable(username: username) { result in
+            completion(result)
         }
     }
 
-    func checkIfEmailIsAvailable(email: String, completion: @escaping (Bool, String) -> Void) {
-        AuthenticationManager.shared.checkIfEmailIsAvailable(email: email) { isAvailable, description in
-            switch isAvailable {
-            case true: completion(true, description)
-            case false: completion(false, description)
-            }
+    func checkIfUsernameIsValid(username: String, completion: @escaping (VoidResultWithErrorDescription) -> Void) {
+        service.checkIfUsernameIsValid(username: username) { result in
+            completion(result)
         }
     }
 
-    func checkIfUsernameIsAvailable(username: String, completion: @escaping (Bool) -> Void) {
-        UserService.shared.checkIfUsernameIsAvailable(username: username) { isAvailable in
-            completion(isAvailable)
+    func checkIfPasswordIsValid(password: String, completion: @escaping (VoidResultWithErrorDescription) -> Void) {
+        service.checkIfPasswordIsValid(password: password) { result in
+            completion(result)
         }
     }
 
     func isValidEmail(email: String) -> Bool {
-        let emailRegEx = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
-
-        let emailPred = NSPredicate(format: "SELF MATCHES %@", emailRegEx)
-        return emailPred.evaluate(with: email)
+        service.checkIfEmailIsValid(email: email)
     }
-
 }

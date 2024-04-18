@@ -17,15 +17,9 @@ class PostLikedEventTableViewCell: UITableViewCell {
 
     private let profileImageViewSize: CGFloat = 45
 
-    var userProfileGestureRecognizer = UITapGestureRecognizer()
-//    var postGestureRecognizer = UITapGestureRecognizer()
-
-    private let profileImageView: UIImageView = {
-        let imageView = UIImageView()
+    private let profileImageView: ProfilePictureImageView = {
+        let imageView = ProfilePictureImageView()
         imageView.translatesAutoresizingMaskIntoConstraints = false
-        imageView.layer.masksToBounds = true
-        imageView.contentMode = .scaleAspectFit
-        imageView.backgroundColor = .secondarySystemBackground
         imageView.isUserInteractionEnabled = true
         return imageView
     }()
@@ -34,6 +28,7 @@ class PostLikedEventTableViewCell: UITableViewCell {
         let label = UILabel()
         label.numberOfLines = 0
         label.translatesAutoresizingMaskIntoConstraints = false
+        label.isUserInteractionEnabled = true
         return label
     }()
 
@@ -50,12 +45,11 @@ class PostLikedEventTableViewCell: UITableViewCell {
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         selectionStyle = .none
-        self.userProfileGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(didSelectUser))
-//        self.postGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(didSelectPost))
+        let userProfileGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(didSelectUser))
+        let userProfileImageGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(didSelectUser))
+        profileImageView.addGestureRecognizer(userProfileImageGestureRecognizer)
+        activityMessageLabel.addGestureRecognizer(userProfileGestureRecognizer)
         setupViewsAndConstraints()
-        profileImageView.addGestureRecognizer(userProfileGestureRecognizer)
-//        likedPostPhotoImageView.addGestureRecognizer(postGestureRecognizer)
-//        self.addGestureRecognizer(postGestureRecognizer)
     }
 
     required init?(coder: NSCoder) {
@@ -66,14 +60,15 @@ class PostLikedEventTableViewCell: UITableViewCell {
         self.event = event
         likedPostPhotoImageView.image = event.post?.image
 
-        let attributedUsername = NSAttributedString(string: "\(event.user!.username) ", attributes: [NSAttributedString.Key.font: CustomFonts.boldFont(ofSize: 14), NSAttributedString.Key.foregroundColor: UIColor.label])
-        let attributedEventMessage = NSAttributedString(string: "liked your post. ",
-                                                        attributes: [.font: CustomFonts.regularFont(ofSize: 14),
-                                                                     .foregroundColor: UIColor.label])
+        let attributedUsername = NSAttributedString(string: "\(event.user!.username) ", attributes: [NSAttributedString.Key.font: CustomFonts.boldFont(ofSize: 14), NSAttributedString.Key.foregroundColor: Colors.label])
+        let localizedMessage = String(localized: "liked your post. ")
+        let attributedEventMessage = NSAttributedString(
+            string: localizedMessage,
+            attributes: [.font: CustomFonts.regularFont(ofSize: 14), .foregroundColor: Colors.label])
 
-        let attributedTimeStamp = NSAttributedString(string: event.date.timeAgoDisplay(),
-                                                     attributes: [.font: CustomFonts.regularFont(ofSize: 14),
-                                                                  .foregroundColor: UIColor.secondaryLabel])
+        let attributedTimeStamp = NSAttributedString(
+            string: event.date.timeAgoDisplay(),
+            attributes: [.font: CustomFonts.regularFont(ofSize: 14), .foregroundColor: UIColor.secondaryLabel])
 
         let wholeMessage = NSMutableAttributedString()
         wholeMessage.append(attributedUsername)
@@ -88,15 +83,14 @@ class PostLikedEventTableViewCell: UITableViewCell {
                                   value: paragraphStyle,
                                   range: NSMakeRange(0, wholeMessage.length))
 
-        let url = URL(string: event.user!.profilePhotoURL)
-        profileImageView.sd_setImage(with: url, completed: nil)
+        profileImageView.image = event.user?.getProfilePhoto()
 
         activityMessageLabel.attributedText = wholeMessage
 
         if event.seen == false {
-            self.contentView.backgroundColor = ColorScheme.unseenEventLightBlue
+            self.contentView.backgroundColor = Colors.unseenBlue
         } else {
-            self.contentView.backgroundColor = .systemBackground
+            self.contentView.backgroundColor = Colors.background
         }
     }
 
@@ -108,12 +102,12 @@ class PostLikedEventTableViewCell: UITableViewCell {
             profileImageView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 15),
             profileImageView.heightAnchor.constraint(equalToConstant: profileImageViewSize),
             profileImageView.widthAnchor.constraint(equalToConstant: profileImageViewSize),
-            profileImageView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -10),
+            profileImageView.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant: -10),
 
             activityMessageLabel.leadingAnchor.constraint(equalTo: profileImageView.trailingAnchor, constant: 15),
             activityMessageLabel.trailingAnchor.constraint(equalTo: likedPostPhotoImageView.leadingAnchor, constant: -10),
-            activityMessageLabel.topAnchor.constraint(equalTo: likedPostPhotoImageView.topAnchor, constant: 5),
-            activityMessageLabel.bottomAnchor.constraint(lessThanOrEqualTo: likedPostPhotoImageView.bottomAnchor),
+            activityMessageLabel.topAnchor.constraint(equalTo: likedPostPhotoImageView.topAnchor, constant: 2),
+            activityMessageLabel.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant: -10),
 
             likedPostPhotoImageView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -15),
             likedPostPhotoImageView.centerYAnchor.constraint(equalTo: profileImageView.centerYAnchor),
@@ -125,7 +119,6 @@ class PostLikedEventTableViewCell: UITableViewCell {
     }
 
     @objc func didSelectUser() {
-        print("Did select user")
         guard let user = event?.user else {
             return
         }

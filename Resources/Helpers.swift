@@ -14,9 +14,9 @@ import SDWebImage
 //    }
 //}
 
-func currentUserID() -> String {
-    AuthenticationManager.shared.getCurrentUserUID()
-}
+//func currentUserID() -> String {
+//    AuthenticationService.shared.getCurrentUserUID()
+//}
 
 
 func sendNotificationToUpdateUserFeed() {

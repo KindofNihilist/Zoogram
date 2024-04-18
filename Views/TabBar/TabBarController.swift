@@ -10,64 +10,126 @@ import UIKit
 
 class TabBarController: UITabBarController {
 
+    private var currentUser: ZoogramUser
+    private var isBeingPresentedForTheFirstTime: Bool = true
+    private var shouldShowAppearAnimation: Bool
+
+    private var connectionMonitor: NetworkStatusMonitor?
+
     let homeVC: HomeViewController = {
-        let service = HomeFeedPostsAPIServiceAdapter(
+        let service = HomeFeedService(
             feedService: FeedService.shared,
             likeSystemService: LikeSystemService.shared,
-            userPostService: UserPostsService.shared,
-            bookmarksService: BookmarksService.shared,
+            userPostsService: UserPostsService.shared,
+            bookmarksService: BookmarksSystemService.shared,
             storageManager: StorageManager.shared)
         return HomeViewController(service: service)
     }()
 
-    let userProfileVC: UserProfileViewController = {
-        let service = UserProfileServiceAPIAdapter(
-            userID: currentUserID(),
+    lazy var userProfileVC: UserProfileViewController = {
+        let service = UserProfileService(
+            userID: AuthenticationService.shared.getCurrentUserUID()!,
             followService: FollowSystemService.shared,
             userPostsService: UserPostsService.shared,
-            userService: UserService.shared,
+            userService: UserDataService.shared,
             likeSystemService: LikeSystemService.shared,
-            bookmarksService: BookmarksService.shared)
-        return UserProfileViewController(service: service, isTabBarItem: true)
+            bookmarksService: BookmarksSystemService.shared)
+        return UserProfileViewController(service: service, user: self.currentUser, isTabBarItem: true)
     }()
 
     let activityVC: ActivityViewController = {
-        let service = ActivityServiceAdapter(
+        let service = ActivityService(
             activitySystemService: ActivitySystemService.shared,
             followSystemService: FollowSystemService.shared,
-            userService: UserService.shared,
-            userPostsService: UserPostsService.shared)
+            userDataService: UserDataService.shared,
+            userPostsService: UserPostsService.shared,
+            storageManager: StorageManager.shared)
         return ActivityViewController(service: service)
     }()
 
-    let discoverVC = DiscoverViewController()
+    let discoverVC: DiscoverViewController = {
+        let service = DiscoverService(
+            userDataService: UserDataService.shared,
+            discoverPostsService: DiscoverPostsService.shared,
+            likeSystemService: LikeSystemService.shared,
+            userPostsService: UserPostsService.shared,
+            bookmarksService: BookmarksSystemService.shared)
+        return DiscoverViewController(service: service)
+    }()
+
+    private lazy var noseButton: CatNoseButton = {
+        let button = CatNoseButton()
+        button.translatesAutoresizingMaskIntoConstraints = false
+        return button
+    }()
+
     let cameraRollVC = CameraRollViewController()
 
     var previousViewController: UIViewController?
 
-    init(showAppearAnimation: Bool = false) {
+    var generator = UISelectionFeedbackGenerator()
+
+    private var noseButtonSize = CGSize(width: 65, height: 65)
+
+    init(currentUser: ZoogramUser, showAppearAnimation: Bool = false) {
+        self.currentUser = currentUser
+        self.shouldShowAppearAnimation = showAppearAnimation
         super.init(nibName: nil, bundle: nil)
         activityVC.delegate = self
         cameraRollVC.delegate = self
-        if showAppearAnimation {
-            view.alpha = 0
-            view.transform = CGAffineTransform(scaleX: 0.1, y: 0.1)
-            animateAppearing()
-        }
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override func viewWillAppear(_ animated: Bool) {
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        delegate = self
+        NotificationCenter.default.addObserver(
+            self, 
+            selector: #selector(refreshUserFeed),
+            name: NSNotification.Name("UpdateUserFeed"),
+            object: nil)
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(refreshUserProfile),
+            name: NSNotification.Name("UpdateUserProfile"),
+            object: nil)
         loadTabBar()
+        setupConnectionMonitor()
     }
 
-    override func viewDidLoad() {
-        delegate = self
-        NotificationCenter.default.addObserver(self, selector: #selector(refreshUserFeed), name: NSNotification.Name("UpdateUserFeed"), object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(refreshUserProfile), name: NSNotification.Name("UpdateUserProfile"), object: nil)
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        if shouldShowAppearAnimation {
+            self.hideUIElements(animate: false)
+        }
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        if shouldShowAppearAnimation {
+            self.showUIElements(animate: true)
+            self.shouldShowAppearAnimation = false
+        }
+        if isBeingPresentedForTheFirstTime {
+            setupNoseButton()
+            isBeingPresentedForTheFirstTime = false
+        }
+    }
+
+    private func setupNoseButton() {
+        let multiplier = hasBottomSafeArea() ? 1.25 : 1.1
+        self.tabBar.addSubview(noseButton)
+        noseButton.addTarget(self, action: #selector(didTapNose), for: .touchUpInside)
+        NSLayoutConstraint.activate([
+            noseButton.heightAnchor.constraint(equalTo: tabBar.safeAreaLayoutGuide.heightAnchor, multiplier: multiplier),
+            noseButton.widthAnchor.constraint(equalTo: tabBar.safeAreaLayoutGuide.heightAnchor, multiplier: multiplier),
+            noseButton.centerXAnchor.constraint(equalTo: tabBar.centerXAnchor),
+            noseButton.topAnchor.constraint(equalTo: tabBar.topAnchor, constant: -3)
+        ])
     }
 
     func loadTabBar() {
@@ -79,14 +141,12 @@ class TabBarController: UITabBarController {
         }
 
         self.selectedIndex = 0
-
+        self.tabBar.items?[2].isEnabled = false
         for (index, item) in tabBar.items!.enumerated() {
             item.image = tabIcons[index].icon
             item.selectedImage = tabIcons[index].selectedIcon
         }
-
-        tabBar.configureTabBarColor(with: .systemBackground)
-        tabBar.tintColor = .label
+        tabBar.tintColor = Colors.label
     }
 
     private func setupTabBar(_ menuItems: [UIViewController], completion: @escaping ([UIViewController]) -> Void) {
@@ -95,18 +155,15 @@ class TabBarController: UITabBarController {
         menuItems.forEach {
             let navController = UINavigationController(rootViewController: $0)
             navController.navigationBar.isTranslucent = false
-            navController.navigationBar.tintColor = .label
-            navController.navigationBar.configureNavigationBarColor(with: .systemBackground)
+            navController.navigationBar.tintColor = Colors.label
             controllers.append(navController)
         }
+        cameraRollVC.navigationController?.modalPresentationStyle = .fullScreen
         completion(controllers)
     }
 
-    private func animateAppearing() {
-        UIView.animate(withDuration: 0.6) {
-            self.view.alpha = 1
-            self.view.transform = CGAffineTransform.identity
-        }
+    func updateCurrentUserModel(with model: ZoogramUser) {
+        self.currentUser = model
     }
 
     private func addNotificationBadge() {
@@ -119,24 +176,36 @@ class TabBarController: UITabBarController {
         let barActivityItem = tabBar.items?[3]
         barActivityItem?.badgeValue = nil
     }
+
+    @objc func didTapNose() {
+        print("Nose tapped")
+        let viewController = UINavigationController(rootViewController: cameraRollVC)
+        viewController.modalPresentationStyle = .fullScreen
+        present(viewController, animated: true)
+    }
+
+    private func setupConnectionMonitor() {
+        self.connectionMonitor = NetworkStatusMonitor(handlerAction: { connectionState in
+            if connectionState == .disconnected {
+                guard let currentVC = self.selectedViewController else { return }
+                self.connectionMonitor?.isBeingHandled = true
+                currentVC.showPopUp(issueText: String(localized: "No Internet Connection")) {
+                    self.connectionMonitor?.isBeingHandled = false
+                }
+            } else if connectionState == .connected {
+                self.activityVC.observeActivityEvents()
+                self.userProfileVC.getUserProfileDataIfNeeded()
+                self.homeVC.shouldRefreshFeedIfNeeded()
+                self.discoverVC.getDataIfNeeded()
+            }
+        })
+    }
 }
 
 extension TabBarController: UITabBarControllerDelegate {
-    func tabBarController(_ tabBarController: UITabBarController, shouldSelect viewController: UIViewController) -> Bool {
-
-        if let navigationController = viewController as? UINavigationController,
-           navigationController.viewControllers.contains(where: {$0 is CameraRollViewController}) {
-
-            let vc = UINavigationController(rootViewController: cameraRollVC)
-            vc.modalPresentationStyle = .fullScreen
-            present(vc, animated: true)
-            return false
-        } else {
-            return true
-        }
-    }
 
     func tabBarController(_ tabBarController: UITabBarController, didSelect viewController: UIViewController) {
+
         if previousViewController == viewController {
 
             if let navVC = viewController as? UINavigationController, let vc = navVC.viewControllers.first as? HomeViewController {
@@ -150,6 +219,9 @@ extension TabBarController: UITabBarControllerDelegate {
                     vc.setTopCollectionViewVisibleContent()
                 }
             }
+        } else {
+            generator.prepare()
+            generator.selectionChanged()
         }
         previousViewController = viewController
     }
@@ -159,7 +231,7 @@ extension TabBarController: UITabBarControllerDelegate {
     }
 
     @objc func refreshUserFeed() {
-        homeVC.tableView.refreshUserFeed()
+        homeVC.tableView.getPosts()
     }
 }
 
@@ -174,27 +246,19 @@ extension TabBarController: ActivityViewNotificationProtocol {
 }
 
 extension TabBarController: NewPostProtocol {
-    func makeANewPost(post: UserPost, completion: @escaping () -> Void) {
-
+    func makeANewPost(post: UserPost) {
+        self.selectedIndex = 0
         homeVC.setTableViewVisibleContentToTop(animated: false)
-
+        homeVC.removeNoPostsNotificationIfDisplayed()
         cameraRollVC.dismiss(animated: true) {
-            let currentUser = self.userProfileVC.getCurrentUserProfile()
-            self.homeVC.showMakingNewPostNotificationViewFor(username: currentUser.username, with: post.image)
-
-            self.homeVC.service.makeANewPost(post: post) { progress in
-                self.homeVC.updateProgressBar(progress: progress)
-            } completion: { result in
-
+            UserDataService.shared.getLatestUserModel { result in
                 switch result {
-
-                case .success():
-                    post.author = currentUser
-                    self.homeVC.animateInsertionOfCreatedPost(post: post)
-                    self.userProfileVC.getUserProfileData()
-
+                case .success(let currentUser):
+                    self.homeVC.makeNewPost(with: post, for: currentUser) {
+                        self.userProfileVC.getUserProfileData()
+                    }
                 case .failure(let error):
-                    self.homeVC.show(error: error)
+                    self.showPopUp(issueText: error.localizedDescription)
                 }
             }
         }

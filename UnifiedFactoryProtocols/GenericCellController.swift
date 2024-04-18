@@ -21,11 +21,6 @@ open class GenericCellController<T: ReusableCell>: CellController<T.CellHolder> 
         configureCell(cell, at: indexPath)
     }
 
-//    public final override func configureCell(_ cell: T.CellHolder.CellType) {
-//        let cell = cell as! T
-//        configureCell(cell)
-//    }
-
     public final override func willDisplayCell(_ cell: T.CellHolder.CellType) {
         let cell = cell as! T
         willDisplayCell(cell)

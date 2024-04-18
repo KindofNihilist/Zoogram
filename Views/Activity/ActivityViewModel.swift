@@ -9,7 +9,7 @@ import Foundation
 
 class ActivityViewModel {
 
-    let service: ActivityService
+    let service: ActivityServiceProtocol
 
     private var events = [ActivityEvent]() {
         didSet {
@@ -28,15 +28,20 @@ class ActivityViewModel {
         return events.isEmpty
     }
 
-    init(service: ActivityService) {
+    init(service: ActivityServiceProtocol) {
         self.service = service
-        fetchActivityDataOnInit()
+        observeActivityEvents()
     }
 
-    private func fetchActivityDataOnInit() {
-        service.observeActivityEvents { events in
-            self.events = events
-            self.hasInitialized.value = true
+    func observeActivityEvents() {
+        service.observeActivityEvents { result in
+            switch result {
+            case .success(let events):
+                self.events = events
+                self.hasInitialized.value = true
+            case .failure(let error):
+                self.hasInitialized.value = false
+            }
         }
     }
 
@@ -57,8 +62,13 @@ class ActivityViewModel {
     }
 
     func updateActivityEventsSeenStatus() {
-        service.updateActivityEventsSeenStatus(events: seenEvents) {
-            self.seenEvents = Set<ActivityEvent>()
+        service.updateActivityEventsSeenStatus(events: seenEvents) { result in
+            switch result {
+            case .success:
+                self.seenEvents = Set<ActivityEvent>()
+            case .failure(let error):
+                print(error)
+            }
         }
     }
 

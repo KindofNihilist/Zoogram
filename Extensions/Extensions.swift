@@ -8,27 +8,6 @@
 import UIKit
 import SwiftUI
 
-
-
-//extension UIDevice {
-//    var hasNotch: Bool {
-//            if #available(iOS 13.0, *) {
-//                let scenes = UIApplication.shared.connectedScenes
-//                let windowScene = scenes.first as? UIWindowScene
-//                guard let window = windowScene?.windows.first else { return false }
-//
-//                return window.safeAreaInsets.top > 20
-//            }
-//
-//            if #available(iOS 11.0, *) {
-//                let top = UIApplication.shared.windows[0].safeAreaInsets.top
-//                return top > 20
-//            } else {
-//                return false
-//            }
-//        }
-//}
-
 extension CGFloat {
     func withFractionLength(_ length: Int) -> CGFloat {
         let multiplier = pow(10.0, CGFloat(length))
@@ -99,43 +78,3 @@ extension UITableView {
     }
 }
 
-extension UINavigationBar {
-    func configureNavigationBarColor(with color: UIColor) {
-        let appearence = UINavigationBarAppearance()
-        appearence.configureWithOpaqueBackground()
-        appearence.backgroundColor = color
-        appearence.shadowColor = .clear
-        if color == .black {
-            appearence.titleTextAttributes = [.foregroundColor: UIColor.white]
-        }
-        self.standardAppearance = appearence
-        self.scrollEdgeAppearance = appearence
-    }
-}
-
-extension UITabBar {
-    func configureTabBarColor(with color: UIColor) {
-        let tabItemAppearence = UITabBarItemAppearance(style: .stacked)
-        tabItemAppearence.normal.badgeBackgroundColor = .clear
-        tabItemAppearence.normal.badgeTextAttributes = [.foregroundColor: UIColor.systemRed]
-        let barAppearence = UITabBarAppearance()
-        barAppearence.configureWithDefaultBackground()
-        barAppearence.backgroundColor = color
-        barAppearence.shadowColor = .clear
-        barAppearence.stackedLayoutAppearance = tabItemAppearence
-        barAppearence.compactInlineLayoutAppearance = tabItemAppearence
-        barAppearence.inlineLayoutAppearance = tabItemAppearence
-        self.standardAppearance = barAppearence
-        self.scrollEdgeAppearance = barAppearence
-    }
-}
-
-extension UIImageView {
-    func getOnlyVisiblePartOfImage(image: UIImage, rect: CGRect, scale: CGFloat) -> UIImage? {
-        UIGraphicsBeginImageContextWithOptions(CGSize(width: rect.size.width / scale, height: rect.size.height / scale), true, 0.0)
-        image.draw(at: CGPoint(x: -rect.origin.x / scale, y: -rect.origin.y / scale))
-        let croppedImage = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        return croppedImage
-    }
-}
