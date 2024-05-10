@@ -12,15 +12,15 @@ protocol CameraRollHeaderDelegate: UIImagePickerControllerDelegate, UINavigation
 }
 
 class CameraRollHeaderView: UICollectionReusableView {
-    
+
     weak var delegate: CameraRollHeaderDelegate?
-    
+
     static var identifier: String {
         return String(describing: self)
     }
-    
+
     private let padding: CGFloat = 15
-    
+
     private lazy var cameraButton: UIButton = {
         let button = UIButton()
         button.translatesAutoresizingMaskIntoConstraints = false
@@ -40,22 +40,22 @@ class CameraRollHeaderView: UICollectionReusableView {
         button.titleLabel?.font = CustomFonts.boldFont(ofSize: 16)
         return button
     }()
-    
+
     override init(frame: CGRect) {
         super.init(frame: frame)
         clipsToBounds = true
         backgroundColor = .black
         setupCameraRollHeader()
     }
-    
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-    
+
     override func layoutSubviews() {
         cameraButton.layer.cornerRadius = (self.bounds.height - padding) / 2
     }
-    
+
     private func setupCameraRollHeader() {
         addSubviews(sortButton, cameraButton)
 

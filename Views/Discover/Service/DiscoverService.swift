@@ -8,7 +8,7 @@
 import Foundation
 
 protocol DiscoverServiceProtocol: PostsNetworking<UserPost> {
-    func searchUserWith(username: String, completion: @escaping (Result<[ZoogramUser], Error>) -> Void)
+    func searchUserWith(username: String) async throws -> [ZoogramUser]
 }
 
 class DiscoverService: ImageService, DiscoverServiceProtocol {
@@ -38,163 +38,95 @@ class DiscoverService: ImageService, DiscoverServiceProtocol {
         self.bookmarksService = bookmarksService
     }
 
-    func getNumberOfItems(completion: @escaping (Result<Int, Error>) -> Void) {
-        discoverPostsService.getDiscoverPostsCount { result in
-            switch result {
-            case .success(let postsCount):
-                self.numberOfAllItems = UInt(postsCount)
-                completion(.success(postsCount))
-            case .failure(let error):
-                completion(.failure(error))
-            }
-        }
+    func getNumberOfItems() async throws -> Int {
+        let postsCount = try await discoverPostsService.getDiscoverPostsCount()
+        self.numberOfAllItems = UInt(postsCount)
+        return postsCount
     }
 
-    func getItems(completion: @escaping ([UserPost]?, Error?) -> Void) {
-        getNumberOfItems { _ in
-            self.discoverPostsService.getDiscoverPosts(quantity: self.numberOfItemsToGet) { result in
-                switch result {
-                case .success((let posts, let lastPostKey)):
-                    guard posts.isEmpty != true else {
-                        self.hasHitTheEndOfPosts = true
-                        completion(nil, nil)
-                        return
-                    }
-                    self.getAdditionalPostDataFor(postsOfMultipleUsers: posts) { result in
-                        switch result {
-                        case .success(let postsWithAdditionalData):
-                            self.lastReceivedItemKey = lastPostKey
-                            self.hasHitTheEndOfPosts = false
-                            self.numberOfRetrievedItems = UInt(postsWithAdditionalData.count)
-                            if self.numberOfRetrievedItems == self.numberOfAllItems {
-                                self.hasHitTheEndOfPosts = true
-                            }
-                            completion(postsWithAdditionalData, nil)
-                        case .failure(let error):
-                            completion(nil, ServiceError.couldntLoadPosts)
-                            print(error)
-                        }
-                    }
-
-                case .failure(let error):
-                    completion(nil, error)
-                }
-            }
+    func getItems() async throws -> [UserPost]? {
+        _ = try await getNumberOfItems()
+        let discoverPosts = try await discoverPostsService.getDiscoverPosts(quantity: numberOfItemsToGet)
+        guard discoverPosts.items.isEmpty != true else {
+            self.hasHitTheEndOfPosts = true
+            return nil
         }
+        let postsWithAdditionalData = try await getAdditionalPostDataFor(postsOfMultipleUsers: discoverPosts.items)
+        self.lastReceivedItemKey = discoverPosts.lastRetrievedItemKey
+        print("last receivedItemKey")
+        self.hasHitTheEndOfPosts = false
+        self.numberOfRetrievedItems = UInt(discoverPosts.items.count)
+        if self.numberOfRetrievedItems == self.numberOfAllItems {
+            self.hasHitTheEndOfPosts = true
+        }
+        return postsWithAdditionalData
     }
 
-    func getMoreItems(completion: @escaping ([UserPost]?, Error?) -> Void) {
+    func getMoreItems() async throws -> [UserPost]? {
         guard isAlreadyPaginating == false, lastReceivedItemKey != "" else {
-            return
+            return nil
         }
-
         isAlreadyPaginating = true
 
-        discoverPostsService.getMoreDiscoverPosts(quantity: numberOfItemsToGet, after: lastReceivedItemKey) { result in
-            switch result {
-            case .success((let posts, let lastPostKey)):
-                guard posts.isEmpty != true, lastPostKey != self.lastReceivedItemKey else {
-                    self.isAlreadyPaginating = false
-                    self.hasHitTheEndOfPosts = true
-                    completion(nil, nil)
-                    return
-                }
-                self.getAdditionalPostDataFor(postsOfMultipleUsers: posts) { result in
-                    switch result {
-                    case .success(let postsWidthAdditionalData):
-                        self.lastReceivedItemKey = lastPostKey
-                        self.numberOfRetrievedItems += UInt(posts.count)
-                        if self.numberOfRetrievedItems == self.numberOfAllItems {
-                            self.hasHitTheEndOfPosts = true
-                        }
-                        completion(postsWidthAdditionalData, nil)
-                    case .failure(let error):
-                        self.isAlreadyPaginating = false
-                        completion(nil, ServiceError.couldntLoadPosts)
-                    }
-                }
-            case .failure(let error):
+        do {
+            let discoverPosts = try await discoverPostsService.getMoreDiscoverPosts(quantity: numberOfItemsToGet, after: lastReceivedItemKey)
+            guard discoverPosts.items.isEmpty != true, discoverPosts.lastRetrievedItemKey != self.lastReceivedItemKey else {
                 self.isAlreadyPaginating = false
-                completion(nil, error)
+                self.hasHitTheEndOfPosts = true
+                return nil
             }
+            let postsWithAdditionalData = try await getAdditionalPostDataFor(postsOfMultipleUsers: discoverPosts.items)
+            self.lastReceivedItemKey = discoverPosts.lastRetrievedItemKey
+            self.numberOfRetrievedItems += UInt(discoverPosts.items.count)
+            if self.numberOfRetrievedItems == self.numberOfAllItems {
+                self.hasHitTheEndOfPosts = true
+            }
+            return postsWithAdditionalData
+        } catch {
+            self.isAlreadyPaginating = false
+            throw error
         }
     }
 
-    func likePost(postID: String, likeState: LikeState, postAuthorID: String, completion: @escaping (Result<LikeState, Error>) -> Void) {
+    func likePost(postID: String, likeState: LikeState, postAuthorID: String) async throws -> LikeState {
         switch likeState {
         case .liked:
-            likeSystemService.removeLikeFromPost(postID: postID) { result in
-                switch result {
-                case .success:
-                    ActivitySystemService.shared.removeLikeEventForPost(postID: postID, postAuthorID: postAuthorID)
-                    completion(.success(.notLiked))
-                case .failure(let error):
-                    completion(.failure(error))
-                }
-            }
+            try await likeSystemService.removeLikeFromPost(postID: postID)
+            try await ActivitySystemService.shared.removeLikeEventForPost(postID: postID, postAuthorID: postAuthorID)
+            return .notLiked
         case .notLiked:
-            likeSystemService.likePost(postID: postID) { result in
-                switch result {
-                case .success:
-                    let currentUserID = AuthenticationService.shared.getCurrentUserUID()!
-                    let eventID = ActivitySystemService.shared.createEventUID()
-                    let activityEvent = ActivityEvent(eventType: .postLiked, userID: currentUserID, postID: postID, eventID: eventID, date: Date())
-                    ActivitySystemService.shared.addEventToUserActivity(event: activityEvent, userID: postAuthorID)
-                    completion(.success(.liked))
-                case .failure(let error):
-                    completion(.failure(error))
-                }
-            }
+            try await likeSystemService.likePost(postID: postID)
+            let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
+            let eventID = ActivitySystemService.shared.createEventUID()
+            let activityEvent = ActivityEvent(eventType: .postLiked, userID: currentUserID, postID: postID, eventID: eventID, date: Date())
+            try await ActivitySystemService.shared.addEventToUserActivity(event: activityEvent, userID: postAuthorID)
+            return .liked
         }
     }
 
-    func deletePost(postModel: PostViewModel, completion: @escaping (VoidResult) -> Void) {
-        userPostsService.deletePost(postID: postModel.postID, postImageURL: postModel.postImageURL) { result in
-            completion(result)
-        }
+    func deletePost(postModel: PostViewModel) async throws {
+        try await userPostsService.deletePost(postID: postModel.postID, postImageURL: postModel.postImageURL)
     }
 
-    func bookmarkPost(postID: String, authorID: String, bookmarkState: BookmarkState, completion: @escaping (Result<BookmarkState, Error>) -> Void) {
+    func bookmarkPost(postID: String, authorID: String, bookmarkState: BookmarkState) async throws -> BookmarkState {
         switch bookmarkState {
         case .bookmarked:
-            bookmarksService.removeBookmark(postID: postID) { result in
-                completion(result)
-            }
+            let bookmarkState = try await bookmarksService.removeBookmark(postID: postID)
+            return bookmarkState
         case .notBookmarked:
-            bookmarksService.bookmarkPost(postID: postID, authorID: authorID) { result in
-                completion(result)
-            }
+            let bookmarkState = try await bookmarksService.bookmarkPost(postID: postID, authorID: authorID)
+            return bookmarkState
         }
     }
 
-    func searchUserWith(username: String, completion: @escaping (Result<[ZoogramUser], Error>) -> Void) {
-        userDataService.searchUserWith(username: username) { result in
-            switch result {
-            case .success(let users):
-                let dispatchGroup = DispatchGroup()
+    func searchUserWith(username: String) async throws -> [ZoogramUser] {
+        let foundUsers = try await userDataService.searchUserWith(username: username)
 
-                for user in users {
-                    if let profilePictureURL = user.profilePhotoURL {
-                        dispatchGroup.enter()
+        for user in foundUsers {
+            let userPfp = try await self.getImage(for: user.profilePhotoURL)
+            user.setProfilePhoto(userPfp)
 
-                        self.getImage(for: profilePictureURL) { result in
-                            switch result {
-                            case .success(let profilePhoto):
-                                user.setProfilePhoto(profilePhoto)
-                            case .failure(let error):
-                                completion(.failure(error))
-                            }
-                            dispatchGroup.leave()
-                        }
-                    }
-                }
-
-                dispatchGroup.notify(queue: .main) {
-                    completion(.success(users))
-                }
-            case .failure(let error):
-                completion(.failure(error))
-            }
         }
+        return foundUsers
     }
 }

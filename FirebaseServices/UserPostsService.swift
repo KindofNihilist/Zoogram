@@ -12,13 +12,15 @@ typealias PostCount = Int
 typealias PhotoURLString = String
 
 protocol UserPostsServiceProtocol {
-    func insertNewPost(post: UserPost, completion: @escaping (VoidResult) -> Void)
-    func deletePost(postID: String, postImageURL: String, completion: @escaping (VoidResult) -> Void)
-    func deletePostFromFollowersTimeline(postID: String, completion: @escaping (VoidResult) -> Void)
-    func getPost(ofUser user: String, postID: String, completion: @escaping (Result<UserPost, Error>) -> Void)
-    func getPostCount(for userID: String, completion: @escaping (Result<PostCount, Error>) -> Void)
-    func getPosts(quantity: UInt, for userID: String, completion: @escaping CompletionBlockWithPosts)
-    func getMorePosts(quantity: UInt, after postKey: String, for userID: String, completion: @escaping CompletionBlockWithPosts)
+    func insertNewPost(post: UserPost) async throws
+    func deletePost(postID: String, postImageURL: String) async throws
+    func createDeletePostFromFollowersTimelineActions(postID: String) async throws -> [String: Any]
+    func createDeletePostRelatedActivityEventsActions(postID: String) async throws -> [String: Any]
+    func createDeletePostFromBookmarksActions(postID: String) async throws -> [String: Any]
+    func getPost(ofUser user: String, postID: String) async throws -> UserPost
+    func getPostCount(for userID: UserID) async throws -> PostCount
+    func getPosts(quantity: UInt, for userID: UserID) async throws -> PaginatedItems<UserPost>
+    func getMorePosts(quantity: UInt, after postKey: String, for userID: UserID) async throws -> PaginatedItems<UserPost>
 }
 
 class UserPostsService: UserPostsServiceProtocol {
@@ -32,380 +34,205 @@ class UserPostsService: UserPostsServiceProtocol {
     }
 
     // MARK: Create post
+    // By using multipath batch updates this method creates new post entry for user, fans it out to every follower timeline and adds it to Discover tab timeline all in one write. So it either succeeds or fails, no midpoint results.
+    // Previously this method relied on other methods with seperate write transactions, but if the connection were to interrup
+    // that would result in inconsistency.
 
-    // By using multipath batch updates this method creates new post entry for user, fans it out to every follower timeline and changes hasPosts bool status all in one write. So it either succeeds or fails, no midpoint results.
-
-    func insertNewPost(post: UserPost, completion: @escaping (VoidResult) -> Void) {
-        guard let currentUserID = AuthenticationService.shared.getCurrentUserUID() else {
-            return
-        }
+    func insertNewPost(post: UserPost) async throws {
+        let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
         let databaseKey = "Posts/\(currentUserID)/\(post.postID)"
-        
-        databaseRef.child("Followers/\(currentUserID)").getData { [weak self] error, snapshot in
-            if let error = error {
-                completion(.failure(ServiceError.couldntUploadPost))
-                return
-            } else if let followersSnapshot = snapshot {
+        let query = databaseRef.child("Followers/\(currentUserID)")
 
-                var fanoutObj = [String: Any]()
-                let postDictionary = post.createDictionary()
+        do {
+            let data = try await query.getData()
 
-                if let followersData = followersSnapshot.value as? [String: AnyObject] {
-                    let followers = followersData.keys
-                    followers.forEach { follower in
-                        fanoutObj["/Timelines/\(follower)/\(post.postID)"] = postDictionary
-                    }
-                }
-                fanoutObj["Posts/\(currentUserID)/\(post.postID)"] = postDictionary
-                fanoutObj["Timelines/\(currentUserID)/\(post.postID)"] = postDictionary
-                fanoutObj["DiscoverPosts/\(post.postID)"] = postDictionary
-                fanoutObj["Users/\(currentUserID)/hasPosts"] = true
+            var fanoutObj = [String: Any]()
+            let postDictionary = post.createDictionary()
 
-                self?.databaseRef.updateChildValues(fanoutObj) { error, _ in
-                    if let error = error {
-                        completion(.failure(ServiceError.couldntUploadPost))
-                    } else {
-                        completion(.success)
-                    }
+            if let followersData = data.value as? [String: AnyObject] {
+                let followers = followersData.keys
+                followers.forEach { follower in
+                    fanoutObj["/Timelines/\(follower)/\(post.postID)"] = postDictionary
                 }
             }
+            fanoutObj["Posts/\(currentUserID)/\(post.postID)"] = postDictionary
+            fanoutObj["Timelines/\(currentUserID)/\(post.postID)"] = postDictionary
+            fanoutObj["DiscoverPosts/\(post.postID)"] = postDictionary
+            try await databaseRef.updateChildValues(fanoutObj)
+        } catch {
+            throw ServiceError.couldntUploadPost
         }
     }
 
     // MARK: Delete Post
+    func deletePost(postID: String, postImageURL: String) async throws {
+        let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
 
-    func deletePost(postID: String, postImageURL: String, completion: @escaping (VoidResult) -> Void) {
-        guard let currentUserID = AuthenticationService.shared.getCurrentUserUID() else {
-            return
-        }
-        let dispatchGroup = DispatchGroup()
+        var deleteActions = [String: Any]()
+        deleteActions["Posts/\(currentUserID)/\(postID)"] = NSNull()
+        deleteActions["DiscoverPosts/\(postID)"] = NSNull()
+        deleteActions["PostComments/\(postID)"] = NSNull()
+        deleteActions["PostsLikes/\(postID)"] = NSNull()
 
-        dispatchGroup.enter()
-        databaseRef.child("Posts/\(currentUserID)/\(postID)").removeValue { error, _ in
-            if let error = error {
-                completion(.failure(ServiceError.couldntDeletePost))
-                return
-            } else {
-                dispatchGroup.leave()
-            }
-        }
+        do {
+            let deleteFromFollowersTimelinesAction = try await createDeletePostFromFollowersTimelineActions(postID: postID)
+            let deleteFromBookmarksAction = try await createDeletePostFromBookmarksActions(postID: postID)
+            let deleteFromActivityEventsAction = try await createDeletePostRelatedActivityEventsActions(postID: postID)
 
-        dispatchGroup.enter()
-        databaseRef.child("DiscoverPosts/\(postID)").removeValue { error, _ in
-            if let error = error {
-                completion(.failure(ServiceError.couldntDeletePost))
-                return
-            } else {
-                dispatchGroup.leave()
-            }
-        }
+            deleteActions.merge(deleteFromFollowersTimelinesAction) { current, _ in current }
+            deleteActions.merge(deleteFromActivityEventsAction) { current, _ in current }
+            deleteActions.merge(deleteFromBookmarksAction) { current, _ in current }
 
-        dispatchGroup.enter()
-        databaseRef.child("PostComments/\(postID)").removeValue { error, _ in
-            if let error = error {
-                completion(.failure(ServiceError.couldntDeletePost))
-                return
-            } else {
-                dispatchGroup.leave()
-            }
-        }
-
-        dispatchGroup.enter()
-        databaseRef.child("PostsLikes/\(postID)").removeValue { error, _ in
-            if let error = error {
-                completion(.failure(ServiceError.couldntDeletePost))
-                return
-            }
-            dispatchGroup.leave()
-        }
-
-        dispatchGroup.enter()
-        StorageManager.shared.deletePostPhoto(photoURL: postImageURL) { result in
-            if case .failure(let error) = result {
-                completion(.failure(ServiceError.couldntDeletePost))
-                return
-            }
-            dispatchGroup.leave()
-        }
-
-        dispatchGroup.enter()
-        deletePostFromFollowersTimeline(postID: postID) { result in
-            if case .failure(let error) = result {
-                completion(.failure(error))
-                return
-            }
-            dispatchGroup.leave()
-        }
-
-        dispatchGroup.enter()
-        deletePostFromBookmarks(postID: postID) { result in
-            if case .failure(let error) = result {
-                completion(.failure(error))
-                return
-            }
-            dispatchGroup.leave()
-        }
-
-        dispatchGroup.enter()
-        ActivitySystemService.shared.removePostRelatedActivityEvents(postID: postID) { result in
-            if case .failure(let error) = result {
-                completion(.failure(ServiceError.couldntDeletePost))
-                return
-            }
-            dispatchGroup.leave()
-        }
-
-        dispatchGroup.enter()
-        getPostCount(for: currentUserID) { result in
-            switch result {
-            case .success(let postsCount):
-                if postsCount == 0 {
-                    UserDataService.shared.changeHasPostsStatus(hasPostsStatus: false) { result in
-                        if case .failure(let error) = result {
-                            completion(.failure(ServiceError.couldntDeletePost))
-                            return
-                        }
-                        dispatchGroup.leave()
-                    }
-                } else {
-                    dispatchGroup.leave()
-                }
-            case .failure(let error):
-                completion(.failure(ServiceError.couldntDeletePost))
-                return
-            }
-        }
-
-        dispatchGroup.notify(queue: .main) {
-            completion(.success)
+            try await databaseRef.updateChildValues(deleteActions)
+            try await StorageManager.shared.deletePostPhoto(photoURL: postImageURL)
+        } catch {
+            throw ServiceError.couldntDeletePost
         }
     }
 
-    func deletePostFromFollowersTimeline(postID: String, completion: @escaping (VoidResult) -> Void) {
-        guard let currentUserID = AuthenticationService.shared.getCurrentUserUID() else { return }
-        let followersRef = databaseRef.child("Followers/\(currentUserID)")
+    func createDeletePostFromFollowersTimelineActions(postID: String) async throws -> [String: Any] {
+        let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
+        let query = databaseRef.child("Followers/\(currentUserID)")
+        let data = try await query.getData()
 
-        followersRef.getData { error, snapshot in
-            if let error = error {
-                completion(.failure(ServiceError.couldntDeletePost))
-                return
-            } else if let followersSnapshot = snapshot {
-
-                var postsToDelete = [String: Any]()
-
-                if let followersDictionary = followersSnapshot.value as? [String: AnyObject] {
-                    let followers = followersDictionary.keys
-                    followers.forEach { follower in
-                        postsToDelete["/Timelines/\(follower)/\(postID)"] = NSNull()
-                    }
-                }
-
-                postsToDelete["/Timelines/\(currentUserID)/\(postID)"] = NSNull()
-
-                self.databaseRef.updateChildValues(postsToDelete) { error, _ in
-                    if let error = error {
-                        completion(.failure(ServiceError.couldntDeletePost))
-                    } else {
-                        completion(.success)
-                    }
-                }
+        var postsToDelete = [String: Any]()
+        postsToDelete["/Timelines/\(currentUserID)/\(postID)"] = NSNull()
+        if let followersDictionary = data.value as? [String: Any] {
+            let followers = followersDictionary.keys
+            followers.forEach { follower in
+                postsToDelete["/Timelines/\(follower)/\(postID)"] = NSNull()
             }
         }
+        return postsToDelete
     }
 
-    func deletePostFromBookmarks(postID: String, completion: @escaping (VoidResult) -> Void) {
+    func createDeletePostFromBookmarksActions(postID: String) async throws -> [String: Any] {
         let reverseIndexBookmarksPath = "BookmarksReverseIndex/\(postID)"
-
-        databaseRef.child(reverseIndexBookmarksPath).getData { error, snapshot in
-            if let error = error {
-                completion(.failure(ServiceError.couldntDeletePost))
-                return
-            } else if let snapshot = snapshot {
-
-                var bookmarksToRemove = [String: Any]()
-
-                if let usersBookmarkedThePost = snapshot.value as? [String: [String: Any]] {
-                    usersBookmarkedThePost.map { userID, bookmarkDict in
-                        if let bookmarkID = bookmarkDict["bookmarkID"] {
-                            bookmarksToRemove["Bookmarks/\(userID)/\(bookmarkID)"] = NSNull()
-                            bookmarksToRemove[reverseIndexBookmarksPath + "/\(userID)"] = NSNull()
-                        }
-                    }
-                }
-
-                self.databaseRef.updateChildValues(bookmarksToRemove) { error, _ in
-                    if let error = error {
-                        completion(.failure(ServiceError.couldntDeletePost))
-                    } else {
-                        completion(.success)
-                    }
+        let query = databaseRef.child(reverseIndexBookmarksPath)
+        let data = try await query.getData()
+        var bookmarksToRemove = [String: Any]()
+        if let usersBookmarkedThePost = data.value as? [String: [String: Any]] {
+        usersBookmarkedThePost.map { userID, bookmarkDict in
+                if let bookmarkID = bookmarkDict["bookmarkID"] {
+                    bookmarksToRemove["Bookmarks/\(userID)/\(bookmarkID)"] = NSNull()
+                    bookmarksToRemove[reverseIndexBookmarksPath + "/\(userID)"] = NSNull()
                 }
             }
         }
+        return bookmarksToRemove
     }
 
-    func getPostCount(for userID: String, completion: @escaping (Result<PostCount, Error>) -> Void) {
-        let databaseKey = "Posts/\(userID)/"
+    func createDeletePostRelatedActivityEventsActions(postID: String) async throws -> [String: Any] {
+        let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
+        let path = "Activity/\(currentUserID)"
+        let query = databaseRef.child(path).queryOrdered(byChild: "postID").queryEqual(toValue: postID)
+        let data = try await query.getData()
 
-        databaseRef.child(databaseKey).getData { error, snapshot in
-            if let error = error {
-                completion(.failure(ServiceError.couldntLoadData))
-                return
-            } else if let snapshot = snapshot {
-                completion(.success(Int(snapshot.childrenCount)))
+        var activityEventToDelete = [String: Any]()
+        for snapshot in data.children {
+            guard let snapshot = snapshot as? [String: Any],
+                  let eventID = snapshot["eventID"]
+            else {
+                throw ServiceError.snapshotCastingError
             }
+            activityEventToDelete["Activity/\(currentUserID)/\(eventID)"] = NSNull()
         }
+        return activityEventToDelete
     }
 
     //MARK: Get Post
-    func getPost(ofUser user: String, postID: String, completion: @escaping (Result<UserPost, Error>) -> Void) {
+    func getPostCount(for userID: UserID) async throws -> PostCount {
+        let databaseKey = "Posts/\(userID)/"
+        let query = databaseRef.child(databaseKey)
+
+        do {
+            let data = try await query.getData()
+            return Int(data.childrenCount)
+        } catch {
+            throw ServiceError.couldntLoadPosts
+        }
+    }
+
+    func getPost(ofUser user: String, postID: String) async throws -> UserPost {
         let databaseKey = "Posts/\(user)/\(postID)"
 
-        databaseRef.child(databaseKey).getData { error, snapshot in
-            if let error = error {
-                completion(.failure(ServiceError.couldntLoadData))
-                return
-            } else if let snapshot = snapshot {
+        do {
+            let data = try await databaseRef.child(databaseKey).getData()
 
-                guard let postDictionary = snapshot.value as? [String: Any] else {
-                    completion(.failure(ServiceError.snapshotCastingError))
-                    return
+            guard let postDictionary = data.value as? [String: Any] else { throw ServiceError.snapshotCastingError }
+            let jsonData = try JSONSerialization.data(withJSONObject: postDictionary as Any)
+            let decodedPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
+            decodedPost.author = try await UserDataService.shared.getUser(for: decodedPost.userID)
+            return decodedPost
+        } catch {
+            throw ServiceError.couldntLoadPost
+        }
+    }
+
+    func getPosts(quantity: UInt, for userID: UserID) async throws -> PaginatedItems<UserPost> {
+        let databaseKey = "Posts/\(userID)/"
+        let query = databaseRef.child(databaseKey).queryOrderedByKey().queryLimited(toLast: quantity)
+
+        do {
+            let data = try await query.getData()
+
+            var retrievedPosts = [UserPost]()
+            var lastPostKey = ""
+            var postsAuthor = try await UserDataService.shared.getUser(for: userID)
+
+            for snapshot in data.children.reversed() {
+                guard let postSnapshot = snapshot as? DataSnapshot,
+                      let postDictionary = postSnapshot.value as? [String: Any]
+                else {
+                    throw ServiceError.snapshotCastingError
                 }
+                lastPostKey = postSnapshot.key
+
                 do {
                     let jsonData = try JSONSerialization.data(withJSONObject: postDictionary as Any)
                     let decodedPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
-                    UserDataService.shared.getUser(for: decodedPost.userID) { result in
-                        switch result {
-                        case .success(let user):
-                            decodedPost.author = user
-                        case .failure(let error):
-                            completion(.failure(ServiceError.couldntLoadData))
-                        }
-                        completion(.success(decodedPost))
-                    }
+                    decodedPost.author = postsAuthor
+                    retrievedPosts.append(decodedPost)
                 } catch {
-                    completion(.failure(ServiceError.jsonParsingError))
+                    throw error
                 }
             }
+            return PaginatedItems(items: retrievedPosts, lastRetrievedItemKey: lastPostKey)
+        } catch {
+            throw ServiceError.couldntLoadPosts
         }
     }
 
-    func getPosts(quantity: UInt, for userID: String, completion: @escaping CompletionBlockWithPosts) {
+    func getMorePosts(quantity: UInt, after postKey: String, for userID: UserID) async throws -> PaginatedItems<UserPost> {
         let databaseKey = "Posts/\(userID)/"
+        let query = databaseRef.child(databaseKey).queryOrderedByKey().queryEnding(beforeValue: postKey).queryLimited(toLast: quantity)
 
-        databaseRef.child(databaseKey).queryOrderedByKey().queryLimited(toLast: quantity).getData { error, snapshot in
-            if let error = error {
-                completion(.failure(ServiceError.couldntLoadPosts))
-                return
-            } else if let snapshot = snapshot {
+        do {
+            let data = try await query.getData()
 
-                var retrievedPosts = [UserPost]()
-                var lastPostKey = ""
-                var postsAuthor = ZoogramUser()
-                let dispatchGroup = DispatchGroup()
+            var lastRetrievedPostKey = ""
+            var retrievedPosts = [UserPost]()
+            var postsAuthor = try await UserDataService.shared.getUser(for: userID)
 
-                for snapshotChild in snapshot.children.reversed() {
-
-                    guard let postSnapshot = snapshotChild as? DataSnapshot,
-                          let postDictionary = postSnapshot.value as? [String: Any]
-                    else {
-                        completion(.failure(ServiceError.snapshotCastingError))
-                        break
-                    }
-                    dispatchGroup.enter()
-                    lastPostKey = postSnapshot.key
-
-                    do {
-                        let jsonData = try JSONSerialization.data(withJSONObject: postDictionary as Any)
-                        let decodedPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
-                        retrievedPosts.append(decodedPost)
-                        dispatchGroup.leave()
-                    } catch {
-                        completion(.failure(ServiceError.jsonParsingError))
-                        break
-                    }
+            for snapshot in data.children.reversed() {
+                guard let postSnapshot = snapshot as? DataSnapshot,
+                      let postDictionary = postSnapshot.value as? [String: Any]
+                else {
+                    throw ServiceError.snapshotCastingError
                 }
-
-                dispatchGroup.enter()
-                UserDataService.shared.getUser(for: userID) { result in
-                    switch result {
-                    case .success(let author):
-                        postsAuthor = author
-                    case .failure(let error):
-                        completion(.failure(ServiceError.couldntLoadPosts))
-                        break
-                    }
-                    dispatchGroup.leave()
-                }
-
-                dispatchGroup.notify(queue: .main) {
-                    let postsWithAuthors = retrievedPosts.map { post in
-                        post.author = postsAuthor
-                        return post
-                    }
-                    print("retrieved posts: ", postsWithAuthors)
-                    completion(.success((postsWithAuthors, lastPostKey)))
+                lastRetrievedPostKey = postSnapshot.key
+                do {
+                    let jsonData = try JSONSerialization.data(withJSONObject: postDictionary as Any)
+                    let decodedPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
+                    decodedPost.author = postsAuthor
+                    retrievedPosts.append(decodedPost)
+                } catch {
+                    throw ServiceError.jsonParsingError
                 }
             }
-        }
-    }
-
-    func getMorePosts(quantity: UInt, after postKey: String, for userID: String, completion: @escaping CompletionBlockWithPosts) {
-        let databaseKey = "Posts/\(userID)/"
-
-        databaseRef.child(databaseKey).queryOrderedByKey().queryEnding(beforeValue: postKey).queryLimited(toLast: quantity).getData { error, snapshot in
-            if let error = error {
-                completion(.failure(ServiceError.couldntLoadPosts))
-                return
-            } else if let snapshot = snapshot {
-
-                var lastRetrievedPostKey = ""
-                var retrievedPosts = [UserPost]()
-                var postsAuthor = ZoogramUser()
-                let dispatchGroup = DispatchGroup()
-
-                for snapshotChild in snapshot.children.reversed() {
-
-                    guard let postSnapshot = snapshotChild as? DataSnapshot,
-                          let postDictionary = postSnapshot.value as? [String: Any]
-                    else {
-                        completion(.failure(ServiceError.snapshotCastingError))
-                        break
-                    }
-                    dispatchGroup.enter()
-                    lastRetrievedPostKey = postSnapshot.key
-
-                    do {
-                        let jsonData = try JSONSerialization.data(withJSONObject: postDictionary as Any)
-                        let decodedPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
-                        retrievedPosts.append(decodedPost)
-                        dispatchGroup.leave()
-                    } catch {
-                        completion(.failure(ServiceError.jsonParsingError))
-                        break
-                    }
-                }
-
-                dispatchGroup.enter()
-                UserDataService.shared.getUser(for: userID) { result in
-                    switch result {
-                    case .success(let author):
-                        postsAuthor = author
-                    case .failure(let error):
-                        completion(.failure(ServiceError.couldntLoadPosts))
-                        break
-                    }
-                    dispatchGroup.leave()
-                }
-
-                dispatchGroup.notify(queue: .main) {
-                    let postsWithAuthor = retrievedPosts.map { post in
-                        post.author = postsAuthor
-                        return post
-                    }
-                    completion(.success((postsWithAuthor, lastRetrievedPostKey)))
-                }
-            }
+            return PaginatedItems(items: retrievedPosts, lastRetrievedItemKey: lastRetrievedPostKey)
+        } catch {
+            throw ServiceError.couldntLoadPosts
         }
     }
 }

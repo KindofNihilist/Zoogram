@@ -195,78 +195,75 @@ class RegistrationViewController: UIViewController {
     private func saveEmail(completion: @escaping () -> Void) {
         let email = emailView.getTextFieldData()
 
-        if viewModel.isValidEmail(email: email) {
-            viewModel.checkIfEmailIsAvailable(email: email) { [weak self] result in
-                switch result {
-                case .success(let isAvailable):
-                    if isAvailable {
-                        self?.viewModel.email = email
-                        self?.emailView.removeErrorNotification()
-                        completion()
-                    } else {
-                        self?.hapticGenerator.notificationOccurred(.error)
-                        self?.emailView.showErrorNotification(error: String(localized: "User with this email is already registered"))
-                    }
-                case .failure(let error):
-                    self?.showPopUp(issueText: error.localizedDescription)
-                }
-            }
-        } else {
+        guard viewModel.isValidEmail(email: email) else {
             self.hapticGenerator.notificationOccurred(.error)
             let error = String(localized: "Invalid email")
             emailView.showErrorNotification(error: error)
+            return
+        }
+        Task {
+            do {
+                let isEmailAvailable = try await viewModel.checkIfEmailIsAvailable(email: email)
+
+                if isEmailAvailable {
+                    self.viewModel.email = email
+                    self.emailView.removeErrorNotification()
+                    completion()
+                } else {
+                    self.hapticGenerator.notificationOccurred(.error)
+                    self.emailView.showErrorNotification(error: String(localized: "User with this email is already registered"))
+                }
+            } catch {
+                showPopUp(issueText: error.localizedDescription)
+            }
         }
     }
 
     private func saveUsername(completion: @escaping () -> Void) {
         let username = usernameView.getTextFieldData()
-        viewModel.checkIfUsernameIsValid(username: username) { [weak self] result in
-            switch result {
-            case .success:
-                self?.viewModel.checkIfUsernameIsAvailable(username: username) { result in
-                    switch result {
-                    case .success(let isAvailable):
-                        if isAvailable {
-                            self?.viewModel.username = username
-                            self?.usernameView.removeErrorNotification()
-                            completion()
-                        } else {
-                            self?.hapticGenerator.notificationOccurred(.error)
-                            self?.usernameView.showErrorNotification(error: String(localized: "This username is already taken"))
-                        }
-                    case .failure(let error):
-                        self?.showPopUp(issueText: error.localizedDescription)
-                    }
+
+        Task {
+            do {
+                try viewModel.checkIfUsernameIsValid(username: username)
+                let isUsernameAvailable = try await viewModel.checkIfUsernameIsAvailable(username: username)
+
+                if isUsernameAvailable {
+                    self.viewModel.username = username
+                    self.usernameView.removeErrorNotification()
+                    completion()
+                } else {
+                    self.hapticGenerator.notificationOccurred(.error)
+                    self.usernameView.showErrorNotification(error: String(localized: "This username is already taken"))
                 }
-            case .failure(let errorDescription):
-                self?.hapticGenerator.notificationOccurred(.error)
-                self?.usernameView.showErrorNotification(error: errorDescription)
+            } catch {
+                self.showPopUp(issueText: error.localizedDescription)
             }
         }
     }
 
     private func savePassword(completion: @escaping () -> Void) {
         let password = passwordView.getTextFieldData()
-        viewModel.checkIfPasswordIsValid(password: password) { [weak self] result in
-            switch result {
-            case .success:
-                self?.viewModel.password = password
-                self?.passwordView.removeErrorNotification()
-                completion()
-            case .failure(let errorDescription):
-                self?.hapticGenerator.notificationOccurred(.error)
-                self?.passwordView.showErrorNotification(error: errorDescription)
-            }
+
+        do {
+            try viewModel.checkIfPasswordIsValid(password: password)
+            self.viewModel.password = password
+            self.passwordView.removeErrorNotification()
+            completion()
+        } catch {
+            self.hapticGenerator.notificationOccurred(.error)
+            self.passwordView.showErrorNotification(error: error.localizedDescription)
         }
     }
 
     private func saveNameAndBio(completion: @escaping () -> Void) {
-        let bio = generalProfileInfoCardView.getBio()
-        guard let name = generalProfileInfoCardView.getName(), name.isEmpty != true else {
+        guard let name = generalProfileInfoCardView.getName(),
+              name.isEmpty != true
+        else {
             self.hapticGenerator.notificationOccurred(.error)
             generalProfileInfoCardView.showNameFieldIsEmptyError()
             return
         }
+        let bio = generalProfileInfoCardView.getBio()
         viewModel.name = name
         viewModel.bio = bio
         generalProfileInfoCardView.removeEmptyErrorForName()
@@ -283,11 +280,10 @@ class RegistrationViewController: UIViewController {
         if let dateOfBirth = generalProfileInfoCardView.getDateOfBirth() {
             viewModel.dateOfBirth = dateOfBirth
         } else {
-
             generalProfileInfoCardView.showDateOfBirthNotSelectedError()
         }
 
-        if generalProfileInfoCardView.getGender() != nil && generalProfileInfoCardView.getDateOfBirth() != nil {
+        if viewModel.gender != nil && viewModel.dateOfBirth != nil {
             generalProfileInfoCardView.removeErrorStateForAgeAndGender()
             completion()
         } else {
@@ -297,11 +293,11 @@ class RegistrationViewController: UIViewController {
     }
 
     private func finishRegistration(completion: @escaping (ZoogramUser) -> Void) {
-        viewModel.registerNewUser { result in
-            switch result {
-            case .success(let newUser):
-                completion(newUser)
-            case .failure(let error):
+        Task {
+            do {
+                let registeredUser = try await viewModel.registerNewUser()
+                completion(registeredUser)
+            } catch {
                 let errorText = String(localized: "\(error.localizedDescription). \nPlease try again later.")
                 self.showPopUp(issueText: errorText)
             }
@@ -321,6 +317,7 @@ class RegistrationViewController: UIViewController {
         }
     }
 
+    @MainActor
     private func showMainScreen(for user: ZoogramUser) {
         UIView.animate(withDuration: 1.3) {
             self.generalProfileInfoCardView.transform = CGAffineTransform(translationX: 0, y: -(self.view.frame.height - self.generalProfileInfoCardView.bounds.height))
@@ -328,7 +325,7 @@ class RegistrationViewController: UIViewController {
             self.view.alpha = 0
             self.view.layoutIfNeeded()
         } completion: { _ in
-            self.view.window?.rootViewController = TabBarController(currentUser: user, showAppearAnimation: true)
+            self.view.window?.rootViewController = TabBarController(showAppearAnimation: true)
             self.view.window?.makeKeyAndVisible()
         }
     }

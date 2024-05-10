@@ -15,17 +15,12 @@ enum VoidResult {
     case failure(Error)
 }
 
-enum VoidResultWithErrorDescription {
-    case success
-    case failure(ErrorDescription)
-}
-
-enum StorageKeys: String {
-    case users = "Users/"
-    case posts = "Posts/"
-    case postsLikes = "PostsLikes/"
-    case profilePictures = "/ProfilePictues/"
-    case images = "Images/"
+struct DatabaseKeys {
+    static let users = "Users/"
+    static let posts = "Posts/"
+    static let postsLikes = "PostsLikes/"
+    static let profilePictures = "/ProfilePictues/"
+    static let images = "Images/"
 }
 
 enum StorageError: Error {
@@ -36,7 +31,7 @@ enum StorageError: Error {
 }
 
 extension DataSnapshot {
-    
+
     func decoded() throws -> ZoogramUser {
         let value = value
         let jsonData = try JSONSerialization.data(withJSONObject: value)
@@ -44,5 +39,3 @@ extension DataSnapshot {
         return object
     }
 }
-
-

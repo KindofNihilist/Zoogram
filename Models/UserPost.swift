@@ -59,10 +59,8 @@ public class UserPost: Codable {
         self.postedDate = try container.decode(Date.self, forKey: .postedDate)
     }
 
-
-
     static func createNewPostModel() -> UserPost {
-        let userUID = AuthenticationService.shared.getCurrentUserUID()!
+        let userUID = UserManager.shared.getUserID()
         let postUID = UserPostsService.shared.createPostUID()
         return UserPost(userID: userUID,
                         postID: postUID,
@@ -79,14 +77,8 @@ public class UserPost: Codable {
         return dictionary
     }
 
-    func checkIfLikedByCurrentUser(completion: @escaping (Result<LikeState, Error>) -> Void) {
-        LikeSystemService.shared.checkIfPostIsLiked(postID: postID) { result in
-            completion(result)
-        }
-    }
-
     func isMadeByCurrentUser() -> Bool {
-        let currentUserID = AuthenticationService.shared.getCurrentUserUID()
+        let currentUserID = UserManager.shared.getUserID()
         return userID == currentUserID
     }
 

@@ -26,64 +26,41 @@ class CommentsViewModel {
     private var commentIDToFocusOn: String?
     private var relatedPost: UserPost?
 
-    init(post: UserPost, commentIDToFocusOn: String?, shouldShowRelatedPost: Bool, currentUser: ZoogramUser, service: CommentsServiceProtocol) {
+    init(post: UserPost, commentIDToFocusOn: String?, shouldShowRelatedPost: Bool, service: CommentsServiceProtocol) {
+        self.currentUser = UserManager.shared.getCurrentUser()
         self.service = service
         self.commentIDToFocusOn = commentIDToFocusOn
         self.shouldShowRelatedPost = shouldShowRelatedPost
         self.postViewModel = PostViewModel(post: post)
         self.relatedPost = post
-        self.currentUser = currentUser
     }
 
-    init(postViewModel: PostViewModel, commentIDToFocusOn: String?, shouldShowRelatedPost: Bool, currentUser: ZoogramUser, service: CommentsServiceProtocol) {
+    init(postViewModel: PostViewModel, commentIDToFocusOn: String?, shouldShowRelatedPost: Bool, service: CommentsServiceProtocol) {
+        self.currentUser = UserManager.shared.getCurrentUser()
         self.service = service
         self.commentIDToFocusOn = commentIDToFocusOn
         self.shouldShowRelatedPost = shouldShowRelatedPost
         self.postViewModel = postViewModel
-        self.currentUser = currentUser
         self.postCaption = createPostCaptionForCommentArea(with: postViewModel)
     }
 
-    func fetchData(completion: @escaping (Error?) -> Void) {
-        print("fetch data called")
-        let dispatchGroup = DispatchGroup()
-
+    func fetchData() async throws {
         if let post = self.relatedPost {
-            dispatchGroup.enter()
-            service.getAdditionalPostData(for: post) { result in
-                switch result {
-                case .success(let post):
-                    self.postViewModel = PostViewModel(post: post)
-                case .failure(let error):
-                    completion(error)
-                    return
-                }
-                dispatchGroup.leave()
-            }
+            let postWithAdditionalData = try await service.getAdditionalPostData(for: post)
+            self.postViewModel = PostViewModel(post: postWithAdditionalData)
         }
 
-        dispatchGroup.enter()
-        service.getComments { result in
-            switch result {
-            case .success(let comments):
-                self.comments = comments.reversed().enumerated().map({ index, comment in
-                    if comment.commentID == self.commentIDToFocusOn {
-                        self.indexPathOfCommentToToFocusOn = IndexPath(row: index, section: 1)
-                        self.hasAlreadyFocusedOnComment = false
-                    }
-                    comment.canBeEdited = self.checkIfCommentCanBeEdited(comment: comment)
-                    return comment
-                })
-            case .failure(let error):
-                completion(error)
-                return
+        let comments = try await service.getComments()
+        self.comments = comments.reversed().enumerated().map({ index, comment in
+            if comment.commentID == self.commentIDToFocusOn {
+                self.indexPathOfCommentToToFocusOn = IndexPath(row: index, section: 1)
+                self.hasAlreadyFocusedOnComment = false
             }
-            dispatchGroup.leave()
-        }
+            comment.canBeEdited = self.checkIfCommentCanBeEdited(comment: comment)
+            return comment
+        })
 
-        dispatchGroup.notify(queue: .main) {
-            self.hasInitialzied.value = true
-        }
+        self.hasInitialzied.value = true
     }
 
     func checkIfCommentCanBeEdited(comment: PostComment) -> Bool {
@@ -144,9 +121,9 @@ class CommentsViewModel {
         return comments.first
     }
 
-    private func createPostComment(text: String) -> PostComment {
+    private func createPostComment(text: String) throws -> PostComment {
         let commentUID = CommentSystemService.shared.createCommentUID()
-        let currentUserID = AuthenticationService.shared.getCurrentUserUID()!
+        let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
         let formattedText = text.trimmingCharacters(in: NSCharacterSet.whitespacesAndNewlines)
         let postComent = PostComment(commentID: commentUID,
                                      authorID: currentUserID,
@@ -155,69 +132,40 @@ class CommentsViewModel {
         return postComent
     }
 
-    func postComment(commentText: String, completion: @escaping (Result<PostComment, Error>) -> Void) {
-        let newComment = createPostComment(text: commentText)
+    func postComment(commentText: String) async throws -> PostComment {
+        let newComment = try createPostComment(text: commentText)
 
-        service.postComment(comment: newComment) { result in
-            switch result {
-            case .success(let newlyCreatedComment):
-                newlyCreatedComment.author = self.currentUser
-                newlyCreatedComment.canBeEdited = true
-                completion(.success(newlyCreatedComment))
-            case .failure(let error):
-                completion(.failure(error))
-            }
-        }
+        let postedComment = try await service.postComment(comment: newComment)
+        postedComment.author = currentUser
+        postedComment.canBeEdited = true
+        return postedComment
     }
 
-    func deleteComment(at indexPath: IndexPath, completion: @escaping (VoidResult) -> Void) {
+    func deleteComment(at indexPath: IndexPath) async throws {
         let comment = comments[indexPath.row]
 
-        service.deleteComment(commentID: comment.commentID) { result in
-            switch result {
-            case .success:
-                self.comments.remove(at: indexPath.row)
-                completion(.success)
-            case .failure(let error):
-                completion(.failure(error))
-            }
-        }
+        try await service.deleteComment(commentID: comment.commentID)
+        self.comments.remove(at: indexPath.row)
     }
 
-    func deleteThisPost(completion: @escaping (VoidResult) -> Void) {
+    func deleteThisPost() async throws {
         let postViewModel = self.postViewModel
-        service.deletePost(postModel: postViewModel) { result in
-            completion(result)
-        }
+        try await service.deletePost(postModel: postViewModel)
     }
 
-    func likeThisPost(completion: @escaping (Result<LikeState, Error>) -> Void) {
+    func likeThisPost() async throws -> LikeState {
         let postViewModel = self.postViewModel
-        self.service.likePost(postID: postViewModel.postID,
-                              likeState: postViewModel.likeState,
-                              postAuthorID: postViewModel.author.userID) { result in
-            switch result {
-            case .success(let likeState):
-                self.postViewModel.likeState = likeState
-                completion(.success(likeState))
-            case .failure(let error):
-                completion(.failure(error))
-            }
-        }
+        let likeState = try await service.likePost(postID: postViewModel.postID, likeState: postViewModel.likeState, postAuthorID: postViewModel.author.userID)
+        postViewModel.likeState = likeState
+        return likeState
     }
 
-    func bookmarkThisPost(completion: @escaping (Result<BookmarkState, Error>) -> Void) {
+    func bookmarkThisPost() async throws -> BookmarkState {
         let postViewModel = self.postViewModel
-        self.service.bookmarkPost(postID: postViewModel.postID,
-                                  authorID: postViewModel.author.userID,
-                                  bookmarkState: postViewModel.bookmarkState) { result in
-            switch result {
-            case .success(let bookmarkState):
-                self.postViewModel.bookmarkState = bookmarkState
-                completion(.success(bookmarkState))
-            case .failure(let error):
-                completion(.failure(error))
-            }
-        }
+        let bookmarkState = try await service.bookmarkPost(postID: postViewModel.postID,
+                                                           authorID: postViewModel.author.userID,
+                                                           bookmarkState: postViewModel.bookmarkState)
+        postViewModel.bookmarkState = bookmarkState
+        return bookmarkState
     }
 }

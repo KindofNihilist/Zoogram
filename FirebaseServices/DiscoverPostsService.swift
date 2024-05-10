@@ -9,9 +9,9 @@ import Foundation
 import Firebase
 
 protocol DiscoverPostsServiceProtocol {
-    func getDiscoverPostsCount(completion: @escaping (Result<PostCount, Error>) -> Void)
-    func getDiscoverPosts(quantity: UInt, completion: @escaping CompletionBlockWithPosts)
-    func getMoreDiscoverPosts(quantity: UInt, after lastRetrievedPostKey: LastRetrievedPostKey, completion: @escaping CompletionBlockWithPosts)
+    func getDiscoverPostsCount() async throws -> PostCount
+    func getDiscoverPosts(quantity: UInt) async throws -> PaginatedItems<UserPost>
+    func getMoreDiscoverPosts(quantity: UInt, after lastRetrievedPostKey: String) async throws -> PaginatedItems<UserPost>
 }
 
 class DiscoverPostsService: DiscoverPostsServiceProtocol {
@@ -20,125 +20,77 @@ class DiscoverPostsService: DiscoverPostsServiceProtocol {
 
     private let databaseRef = Database.database(url: "https://catogram-58487-default-rtdb.europe-west1.firebasedatabase.app").reference()
 
-    func getDiscoverPostsCount(completion: @escaping (Result<PostCount, Error>) -> Void) {
+    func getDiscoverPostsCount() async throws -> PostCount {
         let query = databaseRef.child("DiscoverPosts/")
-        query.getData { error, snapshot in
-            if let error = error {
-                completion(.failure(error))
-                return
-            } else if let snapshot = snapshot {
-                let numberOfRecentPosts = Int(snapshot.childrenCount)
-                completion(.success(numberOfRecentPosts))
-            } else {
-                completion(.failure(ServiceError.couldntLoadPosts))
-            }
+
+        do {
+            let data = try await query.getData()
+            return Int(data.childrenCount)
+        } catch {
+            throw ServiceError.couldntLoadPosts
         }
     }
 
-    func getDiscoverPosts(quantity: UInt, completion: @escaping CompletionBlockWithPosts) {
+    func getDiscoverPosts(quantity: UInt) async throws -> PaginatedItems<UserPost>  {
+        var retrievedPosts = [UserPost]()
+        var lastRetrievedPostKey: String = ""
         let query = databaseRef.child("DiscoverPosts/").queryOrderedByKey().queryLimited(toLast: quantity)
-        query.getData { error, snapshot in
-            if let error = error {
-                completion(.failure(ServiceError.couldntLoadPosts))
-            } else if let snapshot = snapshot {
-                var retrievedPosts = [UserPost]()
-                var lastRetrievedPostKey: String = ""
-                let dispatchGroup = DispatchGroup()
 
-                for snapshotChild in snapshot.children.reversed() {
-                    guard let postSnapshot = snapshotChild as? DataSnapshot,
-                          let postDict = postSnapshot.value as? [String: Any]
-                    else {
-                        completion(.failure(ServiceError.snapshotCastingError))
-                        break
-                    }
-                    lastRetrievedPostKey = postSnapshot.key
+        do {
+            let data = try await query.getData()
 
-                    do {
-                        let jsonData = try JSONSerialization.data(withJSONObject: postDict as Any)
-                        let post = try JSONDecoder().decode(UserPost.self, from: jsonData)
-                        retrievedPosts.append(post)
-                    } catch {
-                        completion(.failure(ServiceError.jsonParsingError))
-                        break
-                    }
+            for snapshot in data.children.reversed() {
+                guard let postSnapshot = snapshot as? DataSnapshot,
+                      let postDict = postSnapshot.value as? [String: Any]
+                else {
+                    throw ServiceError.snapshotCastingError
                 }
+                lastRetrievedPostKey = postSnapshot.key
 
-                retrievedPosts = retrievedPosts.map({ post in
-                    dispatchGroup.enter()
-                    UserDataService.shared.getUser(for: post.userID ) { result in
-                        switch result {
-                        case .success(let user):
-                            post.author = user
-                        case.failure(_):
-                            completion(.failure(ServiceError.couldntLoadPosts))
-                            return
-                        }
-                        dispatchGroup.leave()
-                    }
-                    return post
-                })
-
-                dispatchGroup.notify(queue: .main) {
-                    completion(.success((retrievedPosts, lastRetrievedPostKey)))
+                do {
+                    let jsonData = try JSONSerialization.data(withJSONObject: postDict as Any)
+                    let post = try JSONDecoder().decode(UserPost.self, from: jsonData)
+                    post.author = try await UserDataService.shared.getUser(for: post.userID)
+                    retrievedPosts.append(post)
+                } catch {
+                    throw error
                 }
-            } else {
-                completion(.failure(ServiceError.couldntLoadPosts))
             }
+            return PaginatedItems(items: retrievedPosts, lastRetrievedItemKey: lastRetrievedPostKey)
+        } catch {
+            throw ServiceError.couldntLoadPosts
         }
     }
 
-    func getMoreDiscoverPosts(quantity: UInt, after lastRetrievedPostKey: LastRetrievedPostKey, completion: @escaping CompletionBlockWithPosts) {
+    func getMoreDiscoverPosts(quantity: UInt, after lastRetrievedPostKey: String) async throws -> PaginatedItems<UserPost> {
+        var retrievedPosts = [UserPost]()
+
         let query = databaseRef.child("DiscoverPosts/").queryOrderedByKey().queryEnding(beforeValue: lastRetrievedPostKey).queryLimited(toLast: quantity)
-        query.getData { error, snapshot in
-            if let error = error {
-                completion(.failure(ServiceError.couldntLoadPosts))
-                return
-            } else if let snapshot = snapshot {
-                var retrievedPosts = [UserPost]()
-                var lastRetrievedPostKey = ""
-                var dispatchGroup = DispatchGroup()
 
-                for snapshotChild in snapshot.children.reversed() {
-                    guard let postSnapshot = snapshotChild as? DataSnapshot,
-                          let postDict = postSnapshot.value as? [String: Any]
-                    else {
-                        completion(.failure(ServiceError.snapshotCastingError))
-                        break
-                    }
-                    lastRetrievedPostKey = postSnapshot.key
+        do {
+            var lastPostKey = ""
+            let data = try await query.getData()
 
-                    do {
-                        let jsonData = try JSONSerialization.data(withJSONObject: postDict as Any)
-                        let post = try JSONDecoder().decode(UserPost.self, from: jsonData)
-                        retrievedPosts.append(post)
-                    } catch {
-                        completion(.failure(ServiceError.jsonParsingError))
-                        break
-                    }
+            for snapshot in data.children.reversed() {
+                guard let postSnapshot = snapshot as? DataSnapshot,
+                      let postDict = postSnapshot.value as? [String: Any]
+                else {
+                    throw ServiceError.snapshotCastingError
                 }
+                lastPostKey = postSnapshot.key
 
-                retrievedPosts = retrievedPosts.map({ post in
-                    dispatchGroup.enter()
-                    UserDataService.shared.getUser(for: post.userID) { result in
-                        switch result {
-                        case .success(let user):
-                            post.author = user
-                        case .failure(let error):
-                            completion(.failure(ServiceError.couldntLoadPosts))
-                            break
-                        }
-                        dispatchGroup.leave()
-                    }
-                    return post
-                })
-
-                dispatchGroup.notify(queue: .main) {
-                    completion(.success((retrievedPosts, lastRetrievedPostKey)))
+                do {
+                    let jsonData = try JSONSerialization.data(withJSONObject: postDict as Any)
+                    let post = try JSONDecoder().decode(UserPost.self, from: jsonData)
+                    post.author = try await UserDataService.shared.getUser(for: post.userID)
+                    retrievedPosts.append(post)
+                } catch {
+                    throw error
                 }
-            } else {
-                completion(.failure(ServiceError.couldntLoadPosts))
             }
+            return PaginatedItems(items: retrievedPosts, lastRetrievedItemKey: lastPostKey)
+        } catch {
+            throw ServiceError.couldntLoadPosts
         }
     }
 }

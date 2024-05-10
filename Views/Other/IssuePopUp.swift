@@ -60,6 +60,7 @@ class IssuePopUp: UIView {
 
 extension UIViewController {
 
+    @MainActor
     func showPopUp(issueText: String, completion: @escaping (() -> Void) = {}) {
         var isPopAlreadyDisplayed: Bool = false
 

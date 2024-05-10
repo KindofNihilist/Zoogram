@@ -95,12 +95,12 @@ class BookmarksViewController: UIViewController {
         self.collectionView.reloadData()
     }
 
+    @MainActor
     @objc private func getBookmarks() {
-        viewModel.getBookmarks { result in
-            switch result {
-            case .success(let bookmarks):
-                if let unwrappedBookmarks = bookmarks {
-                    self.updateBookmarksTableView(with: unwrappedBookmarks)
+        Task {
+            do {
+                if let bookmarks = try await viewModel.getBookmarks() {
+                    self.updateBookmarksTableView(with: bookmarks)
                     self.setupFactory()
                     self.hideLoadingFooterIfNeeded()
                     self.removeNoPostsView()
@@ -108,25 +108,25 @@ class BookmarksViewController: UIViewController {
                     self.createNoPostsView()
                 }
                 self.collectionView.refreshControl?.endRefreshing()
-            case .failure(let error):
+            } catch {
                 self.handleLoadingError(error: error)
             }
         }
     }
 
+    @MainActor
     private func getMoreBookmarks() {
         factory.showLoadingIndicator()
-        viewModel.getMoreBookmarks { result in
-            switch result {
-            case .success(let bookmarks):
-                if let unwrappedBookmarks = bookmarks {
+        Task {
+            do {
+                if let unwrappedBookmarks = try await viewModel.getMoreBookmarks() {
                     self.factory.updatePostsSection(with: unwrappedBookmarks) {
                         self.updateBookmarksTableView(with: self.viewModel.bookmarks)
                         self.viewModel.hasFinishedPagination()
                     }
                 }
                 self.hideLoadingFooterIfNeeded()
-            case .failure(let error):
+            } catch {
                 self.factory.showPaginationRetryButton(error: error, delegate: self)
             }
         }
@@ -141,8 +141,8 @@ class BookmarksViewController: UIViewController {
         self.collectionView.refreshControl?.endRefreshing()
     }
 
+    @MainActor
     private func updateBookmarksTableView(with bookmarks: [Bookmark]) {
-        print("updating table view of bookmarks")
         let posts = bookmarks.compactMap { $0.getPostViewModel() }
         self.postsTableViewController.updatePostsArrayWith(posts: posts)
     }

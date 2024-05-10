@@ -37,7 +37,7 @@ class UserProfileViewModel {
 
     init(service: any UserProfileServiceProtocol) {
         self.service = service
-        self.user = ZoogramUser()
+        self.user = ZoogramUser(service.userID)
         self.postsCount = nil
         self.followersCount = nil
         self.followedUsersCount = nil
@@ -48,122 +48,54 @@ class UserProfileViewModel {
         return service.hasHitTheEndOfPosts == false && service.isAlreadyPaginating == false
     }
 
-    func getPosts(completion: @escaping (VoidResult) -> Void) {
-        service.getItems { posts, error in
-            if let error = error {
-                completion(.failure(error))
-                return
-            } else if let posts = posts {
-                let postViewModels = posts.compactMap { post in
-                    return PostViewModel(post: post)
-                }
-                self.posts.value = postViewModels
-                completion(.success)
-            } else {
-                completion(.success)
+    func getPosts() async throws {
+        let posts = try await service.getItems()
+        if let posts = posts {
+            let postViewModels = posts.compactMap { post in
+                return PostViewModel(post: post)
             }
+            self.posts.value = postViewModels
         }
     }
 
-    func getMorePosts(completion: @escaping (Result<[PostViewModel]?, Error>) -> Void) {
-        service.getMoreItems { paginatedPosts, error in
-            if let error = error {
-                completion(.failure(error))
-                return
-            } else if let paginatedPosts = paginatedPosts {
-                let postViewModels = paginatedPosts.compactMap { post in
-                    return PostViewModel(post: post)
-                }
-                self.posts.value.append(contentsOf: postViewModels)
-                completion(.success(postViewModels))
-            } else {
-                completion(.success(nil))
+    func getMorePosts() async throws -> [PostViewModel]? {
+        let posts = try await service.getMoreItems()
+        if let posts = posts {
+            let postViewModels = posts.compactMap { post in
+                return PostViewModel(post: post)
             }
+            self.posts.value.append(contentsOf: postViewModels)
+            return postViewModels
+        } else {
+            return nil
         }
     }
 
-    func getUserProfileData(completion: @escaping(VoidResult) -> Void) {
-        let dispatchGroup = DispatchGroup()
+    func getUserProfileData() async throws {
+        async let followersCount = service.getFollowersCount()
+        async let followedUsersCount = service.getFollowingCount()
+        async let postsCount = service.getNumberOfItems()
 
-        dispatchGroup.enter()
-        service.getFollowersCount { result in
-            switch result {
-            case .success(let followersCount):
-                print("got followers count")
-                self.followersCount = followersCount
-            case .failure(let error):
-                completion(.failure(error))
-                return
-            }
-            dispatchGroup.leave()
-        }
+        self.followersCount = try await followersCount
+        self.followedUsersCount = try await followedUsersCount
+        self.postsCount = try await postsCount
 
-        dispatchGroup.enter()
-        service.getFollowingCount { result in
-            switch result {
-            case .success(let followedUsersCount):
-                self.followedUsersCount = followedUsersCount
-                print("got following count")
-            case .failure(let error):
-                completion(.failure(error))
-                return
-            }
-            dispatchGroup.leave()
-        }
-
-        dispatchGroup.enter()
-        service.getNumberOfItems { result in
-            switch result {
-            case .success(let postsCount):
-                self.postsCount = postsCount
-                print("got number of items")
-            case .failure(let error):
-                completion(.failure(error))
-                return
-            }
-            dispatchGroup.leave()
-        }
-
-        dispatchGroup.enter()
-        service.getUserData { result in
-            switch result {
-            case .success(let retrievedUser):
-                print("got current user data")
-                self.user = retrievedUser
-            case .failure(let error):
-                completion(.failure(error))
-                return
-            }
-            dispatchGroup.leave()
-        }
-
-        dispatchGroup.notify(queue: .main) {
-            completion(.success)
+        if !isCurrentUserProfile {
+            async let user = service.getUserData()
+            self.user = try await user
         }
     }
 
-    func followUser(completion: @escaping (Result<FollowStatus, Error>) -> Void) {
-        service.followUser { [weak self] result in
-            switch result {
-            case .success(let followStatus):
-                self?.user.followStatus = followStatus
-                completion(.success(followStatus))
-            case .failure(let error):
-                completion(.failure(error))
-            }
-        }
+    func followUser() async throws -> FollowStatus {
+        let newFollowStatus = try await service.followUser()
+        self.user.followStatus = newFollowStatus
+        return newFollowStatus
     }
 
-    func unfollowUser(completion: @escaping (Result<FollowStatus, Error>) -> Void) {
-        service.unfollowUser { [weak self] result in
-            switch result {
-            case .success(let followStatus):
-                self?.user.followStatus = followStatus
-                completion(.success(followStatus))
-            case .failure(let error):
-                completion(.failure(error))
-            }
-        }
+    func unfollowUser() async throws -> FollowStatus {
+        let newFollowStatus = try await service.unfollowUser()
+        self.user.followStatus = newFollowStatus
+        return newFollowStatus
     }
 
     func hasHitTheEndOfPosts() -> Bool {

@@ -8,98 +8,52 @@
 import Foundation
 
 protocol RegistrationServiceProtocol: UserDataValidationServiceProtocol {
-    func registerNewUser(for userModel: NewUser?, password: String?, completion: @escaping (Result<ZoogramUser, Error>) -> Void)
-    func uploadUserInfo(for userModel: NewUser, completion: @escaping (Result<ZoogramUser, Error>) -> Void)
+    func registerNewUser(for userModel: NewUser, password: String) async throws -> ZoogramUser
+    func uploadUserInfo(for userModel: NewUser) async throws -> ZoogramUser
 }
 
 class RegistrationService: RegistrationServiceProtocol {
 
     private let userDataValidationService = UserDataValidationService()
     
-    func checkIfNameIsValid(name: String, completion: @escaping (VoidResultWithErrorDescription) -> Void) {
-        userDataValidationService.checkIfNameIsValid(name: name) { result in
-            completion(result)
-        }
+    func checkIfNameIsValid(name: String) throws {
+        try userDataValidationService.checkIfNameIsValid(name: name)
     }
 
-    func registerNewUser(for userModel: NewUser?, password: String?, completion: @escaping (Result<ZoogramUser, Error>) -> Void) {
-        guard let newUser = userModel,
-              let password = password
-        else {
-            return
-        }
-
-        AuthenticationService.shared.createNewUser(email: newUser.email, password: password, username: newUser.username) { [weak self, newUser] result in
-            switch result {
-            case .success(let registeredUserID):
-                newUser.userID = registeredUserID
-                self?.uploadUserInfo(for: newUser, completion: { result in
-                    switch result {
-                    case .success:
-                        completion(.success(newUser))
-                    case .failure(let error):
-                        completion(.failure(error))
-                    }
-                })
-            case .failure(let error):
-                completion(.failure(error))
-            }
-        }
+    func registerNewUser(for userModel: NewUser, password: String) async throws -> ZoogramUser {
+        let registeredUserID = try await AuthenticationService.shared.createNewUser(email: userModel.email, password: password, username: userModel.username)
+        userModel.userID = registeredUserID
+        let uploadedUserModel = try await uploadUserInfo(for: userModel)
+        return uploadedUserModel
     }
-    
-    func uploadUserInfo(for userModel: NewUser, completion: @escaping (Result<ZoogramUser, Error>) -> Void) {
-        let dispatchGroup = DispatchGroup()
 
+    func uploadUserInfo(for userModel: NewUser) async throws -> ZoogramUser {
         if let image = userModel.getProfilePhoto() {
-            dispatchGroup.enter()
-            UserDataService.shared.uploadUserProfilePictureForNewlyCreatedaUser(with: userModel.userID, profilePic: image) { result in
-                switch result {
-                case .success(let profilePicURL):
-                    userModel.profilePhotoURL = profilePicURL
-                case .failure(let error):
-                    completion(.failure(error))
-                }
-                dispatchGroup.leave()
-            }
+            let photoURL = try await UserDataService.shared.uploadUserProfilePictureForNewlyCreatedaUser(with: userModel.userID, profilePic: image)
+            userModel.profilePhotoURL = photoURL.absoluteString
         }
 
-        dispatchGroup.notify(queue: .main) {
-            UserDataService.shared.insertNewUserData(with: userModel) { result in
-                switch result {
-                case .success:
-                    completion(.success(userModel))
-                case .failure(let error):
-                    completion(.failure(error))
-                }
-            }
-        }
+        try await UserDataService.shared.insertNewUserData(with: userModel)
+        return userModel
     }
     
-    func checkIfEmailIsAvailable(email: String, completion: @escaping (Result<IsAvailable, Error>) -> Void) {
-        userDataValidationService.checkIfEmailIsAvailable(email: email) { result in
-            completion(result)
-        }
+    func checkIfEmailIsAvailable(email: String) async throws -> Bool {
+        try await userDataValidationService.checkIfEmailIsAvailable(email: email)
     }
 
     func checkIfEmailIsValid(email: String) -> Bool {
         userDataValidationService.checkIfEmailIsValid(email: email)
     }
     
-    func checkIfUsernameIsAvailable(username: String, completion: @escaping (Result<IsAvailable, Error>) -> Void) {
-        userDataValidationService.checkIfUsernameIsAvailable(username: username) { result in
-            completion(result)
-        }
+    func checkIfUsernameIsAvailable(username: String) async throws -> Bool {
+        try await userDataValidationService.checkIfUsernameIsAvailable(username: username)
     }
     
-    func checkIfUsernameIsValid(username: String, completion: @escaping (VoidResultWithErrorDescription) -> Void) {
-        userDataValidationService.checkIfUsernameIsValid(username: username) { result in
-            completion(result)
-        }
+    func checkIfUsernameIsValid(username: String) throws {
+        try userDataValidationService.checkIfUsernameIsValid(username: username)
     }
     
-    func checkIfPasswordIsValid(password: String, completion: @escaping (VoidResultWithErrorDescription) -> Void) {
-        userDataValidationService.checkIfPasswordIsValid(password: password) { result in
-            completion(result)
-        }
+    func checkIfPasswordIsValid(password: String) throws {
+        try userDataValidationService.checkIfPasswordIsValid(password: password)
     }
 }

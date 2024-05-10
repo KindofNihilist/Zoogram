@@ -167,7 +167,7 @@ class CommentAccessoryView: UIInputView {
             postButton.heightAnchor.constraint(equalToConstant: elementsHeight - 3),
 
             charLimitLabel.bottomAnchor.constraint(equalTo: postButton.topAnchor),
-            charLimitLabel.centerXAnchor.constraint(equalTo: postButton.centerXAnchor),
+            charLimitLabel.centerXAnchor.constraint(equalTo: postButton.centerXAnchor)
         ])
     }
 

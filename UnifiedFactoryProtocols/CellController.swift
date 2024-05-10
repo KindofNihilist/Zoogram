@@ -7,7 +7,7 @@
 
 import Foundation
 
-open class CellController<T: ReusableCellHolder> {
+@MainActor open class CellController<T: ReusableCellHolder> {
 
     private weak var reusableCellHolder: T?
 

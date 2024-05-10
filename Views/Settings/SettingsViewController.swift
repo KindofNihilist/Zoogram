@@ -31,11 +31,11 @@ final class SettingsViewController: UIViewController {
         self.currentUserViewModel = currentUserViewModel
         super.init(nibName: nil, bundle: nil)
     }
-    
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-    
+
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = Colors.naturalSecondaryBackground
@@ -105,14 +105,14 @@ final class SettingsViewController: UIViewController {
         let logoutTitle = String(localized: "Log Out")
         let cancelTitle = String(localized: "Cancel")
         let localizedMessage = String(localized: "Are you sure you want to log out?")
-        
+
         let logoutAlert = UIAlertController(title: logoutTitle, message: localizedMessage, preferredStyle: .alert)
         let cancelAction = UIAlertAction(title: cancelTitle, style: .cancel)
         let logOutAction = UIAlertAction(title: logoutTitle, style: .destructive) { _ in
-            AuthenticationService.shared.signOut { result in
-                if case .failure(let error) = result {
-                    self.show(error: error)
-                }
+            do {
+                try AuthenticationService.shared.signOut()
+            } catch {
+                self.show(error: error)
             }
         }
         logoutAlert.addAction(logOutAction)

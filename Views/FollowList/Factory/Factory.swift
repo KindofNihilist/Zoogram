@@ -7,6 +7,7 @@
 
 import UIKit.UITableView
 
+@MainActor
 protocol FollowListFactory: AnyObject {
     var delegate: FollowListCellDelegate { get set }
     var selectionAction: ((IndexPath) -> Void)? { get set }

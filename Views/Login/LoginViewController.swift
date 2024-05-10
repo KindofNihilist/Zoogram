@@ -210,7 +210,8 @@ class LoginViewController: UIViewController {
         }
     }
 
-    private func showMainScreen(for user: ZoogramUser) {
+    @MainActor
+    private func showMainScreen() {
         UIView.animate(withDuration: 1.0) {
             self.logoImage.transform = CGAffineTransform(translationX: 0, y: -(self.view.frame.height - self.logoImage.frame.height))
             self.loginButton.transform = CGAffineTransform(translationX: 0, y: 300)
@@ -219,7 +220,7 @@ class LoginViewController: UIViewController {
             self.view.alpha = 0
         } completion: { _ in
             self.hasFinishedLogginIn.value = true
-            self.view.window?.rootViewController = TabBarController(currentUser: user, showAppearAnimation: true)
+            self.view.window?.rootViewController = TabBarController(showAppearAnimation: true)
         }
     }
 
@@ -229,8 +230,9 @@ class LoginViewController: UIViewController {
         else {
             return
         }
-        viewModel.loginUser(with: usernameEmail, password: password) { [weak self] logedInUser in
-            self?.showMainScreen(for: logedInUser)
+        Task {
+            await viewModel.loginUser(with: usernameEmail, password: password)
+            self.showMainScreen()
         }
     }
 
@@ -245,7 +247,8 @@ class LoginViewController: UIViewController {
         guard let email = usernameEmailField.text else {
             return
         }
-        viewModel.resetPassword(for: email) {
+        Task {
+            await viewModel.resetPassword(for: email)
             let notificationText = String(localized: "Please check your email for password reset link and follow the instructions")
             self.displayNotificationToUser(title: "", text: notificationText, prefferedStyle: .alert, action: nil)
         }

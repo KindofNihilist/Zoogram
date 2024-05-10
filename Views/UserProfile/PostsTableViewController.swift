@@ -7,7 +7,7 @@
 import SDWebImage
 import UIKit
 
-protocol PostsTableViewDelegate: AnyObject {
+@MainActor protocol PostsTableViewDelegate: AnyObject {
     func updateCollectionView(with postViewModels: [PostViewModel])
 }
 
@@ -37,6 +37,7 @@ class PostsTableViewController: UIViewController {
         super.init(nibName: nil, bundle: nil)
         view = tableView
         tableView.setUserPostsViewModels(postsViewModels: posts)
+        tableView.reloadData()
         tableView.postsTableDelegate = self
     }
 
@@ -66,8 +67,10 @@ class PostsTableViewController: UIViewController {
         self.tableView.frame = frame
     }
 
+    @MainActor
     func updatePostsArrayWith(posts: [PostViewModel]) {
         self.tableView.setUserPostsViewModels(postsViewModels: posts)
+        self.tableView.reloadData()
     }
 
     func focusTableViewOnPostWith(index: IndexPath) {
@@ -107,7 +110,7 @@ class PostsTableViewController: UIViewController {
 }
 
 extension PostsTableViewController: PostsTableViewProtocol {
-    
+
     func showLoadingError(_ error: Error) {
         if service.numberOfRetrievedItems == 0 {
             showReloadButton(with: error)
@@ -115,7 +118,7 @@ extension PostsTableViewController: PostsTableViewProtocol {
             showPopUp(issueText: error.localizedDescription)
         }
     }
-    
+
     func didTapCommentButton(viewModel: PostViewModel) {
         showCommentsFor(viewModel)
     }

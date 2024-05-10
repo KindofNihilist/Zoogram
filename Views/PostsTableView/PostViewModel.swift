@@ -69,7 +69,7 @@ class PostViewModel {
 
     init() {
         self.postID = ""
-        self.author = ZoogramUser()
+        self.author = UserManager.shared.getCurrentUser()
         self.datePosted = Date()
         self.isMadeByCurrentUser = true
         self.postImage = UIImage(systemName: "photo")!

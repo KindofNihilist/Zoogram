@@ -16,20 +16,16 @@ extension UIViewController {
             .compactMap({ ($0 as? UIWindowScene)?.keyWindow })
             .last
         else {
-            print("inside hasBottomSafeArea guard")
             return false
         }
         let safeAreaLayoutGuide = window.safeAreaLayoutGuide
         let layoutGuideHeight = safeAreaLayoutGuide.layoutFrame.maxY
         let viewHeight = view.frame.maxY
         let heightDifference = viewHeight - layoutGuideHeight
-        print("layoutGuideHeight: ", layoutGuideHeight)
-        print("viewHeight: ", viewHeight)
-        print("hasBottomSafeAreaInset: ", heightDifference > 0)
-        print("bottomSafeAreaInset: ", heightDifference)
         return heightDifference > 0
     }
 
+    @MainActor
     func hideUIElements(animate: Bool, completion: @escaping () -> Void = {}) {
         let duration = animate == true ? 0.5 : 0.0
         UIView.animate(withDuration: duration) {
@@ -40,6 +36,7 @@ extension UIViewController {
         }
     }
 
+    @MainActor
     func showUIElements(animate: Bool, completion: @escaping () -> Void = {}) {
         let duration = animate == true ? 0.5 : 0.0
         UIView.animate(withDuration: duration) {
@@ -50,12 +47,14 @@ extension UIViewController {
         }
     }
     
+    @MainActor
     func show(error: Error, title: String = "Error") {
         let alert = UIAlertController(title: title, message: error.localizedDescription, preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "Ok", style: .default))
         self.present(alert, animated: true)
     }
 
+    @MainActor
     func showProfile(of user: ZoogramUser) {
         let service = UserProfileService(
             userID: user.userID,
@@ -70,6 +69,7 @@ extension UIViewController {
         show(userProfileVC, sender: self)
     }
 
+    @MainActor
     func showMenuForPost(postViewModel: PostViewModel, onDelete: @escaping () -> Void) {
         let actionSheet = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
         actionSheet.view.backgroundColor = Colors.background
@@ -90,6 +90,7 @@ extension UIViewController {
         present(actionSheet, animated: true)
     }
 
+    @MainActor
     func showCommentsFor(_ viewModel: PostViewModel) {
         let service = CommentsService(
             postID: viewModel.postID,
@@ -99,17 +100,15 @@ extension UIViewController {
             commentsService: CommentSystemService.shared,
             likesService: LikeSystemService.shared,
             bookmarksService: BookmarksSystemService.shared)
-        service.getCurrentUser { currentUser in
-            let commentsViewController = CommentsViewController(
-                postViewModel: viewModel,
-                shouldShowRelatedPost: false,
-                currentUser: currentUser,
-                service: service)
-            commentsViewController.hidesBottomBarWhenPushed = true
-            self.navigationController?.pushViewController(commentsViewController, animated: true)
-        }
+        let commentsViewController = CommentsViewController(
+            postViewModel: viewModel,
+            shouldShowRelatedPost: false,
+            service: service)
+        commentsViewController.hidesBottomBarWhenPushed = true
+        self.navigationController?.pushViewController(commentsViewController, animated: true)
     }
 
+    @MainActor
     func displayNotificationToUser(title: String, text: String, prefferedStyle: UIAlertController.Style, action: ((UIAlertAction) -> Void)?) {
         let alert = UIAlertController(title: title, message: text, preferredStyle: prefferedStyle)
         if let action = action {
@@ -137,7 +136,6 @@ extension UIViewController {
 
 extension UIAlertController {
     @objc func dismissSelf() {
-        print("should dismiss alert controller")
         self.dismiss(animated: true)
     }
 }

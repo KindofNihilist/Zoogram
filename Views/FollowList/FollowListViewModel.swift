@@ -20,39 +20,26 @@ class FollowListViewModel {
         self.isUserProfile = isUserProfile
     }
 
-    func getUserList(completion: @escaping (VoidResult) -> Void) {
-        service.getUserList { result in
-            switch result {
-            case .success(let userList):
-                self.userList = userList
-                completion(.success)
-            case .failure(let error):
-                completion(.failure(error))
-            }
-        }
+    func getUserList() async throws -> [ZoogramUser] {
+        userList = try await service.getUserList()
+        return userList
     }
 
-    func followUser(uid: String, completion: @escaping (Result<FollowStatus, Error>) -> Void) {
-        service.followUser(uid: uid) { result in
-            completion(result)
-        }
+    func followUser(uid: String) async throws -> FollowStatus {
+        let followStatus = try await service.followUser(uid: uid)
+        return followStatus
     }
 
-    func unfollowUser(uid: String, completion: @escaping (Result<FollowStatus, Error>) -> Void) {
-        service.unfollowUser(uid: uid) { result in
-            completion(result)
-        }
+    func unfollowUser(uid: String) async throws -> FollowStatus {
+        let followStatus = try await service.unfollowUser(uid: uid)
+        return followStatus
     }
 
-    func removeUserFollowingMe(uid: String, completion: @escaping (VoidResult) -> Void) {
-        service.removeUserFollowingMe(uid: uid) { result in
-            completion(result)
-        }
+    func removeUserFollowingMe(uid: String) async throws {
+        try await service.removeUserFollowingMe(uid: uid)
     }
 
-    func undoUserRemoval(uid: String, completion: @escaping (VoidResult) -> Void) {
-        service.undoUserRemoval(uid: uid) { result in
-            completion(result)
-        }
+    func undoUserRemoval(uid: String) async throws {
+        try await service.undoUserRemoval(uid: uid)
     }
 }

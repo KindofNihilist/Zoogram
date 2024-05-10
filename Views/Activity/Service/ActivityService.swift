@@ -14,10 +14,11 @@ protocol ActivityServiceProtocol {
     var userPostsService: UserPostsServiceProtocol { get }
     var storageManager: StorageManagerProtocol { get }
 
-    func observeActivityEvents(completion: @escaping (Result<[ActivityEvent], Error>) -> Void)
-    func updateActivityEventsSeenStatus(events: Set<ActivityEvent>, completion: @escaping (VoidResult) -> Void)
-    func followSubscriberBack(uid: String, completion: @escaping (Result<FollowStatus, Error>) -> Void)
-    func unfollowSubscriber(uid: String, completion: @escaping (Result<FollowStatus, Error>) -> Void)
+    func observeActivityEvents() -> AsyncThrowingStream<[ActivityEvent], Error>
+    func updateActivityEventsSeenStatus(events: Set<ActivityEvent>) async throws
+    func followSubscriberBack(uid: String) async throws -> FollowStatus
+    func unfollowSubscriber(uid: String) async throws -> FollowStatus
+    func getAdditionalDataFor(events: [ActivityEvent]) async throws -> [ActivityEvent]
 }
 
 class ActivityService: ImageService, ActivityServiceProtocol {
@@ -40,94 +41,39 @@ class ActivityService: ImageService, ActivityServiceProtocol {
         self.storageManager = storageManager
     }
 
-    func observeActivityEvents(completion: @escaping (Result<[ActivityEvent], Error>) -> Void) {
-        activitySystemService.observeActivityEvents { result in
-            switch result {
-            case .success(let events):
-                self.getAdditionalDataFor(events: events) { result in
-                    completion(result)
-                }
-            case .failure(let error):
-                completion(.failure(error))
-            }
-
-        }
+    func observeActivityEvents() -> AsyncThrowingStream<[ActivityEvent], Error> {
+        return activitySystemService.observeActivityEvents()
     }
 
-    func updateActivityEventsSeenStatus(events: Set<ActivityEvent>, completion: @escaping (VoidResult) -> Void) {
-        activitySystemService.updateActivityEventsSeenStatus(events: events) { result in
-            completion(result)
-        }
+    func updateActivityEventsSeenStatus(events: Set<ActivityEvent>) async throws {
+        try await activitySystemService.updateActivityEventsSeenStatus(events: events)
     }
 
-    func followSubscriberBack(uid: String, completion: @escaping (Result<FollowStatus, Error>) -> Void) {
-        followSystemService.followUser(uid: uid) { result in
-            completion(result)
-        }
+    func followSubscriberBack(uid: String) async throws -> FollowStatus {
+        return try await followSystemService.followUser(uid: uid)
     }
 
-    func unfollowSubscriber(uid: String, completion: @escaping (Result<FollowStatus, Error>) -> Void) {
-        followSystemService.unfollowUser(uid: uid) { result in
-            completion(result)
-        }
+    func unfollowSubscriber(uid: String) async throws -> FollowStatus {
+        return try await followSystemService.unfollowUser(uid: uid)
     }
-}
 
-extension ActivityService {
-
-    func getAdditionalDataFor(events: [ActivityEvent], completion: @escaping (Result<[ActivityEvent], Error>) -> Void) {
-        let currentUserID = AuthenticationService.shared.getCurrentUserUID()!
-        let dispatchGroup = DispatchGroup()
+    func getAdditionalDataFor(events: [ActivityEvent]) async throws -> [ActivityEvent] {
+        let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
 
         for event in events {
-            dispatchGroup.enter()
-            userDataService.getUser(for: event.userID) { result in
-                switch result {
-                case .success(let user):
-                    event.user = user
+            let user = try await userDataService.getUser(for: event.userID)
+            event.user = user
 
-                    if let profilePhotoURL = user.profilePhotoURL {
-                        dispatchGroup.enter()
-                        self.getImage(for: profilePhotoURL) { result in
-                            switch result {
-                            case .success(let profilePhoto):
-                                event.user?.setProfilePhoto(profilePhoto)
-                            case .failure(let error):
-                                completion(.failure(error))
-                            }
-                            dispatchGroup.leave()
-                        }
-                    }
-                case .failure(let error):
-                    completion(.failure(error))
-                }
-                dispatchGroup.leave()
+            if let profilePhotoURL = user.profilePhotoURL {
+                let profilePhoto = try await getImage(for: profilePhotoURL)
+                event.user?.setProfilePhoto(profilePhoto)
             }
 
             if event.eventType == .postLiked || event.eventType == .postCommented {
-                dispatchGroup.enter()
-                userPostsService.getPost(ofUser: currentUserID, postID: event.postID!) { result in
-                    switch result {
-                    case .success(let post):
-                        self.getImage(for: post.photoURL) { result in
-                            switch result {
-                            case .success(let postImage):
-                                post.image = postImage
-                                event.post = post
-                            case .failure(let error):
-                                completion(.failure(error))
-                            }
-                            dispatchGroup.leave()
-                        }
-                    case .failure(let error):
-                        completion(.failure(error))
-                    }
-                }
+                event.post = try await userPostsService.getPost(ofUser: currentUserID, postID: event.postID!)
+                event.post?.image = try await getImage(for: event.post?.photoURL)
             }
         }
-        dispatchGroup.notify(queue: .main) {
-            completion(.success(events))
-        }
+        return events
     }
 }
-

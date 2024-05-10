@@ -12,17 +12,17 @@ protocol FollowSystemProtocol {
     typealias FollowersNumber = Int
     typealias FollowingNumber = Int
     
-    func getFollowersNumber(for uid: String, completion: @escaping (Result<FollowersNumber, Error>) -> Void)
-    func getFollowingNumber(for uid: String, completion: @escaping (Result<FollowingNumber, Error>) -> Void)
-    func getFollowers(for uid: String, completion: @escaping (Result<[ZoogramUser], Error>) -> Void)
-    func getFollowing(for uid: String, completion: @escaping (Result<[ZoogramUser], Error>) -> Void)
-    func checkFollowStatus(for uid: String, completion: @escaping (Result<FollowStatus, Error>) -> Void)
-    func followUser(uid: String, completion: @escaping (Result<FollowStatus, Error>) -> Void)
-    func unfollowUser(uid: String, completion: @escaping (Result<FollowStatus, Error>) -> Void)
-    func insertFollower(with uid: String, to user: String, completion: @escaping (VoidResult) -> Void)
-    func removeFollower(with uid: String, from user: String, completion: @escaping (VoidResult) -> Void)
-    func forcefullyRemoveFollower(uid: String, completion: @escaping (VoidResult) -> Void)
-    func undoForcefullRemoval(ofUser uid: String, completion: @escaping (VoidResult) -> Void)
+    func getFollowersNumber(for uid: String) async throws -> FollowersNumber
+    func getFollowingNumber(for uid: String) async throws -> FollowingNumber
+    func getFollowers(for uid: String) async throws -> [ZoogramUser]
+    func getFollowing(for uid: String) async throws -> [ZoogramUser]
+    func checkFollowStatus(for uid: String) async throws -> FollowStatus
+    func followUser(uid: String) async throws -> FollowStatus
+    func unfollowUser(uid: String) async throws -> FollowStatus
+    func insertFollower(with uid: String, to user: String) async throws
+    func removeFollower(with uid: String, from user: String) async throws
+    func forcefullyRemoveFollower(uid: String) async throws
+    func undoForcefullRemoval(ofUser uid: String) async throws
 }
 
 class FollowSystemService: FollowSystemProtocol {
@@ -31,250 +31,153 @@ class FollowSystemService: FollowSystemProtocol {
 
     private let databaseRef = Database.database(url: "https://catogram-58487-default-rtdb.europe-west1.firebasedatabase.app").reference()
 
-    func getFollowersNumber(for uid: String, completion: @escaping (Result<FollowersNumber, Error>) -> Void) {
+    func getFollowersNumber(for uid: String) async throws -> FollowersNumber {
         let databaseKey =  "Followers/\(uid)"
 
-        databaseRef.child(databaseKey).getData { error, snapshot in
-            if let error = error {
-                completion(.failure(ServiceError.couldntLoadData))
-                return
-            } else if let snapshot = snapshot {
-                let numberOfFollowers = Int(snapshot.childrenCount)
-                completion(.success(numberOfFollowers))
-            }
+        do {
+            let data = try await databaseRef.child(databaseKey).getData()
+            return Int(data.childrenCount)
+        } catch {
+            throw ServiceError.couldntLoadData
         }
     }
 
-    func getFollowingNumber(for uid: String, completion: @escaping (Result<FollowersNumber, Error>) -> Void) {
+    func getFollowingNumber(for uid: String) async throws -> FollowingNumber {
         let databaseKey =  "Following/\(uid)"
 
-        databaseRef.child(databaseKey).getData { error, snapshot in
-            if let error = error {
-                completion(.failure(ServiceError.couldntLoadData))
-                return
-            } else if let snapshot = snapshot {
-                let numberOfFollowing = Int(snapshot.childrenCount)
-                completion(.success(numberOfFollowing))
-            }
+        do {
+            let data = try await databaseRef.child(databaseKey).getData()
+            return Int(data.childrenCount)
+        } catch {
+            throw ServiceError.couldntLoadData
         }
     }
 
-    func getFollowers(for uid: String, completion: @escaping (Result<[ZoogramUser], Error>) -> Void) {
+    func getFollowers(for uid: String) async throws -> [ZoogramUser] {
         var followers = [ZoogramUser]()
         let databaseKey = "Followers/\(uid)"
-        let dispatchGroup = DispatchGroup()
-        var serviceError: Error?
 
-        databaseRef.child(databaseKey).getData { error, snapshot in
-            if let error = error {
-                completion(.failure(ServiceError.couldntLoadData))
-                return
-            } else if let snapshot = snapshot {
+        do {
+            let data = try await databaseRef.child(databaseKey).getData()
 
-                for snapshotChild in snapshot.children {
-                    guard let snapshotChild = snapshotChild as? DataSnapshot,
-                          let snapshotDictionary = snapshotChild.value as? [String : String],
-                          let userID = snapshotDictionary.first?.value
-                    else {
-                        completion(.failure(ServiceError.snapshotCastingError))
-                        break
-                    }
-                    dispatchGroup.enter()
-                    UserDataService.shared.getUser(for: userID) { result in
-                        switch result {
-                        case .success(let follower):
-                            followers.append(follower)
-                        case .failure(let error):
-                            serviceError = ServiceError.couldntLoadData
-                            completion(.failure(ServiceError.couldntLoadData))
-                            break
-                        }
-                        dispatchGroup.leave()
-                    }
+            for snapshot in data.children {
+                guard let snapshotChild = snapshot as? DataSnapshot,
+                      let snapshotDictionary = snapshotChild.value as? [String : String],
+                      let userID = snapshotDictionary.first?.value
+                else {
+                    throw ServiceError.snapshotCastingError
                 }
-                dispatchGroup.notify(queue: .main) {
-                    if let error = serviceError {
-                        completion(.failure(error))
-                    } else {
-                        completion(.success(followers))
-                    }
-                }
+                let follower = try await UserDataService.shared.getUser(for: userID)
+                followers.append(follower)
             }
+            return followers
+        } catch {
+            throw ServiceError.couldntLoadData
         }
     }
 
-    func getFollowing(for uid: String, completion: @escaping (Result<[ZoogramUser], Error>) -> Void) {
+    func getFollowing(for uid: String) async throws -> [ZoogramUser] {
         var followedUsers = [ZoogramUser]()
         let databaseKey = "Following/\(uid)"
-        let dispatchGroup = DispatchGroup()
-        var serviceError: Error?
 
-        databaseRef.child(databaseKey).getData { error, snapshot in
-            if let error = error {
-                completion(.failure(ServiceError.couldntLoadData))
-                return
-            } else if let snapshot = snapshot {
+        do {
+            let data = try await databaseRef.child(databaseKey).getData()
 
-                for snapshotChild in snapshot.children {
-                    guard let snapshotChild = snapshotChild as? DataSnapshot,
-                          let snapshotDictionary = snapshotChild.value as? [String: String],
-                          let userID = snapshotDictionary.first?.value
-                    else {
-                        completion(.failure(ServiceError.snapshotCastingError))
-                        break
-                    }
-                    dispatchGroup.enter()
-                    UserDataService.shared.getUser(for: userID) { result in
-                        switch result {
-                        case .success(let followedUser):
-                            followedUsers.append(followedUser)
-                        case .failure(let error):
-                            serviceError = ServiceError.couldntLoadData
-                            completion(.failure(ServiceError.couldntLoadData))
-                            break
-                        }
-                        dispatchGroup.leave()
-                    }
+            for snapshot in data.children {
+                guard let snapshotChild = snapshot as? DataSnapshot,
+                      let snapshotDictionary = snapshotChild.value as? [String : String],
+                      let userID = snapshotDictionary.first?.value
+                else {
+                    throw ServiceError.snapshotCastingError
                 }
-                dispatchGroup.notify(queue: .main) {
-                    if let error = serviceError {
-                        completion(.failure(error))
-                    } else {
-                        completion(.success(followedUsers))
-                    }
-                }
+                let followedUser = try await UserDataService.shared.getUser(for: userID)
+                followedUsers.append(followedUser)
             }
+            return followedUsers
+        } catch {
+            throw ServiceError.couldntLoadData
         }
     }
 
-    func checkFollowStatus(for uid: String, completion: @escaping (Result<FollowStatus, Error>) -> Void) {
-        guard let currentUserID = AuthenticationService.shared.getCurrentUserUID() else { return }
-
+    func checkFollowStatus(for uid: String) async throws -> FollowStatus {
+        let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
         let query = databaseRef.child("Following/\(currentUserID)").queryOrdered(byChild: "userID").queryEqual(toValue: uid)
 
-        query.getData { error, snapshot in
-            if let error = error {
-                completion(.failure(ServiceError.couldntLoadData))
-                return
-            } else if let snapshot = snapshot {
-                
-                if snapshot.exists() {
-                    completion(.success(.following))
-                } else {
-                    completion(.success(.notFollowing))
-                }
+        do {
+            let data = try await query.getData()
+
+            if data.exists() {
+                return .following
+            } else {
+                return .notFollowing
             }
+        } catch {
+            throw ServiceError.couldntLoadData
         }
     }
 
-    func followUser(uid: String, completion: @escaping (Result<FollowStatus, Error>) -> Void) {
-        guard let currentUserID = AuthenticationService.shared.getCurrentUserUID() else { return }
+    func followUser(uid: String) async throws -> FollowStatus {
+        let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
         let databaseKey = "Following/\(currentUserID)/\(uid)"
 
-        databaseRef.child(databaseKey).setValue(["userID": uid]) { error, _ in
-            if let error = error {
-                completion(.failure(ServiceError.couldntCompleteTheAction))
-            } else {
-                self.insertFollower(with: currentUserID, to: uid) { result in
-                    switch result {
-                    case .success:
-                        completion(.success(.following))
-                    case .failure(let error):
-                        completion(.failure(ServiceError.couldntCompleteTheAction))
-                    }
-                }
-                let eventID = ActivitySystemService.shared.createEventUID()
-                let activityEvent = ActivityEvent(eventType: .followed, userID: currentUserID, eventID: eventID, date: Date())
-                ActivitySystemService.shared.addEventToUserActivity(event: activityEvent, userID: uid)
-            }
-        }
+        do {
+            let followTask = try await databaseRef.child(databaseKey).setValue(["userID": uid])
+            try await insertFollower(with: currentUserID, to: uid)
 
+            let eventID = ActivitySystemService.shared.createEventUID()
+            let activityEvent = ActivityEvent(eventType: .followed, userID: currentUserID, eventID: eventID, date: Date())
+            try await ActivitySystemService.shared.addEventToUserActivity(event: activityEvent, userID: uid)
+            return .following
+        } catch {
+            throw ServiceError.couldntCompleteTheAction
+        }
     }
 
-    func unfollowUser(uid: String, completion: @escaping (Result<FollowStatus, Error>) -> Void) {
-        guard let currentUserID = AuthenticationService.shared.getCurrentUserUID() else { return }
+    func unfollowUser(uid: String) async throws -> FollowStatus {
+        let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
         let databaseKey = "Following/\(currentUserID)/\(uid)"
 
-        databaseRef.child(databaseKey).removeValue { error, _ in
-            if let error = error {
-                completion(.failure(ServiceError.couldntCompleteTheAction))
-            } else {
-                self.removeFollower(with: currentUserID, from: uid) { result in
-                    switch result {
-                    case .success:
-                        ActivitySystemService.shared.removeFollowEventForUser(userID: uid)
-                        completion(.success(.notFollowing))
-                    case .failure(let error):
-                        completion(.failure(ServiceError.couldntCompleteTheAction))
-                    }
-
-                }
-            }
+        do {
+            let unfollowTask = try await databaseRef.child(databaseKey).removeValue()
+            try await removeFollower(with: currentUserID, from: uid)
+            try await ActivitySystemService.shared.removeFollowEventForUser(userID: uid)
+            return .notFollowing
+        } catch {
+            throw ServiceError.couldntCompleteTheAction
         }
     }
 
-    func insertFollower(with uid: String, to user: String, completion: @escaping (VoidResult) -> Void) {
+    func insertFollower(with uid: String, to user: String) async throws {
         let databaseKey = "Followers/\(user)/\(uid)"
-
-        databaseRef.child(databaseKey).setValue(["userID": uid]) { error, _ in
-            if let error = error {
-                completion(.failure(ServiceError.couldntCompleteTheAction))
-            } else {
-                completion(.success)
-            }
-        }
+        try await databaseRef.child(databaseKey).setValue(["userID": uid])
     }
 
-    func removeFollower(with uid: String, from user: String, completion: @escaping (VoidResult) -> Void) {
+    func removeFollower(with uid: String, from user: String) async throws {
         let databaseKey = "Followers/\(user)/\(uid)"
-
-        databaseRef.child(databaseKey).removeValue { error, _ in
-            if let error = error {
-                completion(.failure(ServiceError.couldntCompleteTheAction))
-            } else {
-                completion(.success)
-            }
-        }
+        try await databaseRef.child(databaseKey).removeValue()
     }
 
-    func forcefullyRemoveFollower(uid: String, completion: @escaping (VoidResult) -> Void) {
-        guard let currentUserID = AuthenticationService.shared.getCurrentUserUID() else { return }
+    func forcefullyRemoveFollower(uid: String) async throws {
+        let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
         let databaseKey = "Following/\(uid)/\(currentUserID)"
 
-        databaseRef.child(databaseKey).removeValue { error, _ in
-            if let error = error {
-                completion(.failure(ServiceError.couldntCompleteTheAction))
-            } else {
-                self.removeFollower(with: uid, from: currentUserID) { result in
-                    switch result {
-                    case .success:
-                        completion(.success)
-                    case .failure(let error):
-                        completion(.failure(error))
-                    }
-
-                }
-            }
+        do {
+            try await databaseRef.child(databaseKey).removeValue()
+            try await removeFollower(with: uid, from: currentUserID)
+        } catch {
+            throw ServiceError.couldntCompleteTheAction
         }
     }
 
-    func undoForcefullRemoval(ofUser uid: String, completion: @escaping (VoidResult) -> Void) {
-        guard let currentUserID = AuthenticationService.shared.getCurrentUserUID() else { return }
+    func undoForcefullRemoval(ofUser uid: String) async throws {
+        let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
         let databaseKey = "Following/\(uid)/\(currentUserID)"
 
-        databaseRef.child(databaseKey).setValue(["userID": currentUserID]) { error, _ in
-            if let error = error {
-                completion(.failure(ServiceError.couldntCompleteTheAction))
-            } else {
-                self.insertFollower(with: uid, to: currentUserID) { result in
-                    switch result {
-                    case .success:
-                        completion(.success)
-                    case .failure(let error):
-                        completion(.failure(error))
-                    }
-                }
-            }
+        do {
+            try await databaseRef.child(databaseKey).setValue(["userID": currentUserID])
+            try await insertFollower(with: uid, to: currentUserID)
+        } catch {
+            throw ServiceError.couldntCompleteTheAction
         }
     }
 }

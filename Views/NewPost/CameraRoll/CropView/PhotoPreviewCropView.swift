@@ -25,7 +25,7 @@ enum AligningSide {
     case height
 }
 
-class ViewConstraints {
+@MainActor class ViewConstraints {
     var centerXConstraint = NSLayoutConstraint()
     var centerYConstraint = NSLayoutConstraint()
     var widthConstraint = NSLayoutConstraint()

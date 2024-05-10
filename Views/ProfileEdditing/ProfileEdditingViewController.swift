@@ -70,22 +70,30 @@ class ProfileEdditingViewController: UIViewController {
     }
 
     private func configureNavigationBar() {
-        let saveButton = UIBarButtonItem(
-            title: String(localized: "Save"),
-            style: .done,
-            target: self,
-            action: #selector(didTapSave))
+        showSaveButton()
+        showCancelButton()
+    }
+
+    func showCancelButton() {
         let cancelButton = UIBarButtonItem(
             title: String(localized: "Cancel"),
             style: .plain,
             target: self,
             action: #selector(didTapCancel))
-        saveButton.setTitleTextAttributes([.font: CustomFonts.boldFont(ofSize: 16)], for: .normal)
-        cancelButton.setTitleTextAttributes([.font: CustomFonts.boldFont(ofSize: 16)], for: .normal)
 
-        navigationItem.rightBarButtonItem = saveButton
+        cancelButton.setTitleTextAttributes([.font: CustomFonts.boldFont(ofSize: 16)], for: .normal)
         navigationItem.leftBarButtonItem = cancelButton
         navigationItem.leftBarButtonItem?.tintColor = Colors.label
+    }
+
+    func showSaveButton() {
+        let saveButton = UIBarButtonItem(
+            title: String(localized: "Save"),
+            style: .done,
+            target: self,
+            action: #selector(didTapSave))
+        saveButton.setTitleTextAttributes([.font: CustomFonts.boldFont(ofSize: 16)], for: .normal)
+        navigationItem.rightBarButtonItem = saveButton
     }
 
     func showLoadingIndicator() {
@@ -107,25 +115,14 @@ class ProfileEdditingViewController: UIViewController {
     }
 
     @objc func didTapSave() {
-        viewModel.checkIfNewValuesAreValid { result in
-            switch result {
-            case .success:
-                self.showLoadingIndicator()
-                self.viewModel.saveChanges { result in
-                    switch result {
-                    case .success:
-                        NotificationCenter.default.post(name: .didUpdateUserProfile, object: nil)
-                        self.dismiss(animated: true)
-                    case .failure(let error):
-                        self.showPopUp(issueText: error.localizedDescription)
-                    }
-                }
-            case .failure(let description):
-                self.displayNotificationToUser(
-                    title: String(localized: "Error"),
-                    text: description,
-                    prefferedStyle: .alert,
-                    action: nil)
+        self.showLoadingIndicator()
+        Task { @MainActor in
+            do {
+                try await viewModel.checkIfNewValuesAreValid()
+                try await viewModel.saveChanges()
+            } catch {
+                self.showPopUp(issueText: error.localizedDescription)
+                self.showSaveButton()
             }
         }
     }

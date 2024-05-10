@@ -9,7 +9,7 @@ import Foundation
 import Photos.PHFetchResult
 import UIKit.UICollectionView
 
-class CameraRollFactory {
+@MainActor class CameraRollFactory {
 
     private var collectionView: UICollectionView
 

@@ -8,7 +8,7 @@
 import Foundation
 
 protocol HomeFeedServiceProtocol: PostsNetworking<UserPost> {
-    func makeANewPost(post: UserPost, progressUpdateCallback: @escaping (Progress?) -> Void, completion: @escaping (VoidResult) -> Void)
+    func makeANewPost(post: UserPost, progressUpdateCallback: @escaping (Progress?) -> Void) async throws
 }
 
 class HomeFeedService: ImageService, HomeFeedServiceProtocol {
@@ -40,152 +40,97 @@ class HomeFeedService: ImageService, HomeFeedServiceProtocol {
         self.storageManager = storageManager
     }
 
-    func getNumberOfItems(completion: @escaping (Result<Int, Error>) -> Void) {
-        feedService.getFeedPostsCount { result in
-            switch result {
-            case .success(let postCount):
-                self.numberOfAllItems = UInt(postCount)
-                completion(.success(postCount))
-            case .failure(let error):
-                completion(.failure(error))
-            }
-        }
+    func getNumberOfItems() async throws -> Int {
+        let numberOfFeedPosts = try await feedService.getFeedPostsCount()
+        self.numberOfAllItems = UInt(numberOfFeedPosts)
+        return numberOfFeedPosts
     }
 
-    func getItems(completion: @escaping ([UserPost]?, Error?) -> Void) {
-        getNumberOfItems { _ in
-            self.feedService.getPostsForTimeline(quantity: self.numberOfItemsToGet) { [weak self] result in
-                switch result {
-                case .success((let posts, let lastPostKey)):
-                    guard posts.isEmpty != true else {
-                        self?.hasHitTheEndOfPosts = true
-                        completion(nil, nil)
-                        return
-                    }
-                    self?.getAdditionalPostDataFor(postsOfMultipleUsers: posts) { result in
-                        switch result {
-                        case .success(let postsWithAdditionalData):
-                            self?.lastReceivedItemKey = lastPostKey
-                            self?.hasHitTheEndOfPosts = false
-                            self?.numberOfRetrievedItems = UInt(postsWithAdditionalData.count)
-                            if self?.numberOfRetrievedItems == self?.numberOfAllItems {
-                                self?.hasHitTheEndOfPosts = true
-                            }
-                            completion(postsWithAdditionalData, nil)
-                        case .failure(let error):
-                            completion(nil, ServiceError.couldntLoadPosts)
-                        }
-                    }
-                case .failure(let error):
-                    completion(nil, error)
-                }
-            }
+    func getItems() async throws -> [UserPost]? {
+        _ = try await getNumberOfItems()
+        let feedPosts = try await feedService.getPostsForTimeline(quantity: numberOfItemsToGet)
+        guard feedPosts.items.isEmpty != true else {
+            self.hasHitTheEndOfPosts = true
+            return nil
         }
+        let postsWithAdditionalData = try await getAdditionalPostDataFor(postsOfMultipleUsers: feedPosts.items)
+        self.lastReceivedItemKey = feedPosts.lastRetrievedItemKey
+        self.hasHitTheEndOfPosts = false
+        self.numberOfRetrievedItems = UInt(postsWithAdditionalData.count)
+        if self.numberOfRetrievedItems == self.numberOfAllItems {
+            self.hasHitTheEndOfPosts = true
+        }
+        return postsWithAdditionalData
     }
 
-    func getMoreItems(completion: @escaping ([UserPost]?, Error?) -> Void) {
+    func getMoreItems() async throws -> [UserPost]? {
         guard isAlreadyPaginating == false, lastReceivedItemKey != "" else {
-            return
+            return nil
         }
 
         isAlreadyPaginating = true
 
-        feedService.getMorePostsForTimeline(quantity: numberOfItemsToGet, after: lastReceivedItemKey) { [weak self] result in
-            switch result {
-            case .success((let posts, let lastRetrievedPostKey)):
-                guard posts.isEmpty != true, lastRetrievedPostKey != self?.lastReceivedItemKey else {
-                    self?.isAlreadyPaginating = false
-                    self?.hasHitTheEndOfPosts = true
-                    completion(nil, nil)
-                    return
-                }
-                self?.getAdditionalPostDataFor(postsOfMultipleUsers: posts) { result in
-                    switch result {
-                    case .success(let postsWithAdditionalData):
-                        self?.lastReceivedItemKey = lastRetrievedPostKey
-                        self?.numberOfRetrievedItems += UInt(posts.count)
-                        if self?.numberOfRetrievedItems == self?.numberOfAllItems {
-                            self?.hasHitTheEndOfPosts = true
-                        }
-                        completion(postsWithAdditionalData, nil)
-                    case .failure(let error):
-                        self?.isAlreadyPaginating = false
-                        completion(nil, ServiceError.couldntLoadPosts)
-                    }
-                }
-            case .failure(let error):
-                self?.isAlreadyPaginating = false
-                completion(nil, error)
+        do {
+            let feedPosts = try await feedService.getMorePostsForTimeline(quantity: numberOfItemsToGet, after: lastReceivedItemKey)
+            guard feedPosts.items.isEmpty != true, feedPosts.lastRetrievedItemKey != self.lastReceivedItemKey else {
+                self.isAlreadyPaginating = false
+                self.hasHitTheEndOfPosts = true
+                return nil
             }
+            let postsWithAdditionalData = try await getAdditionalPostDataFor(postsOfMultipleUsers: feedPosts.items)
+            self.lastReceivedItemKey = feedPosts.lastRetrievedItemKey
+            self.numberOfRetrievedItems += UInt(feedPosts.items.count)
+            if self.numberOfRetrievedItems == self.numberOfAllItems {
+                self.hasHitTheEndOfPosts = true
+            }
+            return postsWithAdditionalData
+        } catch {
+            self.isAlreadyPaginating = false
+            throw error
         }
     }
 
-    func makeANewPost(post: UserPost, progressUpdateCallback: @escaping (Progress?) -> Void, completion: @escaping (VoidResult) -> Void) {
+    func makeANewPost(post: UserPost, progressUpdateCallback: @escaping (Progress?) -> Void) async throws {
         guard let image = post.image else {
-            completion(.success)
             return
         }
         let fileName = "\(post.postID)_post.png"
 
-        storageManager.uploadPostPhoto(photo: image, fileName: fileName) { progress in
+        let uploadedPhotoURL = try await storageManager.uploadPostPhoto(photo: image, fileName: fileName) { progress in
             progressUpdateCallback(progress)
-        } completion: { result in
-            switch result {
-            case .success(let photoURL):
-                post.photoURL = photoURL.absoluteString
-                self.userPostsService.insertNewPost(post: post) { result in
-                    completion(result)
-                }
-            case .failure(let error):
-                completion(.failure(error))
-            }
         }
+        post.photoURL = uploadedPhotoURL.absoluteString
+        try await userPostsService.insertNewPost(post: post)
     }
 
-    func likePost(postID: String, likeState: LikeState, postAuthorID: String, completion: @escaping (Result<LikeState, Error>) -> Void) {
+    func likePost(postID: String, likeState: LikeState, postAuthorID: String) async throws -> LikeState {
         switch likeState {
         case .liked:
-            likeSystemService.removeLikeFromPost(postID: postID) { result in
-                switch result {
-                case .success:
-                    ActivitySystemService.shared.removeLikeEventForPost(postID: postID, postAuthorID: postAuthorID)
-                    completion(.success(.notLiked))
-                case .failure(let error):
-                    completion(.failure(error))
-                }
-            }
+            try await likeSystemService.removeLikeFromPost(postID: postID)
+            try await ActivitySystemService.shared.removeLikeEventForPost(postID: postID, postAuthorID: postAuthorID)
+            return .notLiked
         case .notLiked:
-            likeSystemService.likePost(postID: postID) { result in
-                switch result {
-                case .success:
-                    let currentUserID = AuthenticationService.shared.getCurrentUserUID()!
-                    let eventID = ActivitySystemService.shared.createEventUID()
-                    let activityEvent = ActivityEvent(eventType: .postLiked, userID: currentUserID, postID: postID, eventID: eventID, date: Date())
-                    ActivitySystemService.shared.addEventToUserActivity(event: activityEvent, userID: postAuthorID)
-                    completion(.success(.liked))
-                case .failure(let error):
-                    completion(.failure(error))
-                }
-            }
+            try await likeSystemService.likePost(postID: postID)
+            let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
+            let eventID = ActivitySystemService.shared.createEventUID()
+            let activityEvent = ActivityEvent(eventType: .postLiked, userID: currentUserID, postID: postID, eventID: eventID, date: Date())
+            try await ActivitySystemService.shared.addEventToUserActivity(event: activityEvent, userID: postAuthorID)
+            return .liked
         }
     }
 
-    func deletePost(postModel: PostViewModel, completion: @escaping (VoidResult) -> Void) {
-        userPostsService.deletePost(postID: postModel.postID, postImageURL: postModel.postImageURL) { result in
-            completion(result)
-        }
+    func deletePost(postModel: PostViewModel) async throws {
+        try await userPostsService.deletePost(postID: postModel.postID, postImageURL: postModel.postImageURL)
     }
 
-    func bookmarkPost(postID: String, authorID: String, bookmarkState: BookmarkState, completion: @escaping (Result<BookmarkState, Error>) -> Void) {
+    func bookmarkPost(postID: String, authorID: String, bookmarkState: BookmarkState) async throws -> BookmarkState {
         switch bookmarkState {
         case .bookmarked:
-            bookmarksService.removeBookmark(postID: postID) { result in
-                completion(result)
-            }
+            let bookmarkState = try await bookmarksService.removeBookmark(postID: postID)
+            return bookmarkState
         case .notBookmarked:
-            bookmarksService.bookmarkPost(postID: postID, authorID: authorID) { result in
-                completion(result)
-            }
+            let bookmarkState = try await bookmarksService.bookmarkPost(postID: postID, authorID: authorID)
+            return bookmarkState
         }
     }
 }

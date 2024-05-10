@@ -7,7 +7,7 @@
 
 import Foundation
 
-class Bookmark: Codable {
+final class Bookmark: Codable {
     var postID: String
     var postAuthorID: String
     var associatedPost: PostViewModel?

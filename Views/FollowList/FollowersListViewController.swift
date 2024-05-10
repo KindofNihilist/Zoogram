@@ -87,16 +87,16 @@ class FollowersListViewController: ViewControllerWithLoadingIndicator {
     }
 
     private func getData() {
-        viewModel.getUserList { result in
-            switch result {
-            case .success:
-                if self.viewModel.userList.isEmpty {
+        Task { @MainActor in
+            do {
+                let userList = try await viewModel.getUserList()
+                if userList.isEmpty {
                     self.showNoUsersMessage()
                 } else {
                     self.setupFactory()
                 }
                 self.showMainView()
-            case .failure(let error):
+            } catch {
                 self.showLoadingErrorNotification(text: error.localizedDescription)
             }
         }
@@ -182,44 +182,44 @@ class FollowersListViewController: ViewControllerWithLoadingIndicator {
 
 extension FollowersListViewController: FollowListCellDelegate {
     func removeButtonTapped(userID: String, removeCompletion: @escaping (FollowStatus) -> Void) {
-        viewModel.removeUserFollowingMe(uid: userID) { result in
-            switch result {
-            case .success:
+        Task { @MainActor in
+            do {
+                try await viewModel.removeUserFollowingMe(uid: userID)
                 removeCompletion(.notFollowing)
-            case .failure(let error):
+            } catch {
                 self.showPopUp(issueText: error.localizedDescription)
             }
         }
     }
 
     func undoButtonTapped(userID: String, undoCompletion: @escaping (FollowStatus) -> Void) {
-        viewModel.undoUserRemoval(uid: userID) { result in
-            switch result {
-            case .success:
+        Task { @MainActor in
+            do {
+                try await viewModel.undoUserRemoval(uid: userID)
                 undoCompletion(.following)
-            case .failure(let error):
+            } catch {
                 self.showPopUp(issueText: error.localizedDescription)
             }
         }
     }
 
     func followButtonTapped(userID: String, followCompletion: @escaping (FollowStatus) -> Void) {
-        viewModel.followUser(uid: userID) { result in
-            switch result {
-            case .success(let followStatus):
-                followCompletion(followStatus)
-            case .failure(let error):
+        Task { @MainActor in
+            do {
+                let newFollowStatus = try await viewModel.followUser(uid: userID)
+                followCompletion(newFollowStatus)
+            } catch {
                 self.showPopUp(issueText: error.localizedDescription)
             }
         }
     }
 
     func unfollowButtonTapped(userID: String, unfollowCompletion: @escaping (FollowStatus) -> Void) {
-        viewModel.unfollowUser(uid: userID) { result in
-            switch result {
-            case .success(let followStatus):
-                unfollowCompletion(followStatus)
-            case .failure(let error):
+        Task { @MainActor in
+            do {
+                let newFollowStatus = try await viewModel.unfollowUser(uid: userID)
+                unfollowCompletion(newFollowStatus)
+            } catch {
                 self.showPopUp(issueText: error.localizedDescription)
             }
         }

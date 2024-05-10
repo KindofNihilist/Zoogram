@@ -97,6 +97,9 @@ class DiscoverViewController: UIViewController {
         setupCollectionView()
         setupEdditingInteruptionGestures()
         setupRefreshControl()
+        viewModel.foundUsers.bind { _ in
+            self.tableView.reloadData()
+        }
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -113,14 +116,14 @@ class DiscoverViewController: UIViewController {
 
     @objc private func getPosts() {
         loadingErrorView.removeFromSuperview()
-        viewModel.getPostsToDiscover { result in
-            switch result {
-            case .success:
+        Task {
+            do {
+                let retrievedPosts = try await viewModel.getPostsToDiscover()
                 self.factory = DiscoverCollectionViewFactory(for: self.collectionView)
-                self.postsTableView.updatePostsArrayWith(posts: self.viewModel.posts.value)
+                self.postsTableView.updatePostsArrayWith(posts: retrievedPosts)
                 self.refreshControl?.endRefreshing()
                 self.setupDataSource()
-            case .failure(let error):
+            } catch {
                 self.handleLoadingError(error: error)
             }
         }
@@ -212,6 +215,7 @@ class DiscoverViewController: UIViewController {
         ])
     }
 
+    @MainActor
     private func handleLoadingError(error: Error) {
         refreshControl?.endRefreshing()
         if viewModel.hasLoadedData() {
@@ -226,24 +230,21 @@ extension DiscoverViewController {
 
     private func getMorePosts() {
         factory.showLoadingIndicator()
-        viewModel.getMorePostsToDiscover { result in
-            switch result {
-            case .success(let paginatedPosts):
-                if let unwrappedPosts = paginatedPosts {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        self.factory.updatePostsSection(with: unwrappedPosts) {
-                            self.updateTableViewPosts()
-                            self.viewModel.hasFinishedPaginating()
-                            self.hideLoadingFooterIfNeeded()
-                        }
-                    }
+        Task {
+            do {
+                let paginatedPosts = try await viewModel.getMorePostsToDiscover()
+                self.factory.updatePostsSection(with: paginatedPosts) {
+                    self.updateTableViewPosts()
+                    self.viewModel.hasFinishedPaginating()
+                    self.hideLoadingFooterIfNeeded()
                 }
-            case .failure(let error):
+            } catch {
                 self.factory.showPaginationRetryButton(error: error, delegate: self)
             }
         }
     }
 
+    @MainActor
     private func updateTableViewPosts() {
         let posts = viewModel.posts.value
         self.postsTableView.updatePostsArrayWith(posts: posts)
@@ -257,6 +258,7 @@ extension DiscoverViewController {
         }
     }
 
+    @MainActor
     private func hideLoadingFooterIfNeeded() {
         if self.viewModel.hasHitTheEndOfPosts() {
             self.factory.hideLoadingFooter()
@@ -317,7 +319,7 @@ extension DiscoverViewController: CollectionViewDataSourceDelegate {
 extension DiscoverViewController: UITableViewDelegate, UITableViewDataSource {
 
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return viewModel.foundUsers.count
+        return viewModel.foundUsers.value.count
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -327,7 +329,7 @@ extension DiscoverViewController: UITableViewDelegate, UITableViewDataSource {
             fatalError("Could not cast cell")
         }
 
-        let user = viewModel.foundUsers[indexPath.row]
+        let user = viewModel.foundUsers.value[indexPath.row]
         cell.usernameLabel.text = user.username
         cell.nameLabel.text = user.name
         cell.profileImageView.image = user.getProfilePhoto()
@@ -339,7 +341,7 @@ extension DiscoverViewController: UITableViewDelegate, UITableViewDataSource {
     }
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        let user = viewModel.foundUsers[indexPath.row]
+        let user = viewModel.foundUsers.value[indexPath.row]
         let service = createUserProfileDefaultServiceFor(userID: user.userID)
         let userProfileViewController = UserProfileViewController(service: service, user: user, isTabBarItem: false)
         userProfileViewController.title = user.username
@@ -354,21 +356,19 @@ extension DiscoverViewController: UISearchBarDelegate {
         timer?.invalidate()
 
         timer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false, block: { [weak self, searchText] _ in
-            guard let self = self else { return }
-            if searchText.trimmingExtraWhitespace().count >= 3 {
-                self.viewModel.searchUser(for: searchText) { [weak self] result in
-                    switch result {
-                    case .success:
-                        self?.tableView.reloadData()
-                    case .failure(let error):
+            Task { @MainActor [weak self] in
+                if searchText.trimmingExtraWhitespace().count >= 3 {
+                    do {
+                        try await self?.viewModel.searchUser(for: searchText)
+                    } catch {
                         self?.showPopUp(issueText: error.localizedDescription)
                     }
                     self?.spinnerView.stopAnimating()
+                } else {
+                    self?.viewModel.foundUsers.value.removeAll()
+                    self?.tableView.reloadData()
+                    self?.spinnerView.stopAnimating()
                 }
-            } else {
-                self.viewModel.foundUsers.removeAll()
-                self.tableView.reloadData()
-                self.spinnerView.stopAnimating()
             }
         })
     }

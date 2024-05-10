@@ -7,7 +7,7 @@
 
 import UIKit.UICollectionView
 
-class UserProfileFactory {
+@MainActor class UserProfileFactory {
 
     private let collectionView: UICollectionView
 

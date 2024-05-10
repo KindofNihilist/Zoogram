@@ -8,6 +8,8 @@
 import Foundation
 import UIKit
 
+
+
 enum FollowStatus {
     case following // Indicates the current user is following the other user
     case notFollowing // Indicates the current user is not following the other user
@@ -32,9 +34,11 @@ enum Gender: LocalizableEnum {
 
 class ZoogramUser: Codable {
 
-    var isCurrentUserProfile = false
-    var hasPosts: Bool = false
-    var followStatus: FollowStatus!
+    var isCurrentUserProfile: Bool {
+        let currentUserID = UserManager.shared.getUserID()
+        return currentUserID == userID
+    }
+    var followStatus: FollowStatus?
     var userID: String
     var profilePhotoURL: String?
     fileprivate var profilePhoto: UIImage?
@@ -59,11 +63,10 @@ class ZoogramUser: Codable {
         self.gender = gender
         self.posts = posts
         self.joinDate = joinDate
-        self.isCurrentUserProfile = checkIfCurrentUser(uid: userID)
     }
 
-    init(isCurrentUser: Bool = false) {
-        self.userID = ""
+    init(_ uid: UserID, isCurrentUser: Bool = false) {
+        self.userID = uid
         self.profilePhotoURL = ""
         self.email = ""
         self.username = ""
@@ -74,7 +77,6 @@ class ZoogramUser: Codable {
         self.posts = 0
         self.joinDate = 0
         self.followStatus = .notFollowing
-        self.isCurrentUserProfile = isCurrentUser
     }
 
     required init(from decoder: Decoder) throws {
@@ -89,8 +91,6 @@ class ZoogramUser: Codable {
         self.gender = try container.decode(String.self, forKey: .gender)
         self.posts = try container.decode(Int.self, forKey: .posts)
         self.joinDate = try container.decode(Double.self, forKey: .joinDate)
-        self.hasPosts = try container.decode(Bool.self, forKey: .hasPosts)
-        self.isCurrentUserProfile = checkIfCurrentUser(uid: userID)
     }
 
     func createDictionary() -> [String: Any]? {
@@ -109,7 +109,7 @@ class ZoogramUser: Codable {
     }
 
     private func checkIfCurrentUser(uid: String) -> Bool {
-        let currentUserID = AuthenticationService.shared.getCurrentUserUID()
+        let currentUserID = UserManager.shared.getUserID()
         return currentUserID == uid
     }
 
@@ -124,15 +124,12 @@ class ZoogramUser: Codable {
         case gender
         case posts
         case joinDate
-        case hasPosts
     }
 }
 
 class NewUser: ZoogramUser {
-    
+
     override func getProfilePhoto() -> UIImage? {
         return self.profilePhoto ?? nil
     }
 }
-
-

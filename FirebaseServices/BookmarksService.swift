@@ -16,12 +16,12 @@ protocol BookmarksSystemServiceProtocol {
     typealias ListOfBookmarks = [Bookmark]
     typealias CompletionBlockWithBookmarks = (Result<([Bookmark], LastRetrievedBookmarkKey), Error>) -> Void
 
-    func bookmarkPost(postID: String, authorID: String, completion: @escaping (Result<BookmarkState, Error>) -> Void)
-    func removeBookmark(postID: String, completion: @escaping (Result<BookmarkState, Error>) -> Void)
-    func checkIfBookmarked(postID: String, completion: @escaping (Result<BookmarkState, Error>) -> Void)
-    func getBookmarksCount(completion: @escaping (Result<BookmarksCount, Error>) -> Void)
-    func getBookmarks(numberOfBookmarksToGet: UInt, completion: @escaping CompletionBlockWithBookmarks)
-    func getMoreBookmarks(after bookmarkKey: String, numberOfBookmarksToGet: UInt, completion: @escaping CompletionBlockWithBookmarks)
+    func bookmarkPost(postID: String, authorID: String) async throws -> BookmarkState
+    func removeBookmark(postID: String) async throws -> BookmarkState
+    func checkIfBookmarked(postID: String) async throws -> BookmarkState
+    func getBookmarksCount() async throws -> BookmarksCount
+    func getBookmarks(numberOfBookmarksToGet: UInt) async throws -> PaginatedItems<Bookmark>
+    func getMoreBookmarks(after bookmarkKey: String, numberOfBookmarksToGet: UInt) async throws -> PaginatedItems<Bookmark>
 }
 
 class BookmarksSystemService: BookmarksSystemServiceProtocol {
@@ -30,171 +30,125 @@ class BookmarksSystemService: BookmarksSystemServiceProtocol {
 
     private let databaseRef = Database.database(url: "https://catogram-58487-default-rtdb.europe-west1.firebasedatabase.app").reference()
 
-    func bookmarkPost(postID: String, authorID: String, completion: @escaping (Result<BookmarkState, Error>) -> Void) {
-        guard let currentUserID = AuthenticationService.shared.getCurrentUserUID() else { return }
-
+    func bookmarkPost(postID: String, authorID: String) async throws -> BookmarkState {
+        let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
         let bookmarkDictionary = Bookmark(postID: postID, postAuthorID: authorID).createDictionary()
         let bookmarkUID = databaseRef.child("Bookmarks").childByAutoId().key
         let bookmarksPath = "Bookmarks/\(currentUserID)/\(bookmarkUID!)"
         let reverseIndexBookmarksPath = "BookmarksReverseIndex/\(postID)/\(currentUserID)"
-        var updates = [String: Any]()
 
+        var updates = [String: Any]()
         updates[bookmarksPath] = bookmarkDictionary
         updates[reverseIndexBookmarksPath] = ["userID": currentUserID, "bookmarkID": bookmarkUID]
 
-        databaseRef.updateChildValues(updates) { error, _ in
-            if let error = error {
-                completion(.failure(ServiceError.couldntCompleteTheAction))
-            } else {
-                completion(.success(.bookmarked))
-            }
+        do {
+            try await databaseRef.updateChildValues(updates)
+            return .bookmarked
+        } catch {
+            throw ServiceError.couldntCompleteTheAction
         }
     }
 
-    func removeBookmark(postID: String, completion: @escaping (Result<BookmarkState, Error>) -> Void) {
-        guard let currentUserID = AuthenticationService.shared.getCurrentUserUID() else { return }
-
+    func removeBookmark(postID: String) async throws -> BookmarkState {
+        let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
         let bookmarksPath = "Bookmarks/\(currentUserID)"
         let reverseIndexBookmarksPath = "BookmarksReverseIndex/\(postID)/\(currentUserID)"
         var updates = [String: Any]()
         let query = databaseRef.child(bookmarksPath).queryOrdered(byChild: "postID").queryEqual(toValue: postID)
 
-        query.getData { error, snapshot in
-            if let error = error {
-                completion(.failure(ServiceError.couldntCompleteTheAction))
-                return
-            } else if let snapshot = snapshot {
+        do {
+            let data = try await query.getData()
 
-                guard let snapshotValue = snapshot.value as? [String: Any],
-                      let bookmarkUID = snapshotValue.keys.first
-                else {
-                    completion(.failure(ServiceError.snapshotCastingError))
-                    return
-                }
-                updates["Bookmarks/\(currentUserID)/\(bookmarkUID)"] = NSNull()
-                updates[reverseIndexBookmarksPath] = NSNull()
-
-                self.databaseRef.updateChildValues(updates) { error, _ in
-                    if let error = error {
-                        completion(.failure(ServiceError.couldntCompleteTheAction))
-                    } else {
-                        completion(.success(.notBookmarked))
-                    }
-                }
+            guard let snapshotDict = data.value as? [String: Any],
+                  let bookmarkUID = snapshotDict.keys.first
+            else {
+                throw ServiceError.snapshotCastingError
             }
+            updates["Bookmarks/\(currentUserID)/\(bookmarkUID)"] = NSNull()
+            updates[reverseIndexBookmarksPath] = NSNull()
+
+            try await databaseRef.updateChildValues(updates)
+            return .notBookmarked
+        } catch {
+            throw ServiceError.couldntCompleteTheAction
         }
     }
 
-    func checkIfBookmarked(postID: String, completion: @escaping (Result<BookmarkState, Error>) -> Void) {
-        
-        guard let currentUserID = AuthenticationService.shared.getCurrentUserUID() else { return }
+    func checkIfBookmarked(postID: String) async throws -> BookmarkState {
+        let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
 
         let path = "Bookmarks/\(currentUserID)"
         let query = databaseRef.child(path).queryOrdered(byChild: "postID").queryEqual(toValue: postID)
 
-        query.getData { error, snapshot in
-            if let error = error {
-                completion(.failure(ServiceError.couldntLoadData))
-                print(error)
-                return
-            } else if let snapshot = snapshot {
-
-                if snapshot.exists() {
-                    completion(.success(.bookmarked))
-                } else {
-                    completion(.success(.notBookmarked))
-                }
-            }
+        do {
+            let data = try await query.getData()
+            return data.exists() ? .bookmarked : .notBookmarked
+        } catch {
+            throw ServiceError.couldntLoadData
         }
     }
 
-    func getBookmarksCount(completion: @escaping (Result<BookmarksCount, Error>) -> Void) {
-        
-        guard let currentUserID = AuthenticationService.shared.getCurrentUserUID() else { return }
-
+    func getBookmarksCount() async throws -> BookmarksCount {
+        let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
         let databaseKey = "Bookmarks/\(currentUserID)/"
-
-        databaseRef.child(databaseKey).getData { error, snapshot in
-            if let error = error {
-                completion(.failure(ServiceError.couldntLoadData))
-                return
-            } else if let snapshot = snapshot {
-
-                let bookmarksCount = Int(snapshot.childrenCount)
-                completion(.success(bookmarksCount))
-            }
+        do {
+            let data = try await databaseRef.child(databaseKey).getData()
+            return Int(data.childrenCount)
+        } catch {
+            throw ServiceError.couldntLoadBookmarks
         }
     }
 
-    func getBookmarks(numberOfBookmarksToGet: UInt, completion: @escaping CompletionBlockWithBookmarks) {
-        
-        guard let currentUserID = AuthenticationService.shared.getCurrentUserUID() else { return }
-
+    func getBookmarks(numberOfBookmarksToGet: UInt) async throws -> PaginatedItems<Bookmark> {
+        let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
         var bookmarks = [Bookmark]()
-        var lastRetrievedBookmarkKey: LastRetrievedBookmarkKey = ""
+        var lastRetrievedBookmarkKey: String = ""
         let path = "Bookmarks/\(currentUserID)"
         let query = databaseRef.child(path).queryOrderedByKey().queryLimited(toLast: numberOfBookmarksToGet)
 
-        query.getData { error, snapshot in
-            if let error = error {
-                completion(.failure(ServiceError.couldntLoadBookmarks))
-                return
-            } else if let snapshot = snapshot {
-
-                for snapshotChild in snapshot.children.reversed() {
-                    guard let snapChild = snapshotChild as? DataSnapshot,
-                          let snapChildDictionary = snapChild.value as? [String: Any]
-                    else {
-                        completion(.failure(ServiceError.snapshotCastingError))
-                        return
-                    }
-                    lastRetrievedBookmarkKey = snapChild.key
-                    do {
-                        let jsonData = try JSONSerialization.data(withJSONObject: snapChildDictionary as Any)
-                        let bookmark = try JSONDecoder().decode(Bookmark.self, from: jsonData)
-                        bookmarks.append(bookmark)
-                    } catch {
-                        completion(.failure(ServiceError.jsonParsingError))
-                    }
+        do {
+            let data = try await query.getData()
+            for snapshot in data.children.reversed() {
+                guard let snapshot = snapshot as? DataSnapshot,
+                      let snapshotDictionary = snapshot.value as? [String: Any]
+                else {
+                    throw ServiceError.snapshotCastingError
                 }
-                completion(.success((bookmarks, lastRetrievedBookmarkKey)))
+                lastRetrievedBookmarkKey = snapshot.key
+                let jsonData = try JSONSerialization.data(withJSONObject: snapshotDictionary as Any)
+                let bookmark = try JSONDecoder().decode(Bookmark.self, from: jsonData)
+                bookmarks.append(bookmark)
             }
+            return PaginatedItems(items: bookmarks, lastRetrievedItemKey: lastRetrievedBookmarkKey)
+        } catch {
+            throw ServiceError.couldntLoadBookmarks
         }
     }
 
-    func getMoreBookmarks(after bookmarkKey: String, numberOfBookmarksToGet: UInt, completion: @escaping CompletionBlockWithBookmarks) {
-        
-        guard let currentUserID = AuthenticationService.shared.getCurrentUserUID() else { return }
-
+    func getMoreBookmarks(after bookmarkKey: String, numberOfBookmarksToGet: UInt) async throws -> PaginatedItems<Bookmark> {
+        let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
         var bookmarks = [Bookmark]()
         var lastRetrievedBookmarkKey: LastRetrievedBookmarkKey = ""
         let path = "Bookmarks/\(currentUserID)"
         let query = databaseRef.child(path).queryOrderedByKey().queryEnding(beforeValue: bookmarkKey).queryLimited(toLast: numberOfBookmarksToGet)
 
-        query.getData { error, snapshot in
-            if let error = error {
-                completion(.failure(ServiceError.couldntLoadBookmarks))
-                return
-            } else if let snapshot = snapshot {
+        do {
+            let data = try await query.getData()
 
-                for snapshotChild in snapshot.children.reversed() {
-                    guard let snapChild = snapshotChild as? DataSnapshot,
-                          let snapChildDictionary = snapChild.value as? [String: Any]
-                    else {
-                        completion(.failure(ServiceError.snapshotCastingError))
-                        return
-                    }
-                    lastRetrievedBookmarkKey = snapChild.key
-                    do {
-                        let jsonData = try JSONSerialization.data(withJSONObject: snapChildDictionary)
-                        let bookmark = try JSONDecoder().decode(Bookmark.self, from: jsonData)
-                        bookmarks.append(bookmark)
-                    } catch {
-                        completion(.failure(ServiceError.jsonParsingError))
-                    }
+            for snapshot in data.children.reversed() {
+                guard let snapshot = snapshot as? DataSnapshot,
+                      let snapshotDictionary = snapshot.value as? [String: Any]
+                else {
+                    throw ServiceError.snapshotCastingError
                 }
-                completion(.success((bookmarks, lastRetrievedBookmarkKey)))
+                lastRetrievedBookmarkKey = snapshot.key
+                let jsonData = try JSONSerialization.data(withJSONObject: snapshotDictionary)
+                let bookmark = try JSONDecoder().decode(Bookmark.self, from: jsonData)
+                bookmarks.append(bookmark)
             }
+            return PaginatedItems(items: bookmarks, lastRetrievedItemKey: lastRetrievedBookmarkKey)
+        } catch {
+            throw ServiceError.couldntLoadBookmarks
         }
     }
 }

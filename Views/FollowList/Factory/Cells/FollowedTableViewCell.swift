@@ -87,7 +87,7 @@ class FollowedTableViewCell: UITableViewCell {
     }
 
     func configure(user: ZoogramUser) {
-        if user.userID == AuthenticationService.shared.getCurrentUserUID() {
+        if user.userID == UserManager.shared.getUserID() {
             followUnfollowButton.isHidden = true
             followUnfollowButton.isEnabled = false
         }
@@ -95,7 +95,9 @@ class FollowedTableViewCell: UITableViewCell {
         usernameLabel.text = user.username
         profileImageView.image = user.getProfilePhoto()
         self.userID = user.userID
-        followUnfollowButton.followStatus = user.followStatus
+        if let followStatus = user.followStatus {
+            followUnfollowButton.followStatus = followStatus
+        }
     }
 
     @objc func didTapFollowUnfollowButton() {

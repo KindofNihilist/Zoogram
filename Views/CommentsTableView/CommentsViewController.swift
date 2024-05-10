@@ -56,23 +56,21 @@ class CommentsViewController: ViewControllerWithLoadingIndicator {
     }
 
     // MARK: Init
-    init(post: UserPost, commentIDToFocusOn: String? = nil, shouldShowRelatedPost: Bool, currentUser: ZoogramUser, service: CommentsServiceProtocol) {
+    init(post: UserPost, commentIDToFocusOn: String? = nil, shouldShowRelatedPost: Bool, service: CommentsServiceProtocol) {
         self.viewModel = CommentsViewModel(
             post: post,
             commentIDToFocusOn: commentIDToFocusOn,
             shouldShowRelatedPost: shouldShowRelatedPost,
-            currentUser: currentUser,
             service: service)
         super.init()
         keyboardAccessoryView.delegate = self
     }
 
-    init(postViewModel: PostViewModel, commentIDToFocusOn: String? = nil, shouldShowRelatedPost: Bool, currentUser: ZoogramUser, service: CommentsServiceProtocol) {
+    init(postViewModel: PostViewModel, commentIDToFocusOn: String? = nil, shouldShowRelatedPost: Bool, service: CommentsServiceProtocol) {
         self.viewModel = CommentsViewModel(
             postViewModel: postViewModel,
             commentIDToFocusOn: commentIDToFocusOn,
             shouldShowRelatedPost: shouldShowRelatedPost,
-            currentUser: currentUser,
             service: service)
         super.init()
         keyboardAccessoryView.delegate = self
@@ -136,9 +134,10 @@ class CommentsViewController: ViewControllerWithLoadingIndicator {
     }
 
     private func fetchComments() {
-        self.viewModel.fetchData { error in
-            if let error = error {
-                print(error.localizedDescription)
+        Task { @MainActor in
+            do {
+                try await viewModel.fetchData()
+            } catch {
                 self.showLoadingErrorNotification(text: error.localizedDescription)
             }
         }
@@ -265,7 +264,7 @@ class CommentsViewController: ViewControllerWithLoadingIndicator {
             let commentSectionIndex = factory.getCommentSectionIndex()
             let commentSectionRect = tableView.rect(forSection: commentSectionIndex)
             let firstCommentRect = tableView.rectForRow(at: IndexPath(row: 0, section: commentSectionIndex))
-            let commentRectWithInset = firstCommentRect.inset(by: UIEdgeInsets(top: 0, left: 0, bottom: -firstCommentRect.height, right: 0))
+//            let commentRectWithInset = firstCommentRect.inset(by: UIEdgeInsets(top: 0, left: 0, bottom: -firstCommentRect.height, right: 0))
 
             guard commentSectionRect.height >= tableView.frame.height else {
                 let contentOffset =  firstCommentRect.maxY - tableView.frame.height
@@ -291,6 +290,7 @@ extension CommentsViewController {
             delegate: self)
     }
 
+    @MainActor
     func setupDataSource() {
         self.factory.buildSections(for: self.viewModel)
         let dataSource = DefaultTableViewDataSource(sections: factory.sections)
@@ -327,7 +327,7 @@ extension CommentsViewController {
 
         let safeAreaBottomInset = self.view.safeAreaInsets.bottom
         let accessoryViewHeight = keyboardAccessoryView.frame.height
-        var bottomInset = safeAreaBottomInset + accessoryViewHeight
+        let bottomInset = safeAreaBottomInset + accessoryViewHeight
 
         if keyboardWillShow && beginKeyboardSize.height == bottomInset {
             contentOffset.y += (endKeyboardSize.height - bottomInset)
@@ -348,16 +348,16 @@ extension CommentsViewController {
 // MARK: Post button tapped
 extension CommentsViewController: CommentAccessoryViewProtocol {
     func postButtonTapped(commentText: String, completion: @escaping () -> Void) {
-        viewModel.postComment(commentText: commentText) { result in
-            switch result {
-            case .success(let newlyCreatedComment):
+        Task { @MainActor in
+            do {
+                let postedComment = try await viewModel.postComment(commentText: commentText)
                 self.removeNoCommentsViewIfNeeded()
-                self.viewModel.insertNewlyCreatedComment(comment: newlyCreatedComment)
+                self.viewModel.insertNewlyCreatedComment(comment: postedComment)
                 self.showCreatedCommentIfNeeded()
-            case .failure(let error):
+                completion()
+            } catch {
                 self.showPopUp(issueText: error.localizedDescription)
             }
-            completion()
         }
     }
 }
@@ -371,13 +371,13 @@ extension CommentsViewController: CommentsTableViewActionsProtocol {
     func menuButtonTapped(cell: PostTableViewCell) {
         let postVM = viewModel.getPostViewModel()
         showMenuForPost(postViewModel: postVM, onDelete: {
-            self.viewModel.deleteThisPost { result in
-                switch result {
-                case .success:
+            Task { @MainActor in
+                do {
+                    try await self.viewModel.deleteThisPost()
                     sendNotificationToUpdateUserProfile()
                     sendNotificationToUpdateUserFeed()
                     self.navigationController?.popViewController(animated: true)
-                case .failure(let error):
+                } catch {
                     self.showPopUp(issueText: error.localizedDescription)
                 }
             }
@@ -390,9 +390,14 @@ extension CommentsViewController: CommentsTableViewActionsProtocol {
         showProfile(of: user)
     }
 
-    func didTapLikeButton(cell: PostTableViewCell, completion: @escaping (Result<LikeState, Error>) -> Void) {
-        viewModel.likeThisPost { likeState in
-            completion(likeState)
+    func didTapLikeButton(cell: PostTableViewCell, completion: @escaping (LikeState) -> Void) {
+        Task {
+            do {
+                let newLikeState = try await viewModel.likeThisPost()
+                completion(newLikeState)
+            } catch {
+                self.showPopUp(issueText: error.localizedDescription)
+            }
         }
     }
 
@@ -400,9 +405,14 @@ extension CommentsViewController: CommentsTableViewActionsProtocol {
         tableView.scrollToRow(at: IndexPath(row: 0, section: 1), at: .top, animated: true)
     }
 
-    func didTapBookmarkButton(cell: PostTableViewCell, completion: @escaping (Result<BookmarkState, Error>) -> Void) {
-        viewModel.bookmarkThisPost { bookmarkState in
-            completion(bookmarkState)
+    func didTapBookmarkButton(cell: PostTableViewCell, completion: @escaping (BookmarkState) -> Void) {
+        Task {
+            do {
+                let newBookmarkState = try await viewModel.bookmarkThisPost()
+                completion(newBookmarkState)
+            } catch {
+                showPopUp(issueText: error.localizedDescription)
+            }
         }
     }
 }
@@ -420,12 +430,12 @@ extension CommentsViewController: TableViewDataSourceDelegate {
 
     func didCommit(editingStyle: UITableViewCell.EditingStyle, at indexPath: IndexPath) {
         if editingStyle == .delete {
-            viewModel.deleteComment(at: indexPath) { result in
-                switch result {
-                case .success:
+            Task {
+                do {
+                    try await viewModel.deleteComment(at: indexPath)
                     self.factory?.deleteComment(at: indexPath)
                     self.showNoCommentsViewIfNeeded()
-                case .failure(let error):
+                } catch {
                     self.showPopUp(issueText: error.localizedDescription)
                 }
             }

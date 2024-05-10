@@ -8,7 +8,7 @@
 import UIKit
 import SDWebImage
 
-protocol PostsTableViewProtocol: AnyObject {
+@MainActor protocol PostsTableViewProtocol: AnyObject {
     func didTapCommentButton(viewModel: PostViewModel)
     func didSelectUser(user: ZoogramUser)
     func didTapMenuButton(postModel: PostViewModel, indexPath: IndexPath)
@@ -54,22 +54,25 @@ class PostsTableView: UITableView {
     }
 
     @objc func getPosts() {
-        service.getItems { posts, error in
-            if let error = error {
-                self.postsTableDelegate?.showLoadingError(error)
-            } else if let posts = posts {
-                self.posts = posts.compactMap({ provider in
-                    return provider.getPostViewModel()
-                })
-                self.removeNoPostsNotificationIfDisplayed()
-                if self.service.hasHitTheEndOfPosts {
-                    self.removePaginationFooterIfNeeded()
+        Task {
+            do {
+                let receivedPosts = try await service.getItems()
+                if let receivedPostsUnwrapped = receivedPosts {
+                    self.posts = receivedPostsUnwrapped.compactMap({ provider in
+                        return provider.getPostViewModel()
+                    })
+                    self.removeNoPostsNotificationIfDisplayed()
+                    if self.service.hasHitTheEndOfPosts {
+                        self.removePaginationFooterIfNeeded()
+                    } else {
+                        self.setupLoadingIndicatorFooter()
+                    }
+                    self.reloadData()
                 } else {
-                    self.setupLoadingIndicatorFooter()
+                    self.showNoPostsNotificationIfNeeded()
                 }
-                self.reloadData()
-            } else {
-                self.showNoPostsNotificationIfNeeded()
+            } catch {
+                self.postsTableDelegate?.showLoadingError(error)
             }
             self.feedRefreshControl?.endRefreshing()
         }
@@ -77,23 +80,25 @@ class PostsTableView: UITableView {
 
     @objc func getMorePosts() {
         self.showFooterLoadingView()
-        self.service.getMoreItems { posts, error in
-            if let error = error {
-                self.showPaginationErrorView(for: error)
-                return
-            } else if let posts {
-                let postViewModels = posts.compactMap({ provider in
-                    return provider.getPostViewModel()
-                })
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                    let postsCountBeforeUpdate = self.posts.count
-                    self.posts.append(contentsOf: postViewModels)
-                    let indexPaths = (postsCountBeforeUpdate ..< self.posts.count).map {
-                        IndexPath(row: $0, section: 0)
+        Task {
+            do {
+                let paginatedPosts = try await service.getMoreItems()
+                if let paginatedPostsUnwrapped = paginatedPosts {
+                    let postViewModels = paginatedPostsUnwrapped.compactMap({ provider in
+                        return provider.getPostViewModel()
+                    })
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                        let postsCountBeforeUpdate = self.posts.count
+                        self.posts.append(contentsOf: postViewModels)
+                        let indexPaths = (postsCountBeforeUpdate ..< self.posts.count).map {
+                            IndexPath(row: $0, section: 0)
+                        }
+                        self.insertRows(at: indexPaths, with: .fade)
+                        self.service.isAlreadyPaginating = false
                     }
-                    self.insertRows(at: indexPaths, with: .fade)
-                    self.service.isAlreadyPaginating = false
                 }
+            } catch {
+                self.showPaginationErrorView(for: error)
             }
             self.removePaginationFooterIfNeeded()
         }
@@ -101,7 +106,6 @@ class PostsTableView: UITableView {
 
     func setUserPostsViewModels(postsViewModels: [PostViewModel]) {
         self.posts = postsViewModels
-        self.reloadData()
     }
 
     func insertBlankCell() {
@@ -111,6 +115,7 @@ class PostsTableView: UITableView {
         self.insertRows(at: [indexPath], with: .top)
     }
 
+    @MainActor
     func removeBlankCell() {
         guard posts[0].shouldShowBlankCell == true else { return }
         self.posts.remove(at: 0)
@@ -124,19 +129,18 @@ class PostsTableView: UITableView {
         self.reloadRows(at: indexPath, with: .none)
     }
 
+    @MainActor
     func deletePost(at indexPath: IndexPath, completion: @escaping (VoidResult) -> Void) {
         let postModel = posts[indexPath.row]
-        self.service.deletePost(postModel: postModel) { [weak self] result in
-            guard let strongSelf = self else { return }
-            switch result {
-            case .success:
-                strongSelf.posts.remove(at: indexPath.row)
-                strongSelf.deleteRows(at: [indexPath], with: .fade)
+        Task {
+            do {
+                try await service.deletePost(postModel: postModel)
+                self.posts.remove(at: indexPath.row)
+                self.deleteRows(at: [indexPath], with: .fade)
                 completion(.success)
-            case .failure(let error):
+            } catch {
                 completion(.failure(error))
             }
-
         }
     }
 
@@ -282,23 +286,23 @@ extension PostsTableView: PostTableViewCellProtocol {
         postsTableDelegate?.didSelectUser(user: user)
     }
 
-    func didTapLikeButton(cell: PostTableViewCell, completion: @escaping (Result<LikeState, Error>) -> Void) {
-        guard let indexPath = self.indexPath(for: cell) else {
-            return
-        }
+    func didTapLikeButton(cell: PostTableViewCell, completion: @escaping (LikeState) -> Void) {
+        guard let indexPath = self.indexPath(for: cell) else { return }
         let postViewModel = self.posts[indexPath.row]
-        self.service.likePost(postID: postViewModel.postID,
-                              likeState: postViewModel.likeState,
-                              postAuthorID: postViewModel.author.userID) { result in
-            switch result {
-            case .success(let likeState):
-                postViewModel.likeState = likeState
+        Task { @MainActor in
+            do {
+                let newLikeState = try await service.likePost(
+                    postID: postViewModel.postID,
+                    likeState: postViewModel.likeState,
+                    postAuthorID: postViewModel.author.userID)
+                postViewModel.likeState = newLikeState
                 cell.setLikesTitle(title: postViewModel.likesCountTitle)
-                completion(.success(likeState))
-            case .failure(let error):
-                completion(.failure(error))
+                completion(newLikeState)
+            } catch {
+                if let viewController = superclass as? UIViewController {
+                    viewController.showPopUp(issueText: error.localizedDescription)
+                }
             }
-
         }
     }
 
@@ -310,22 +314,23 @@ extension PostsTableView: PostTableViewCellProtocol {
         postsTableDelegate?.didTapCommentButton(viewModel: postViewModel)
     }
 
-    func didTapBookmarkButton(cell: PostTableViewCell, completion: @escaping (Result<BookmarkState, Error>) -> Void) {
-        guard let indexPath = self.indexPath(for: cell) else {
-            return
-        }
+    func didTapBookmarkButton(cell: PostTableViewCell, completion: @escaping (BookmarkState) -> Void) {
+        guard let indexPath = self.indexPath(for: cell) else { return }
         let postViewModel = self.posts[indexPath.row]
-        self.service.bookmarkPost(postID: postViewModel.postID,
-                                  authorID: postViewModel.author.userID,
-                                  bookmarkState: postViewModel.bookmarkState) { result in
-            switch result {
-            case .success(let bookmarkState):
-                self.posts[indexPath.row].bookmarkState = bookmarkState
-                completion(.success(bookmarkState))
-            case .failure(let error):
-                completion(.failure(error))
-            }
 
+        Task { @MainActor in
+            do {
+                let newBookmarkState = try await service.bookmarkPost(
+                    postID: postViewModel.postID,
+                    authorID: postViewModel.author.userID,
+                    bookmarkState: postViewModel.bookmarkState)
+                self.posts[indexPath.row].bookmarkState = newBookmarkState
+                completion(newBookmarkState)
+            } catch {
+                if let viewController = superclass as? UIViewController {
+                    viewController.showPopUp(issueText: error.localizedDescription)
+                }
+            }
         }
     }
 }

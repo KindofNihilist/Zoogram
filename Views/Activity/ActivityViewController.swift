@@ -7,11 +7,13 @@
 
 import UIKit
 
+@MainActor
 protocol ActivityViewNotificationProtocol: AnyObject {
     func displayUnseenEventsBadge()
     func removeUnseenEventsBadge()
 }
 
+@MainActor
 protocol ActivityViewCellActionsDelegate: AnyObject {
     func didSelectUser(user: ZoogramUser)
 }
@@ -55,11 +57,14 @@ class ActivityViewController: UIViewController {
     init(service: ActivityServiceProtocol) {
         self.viewModel = ActivityViewModel(service: service)
         super.init(nibName: nil, bundle: nil)
+
         viewModel.hasUnseenEvents.bind { hasUnseenEvents in
-            if hasUnseenEvents {
-                self.delegate?.displayUnseenEventsBadge()
-            } else {
-                self.delegate?.removeUnseenEventsBadge()
+            Task.detached(priority: .userInitiated) {
+                if hasUnseenEvents {
+                    await self.delegate?.displayUnseenEventsBadge()
+                } else {
+                    await self.delegate?.removeUnseenEventsBadge()
+                }
             }
         }
     }
@@ -75,11 +80,11 @@ class ActivityViewController: UIViewController {
         tableView.dataSource = self
         setupViewsConstraints()
         navigationItem.leftBarButtonItem = UIBarButtonItem(customView: activityNavBarlabel)
-        viewModel.hasInitialized.bind { hasInitialized in
-            if hasInitialized {
-                self.tableView.reloadData()
-            }
-        }
+//        viewModel.hasReceivedEvents.bind { hasReceivedEvents in
+//            if hasReceivedEvents {
+//                self.tableView.reloadData()
+//            }
+//        }
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -88,12 +93,19 @@ class ActivityViewController: UIViewController {
     }
 
     override func viewWillAppear(_ animated: Bool) {
+        self.tableView.reloadData()
         showRecentNotificationsOnAppear()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        viewModel.updateActivityEventsSeenStatus()
+        Task {
+            do {
+                try await viewModel.updateActivityEventsSeenStatus()
+            } catch {
+                showPopUp(issueText: error.localizedDescription)
+            }
+        }
     }
 
     // MARK: Views setup
@@ -171,28 +183,23 @@ class ActivityViewController: UIViewController {
     }
 
     private func presentPostWithComments(post: UserPost?, commentIDToFocusOn: String?) {
-        guard let post = post else {
-            return
-        }
+        guard let post = post else { return }
         let service = CommentsService(
             postID: post.postID,
-            postAuthorID: post.author.userID, 
+            postAuthorID: post.author.userID,
             userDataService: UserDataService.shared,
             postsService: UserPostsService.shared,
             commentsService: CommentSystemService.shared,
             likesService: LikeSystemService.shared,
             bookmarksService: BookmarksSystemService.shared)
 
-        service.getCurrentUser { currentUser in
-            let postWithCommentsVC = CommentsViewController(
-                post: post,
-                commentIDToFocusOn: commentIDToFocusOn,
-                shouldShowRelatedPost: true,
-                currentUser: currentUser,
-                service: service)
-            postWithCommentsVC.hidesBottomBarWhenPushed = true
-            self.navigationController?.pushViewController(postWithCommentsVC, animated: true)
-        }
+        let postWithCommentsVC = CommentsViewController(
+            post: post,
+            commentIDToFocusOn: commentIDToFocusOn,
+            shouldShowRelatedPost: true,
+            service: service)
+        postWithCommentsVC.hidesBottomBarWhenPushed = true
+        self.navigationController?.pushViewController(postWithCommentsVC, animated: true)
     }
 
     func observeActivityEvents() {
@@ -213,27 +220,18 @@ extension ActivityViewController: UITableViewDelegate, UITableViewDataSource {
         switch event.eventType {
 
         case .postLiked:
-            guard event.user != nil && event.post != nil else {
-                return UITableViewCell()
-            }
             let cell: PostLikedEventTableViewCell = tableView.dequeue(withIdentifier: PostLikedEventTableViewCell.identifier, for: indexPath)
             cell.configure(with: event)
             cell.delegate = self
             return cell
 
         case .followed:
-            guard event.user != nil else {
-                return UITableViewCell()
-            }
             let cell: FollowEventTableViewCell = tableView.dequeue(withIdentifier: FollowEventTableViewCell.identifier, for: indexPath)
             cell.configure(with: event)
             cell.delegate = self
             return cell
 
         case .postCommented:
-            guard event.text != nil && event.user != nil && event.post != nil else {
-                return UITableViewCell()
-            }
             let cell: PostCommentedEventTableViewCell = tableView.dequeue(withIdentifier: PostCommentedEventTableViewCell.identifier, for: indexPath)
             cell.configure(with: event)
             cell.delegate = self
@@ -287,23 +285,23 @@ extension ActivityViewController: ActivityViewCellActionsDelegate {
 
 extension ActivityViewController: FollowEventTableViewCellDelegate {
     func followUserTapped(user: ZoogramUser, followCompletion: @escaping (FollowStatus) -> Void) {
-        FollowSystemService.shared.followUser(uid: user.userID) { result in
-            switch result {
-            case .success(let followStatus):
-                followCompletion(followStatus)
-            case .failure(let error):
+        Task {
+            do {
+                let newFollowStatus = try await FollowSystemService.shared.followUser(uid: user.userID)
+                followCompletion(newFollowStatus)
+            } catch {
                 self.showPopUp(issueText: error.localizedDescription)
             }
         }
     }
 
     func unfollowUserTapped(user: ZoogramUser, unfollowCompletion: @escaping (FollowStatus) -> Void) {
-        FollowSystemService.shared.unfollowUser(uid: user.userID) { result in
-            switch result {
-            case .success(let followStatus):
-                ActivitySystemService.shared.removeFollowEventForUser(userID: user.userID)
-                unfollowCompletion(followStatus)
-            case .failure(let error):
+        Task {
+            do {
+                let newFollowStatus = try await FollowSystemService.shared.unfollowUser(uid: user.userID)
+                try await ActivitySystemService.shared.removeFollowEventForUser(userID: user.userID)
+                unfollowCompletion(newFollowStatus)
+            } catch {
                 self.showPopUp(issueText: error.localizedDescription)
             }
         }

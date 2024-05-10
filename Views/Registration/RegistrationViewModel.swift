@@ -25,7 +25,7 @@ class RegistrationViewModel {
         self.service = service
     }
 
-    func createZoogramUserModel() -> NewUser? {
+    private func createZoogramUserModel() -> NewUser? {
         guard let email = self.email,
               let username = self.username,
               let name = self.name,
@@ -47,39 +47,46 @@ class RegistrationViewModel {
             joinDate: Date().timeIntervalSince1970)
     }
 
-    func registerNewUser(completion: @escaping (Result<ZoogramUser, Error>) -> Void) {
-        let newUser = createZoogramUserModel()
-        newUser?.setProfilePhoto(self.profilePicture)
-        service.registerNewUser(for: newUser, password: self.password) { result in
-            completion(result)
+    func registerNewUser() async throws -> ZoogramUser {
+        guard let userModel = createZoogramUserModel(),
+              let password = self.password
+        else {
+            throw RegistrationError.dataMissing
         }
+        userModel.setProfilePhoto(self.profilePicture)
+        let registeredUser = try await service.registerNewUser(for: userModel, password: password)
+        UserManager.shared.setDefaultsForNewlyLoggedInUser(registeredUser)
+        return registeredUser
     }
 
-    func checkIfEmailIsAvailable(email: String, completion: @escaping (Result<IsAvailable, Error>) -> Void) {
-        service.checkIfEmailIsAvailable(email: email) { result in
-            completion(result)
-        }
+    func checkIfEmailIsAvailable(email: String) async throws -> Bool {
+        try await service.checkIfEmailIsAvailable(email: email)
     }
 
-    func checkIfUsernameIsAvailable(username: String, completion: @escaping (Result<IsAvailable, Error>) -> Void) {
-        service.checkIfUsernameIsAvailable(username: username) { result in
-            completion(result)
-        }
+    func checkIfUsernameIsAvailable(username: String) async throws -> Bool {
+        try await service.checkIfUsernameIsAvailable(username: username)
     }
 
-    func checkIfUsernameIsValid(username: String, completion: @escaping (VoidResultWithErrorDescription) -> Void) {
-        service.checkIfUsernameIsValid(username: username) { result in
-            completion(result)
-        }
+    func checkIfUsernameIsValid(username: String) throws {
+        try service.checkIfUsernameIsValid(username: username)
     }
 
-    func checkIfPasswordIsValid(password: String, completion: @escaping (VoidResultWithErrorDescription) -> Void) {
-        service.checkIfPasswordIsValid(password: password) { result in
-            completion(result)
-        }
+    func checkIfPasswordIsValid(password: String) throws {
+        try service.checkIfPasswordIsValid(password: password)
     }
 
     func isValidEmail(email: String) -> Bool {
         service.checkIfEmailIsValid(email: email)
+    }
+}
+
+enum RegistrationError: LocalizedError {
+    case dataMissing
+
+    var errorDescription: String? {
+        switch self {
+        case .dataMissing:
+            return String(localized: "Data required for registration is missing, try again.")
+        }
     }
 }

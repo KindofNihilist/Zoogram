@@ -8,7 +8,7 @@
 import SDWebImage
 import UIKit
 
-protocol FollowEventTableViewCellDelegate: ActivityViewCellActionsDelegate, AnyObject {
+@MainActor protocol FollowEventTableViewCellDelegate: ActivityViewCellActionsDelegate, AnyObject {
     func followUserTapped(user: ZoogramUser, followCompletion: @escaping (FollowStatus) -> Void)
     func unfollowUserTapped(user: ZoogramUser, unfollowCompletion: @escaping (FollowStatus) -> Void)
 }

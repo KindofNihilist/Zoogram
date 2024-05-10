@@ -7,7 +7,7 @@
 
 import UIKit
 
-class CommentListFactory {
+@MainActor class CommentListFactory {
 
     private var tableView: UITableView
 
@@ -16,7 +16,7 @@ class CommentListFactory {
     private var postSection: PostSection?
     private var captionSection: CaptionSection?
     private var commentsSection: CommentSection!
-    
+
     private let delegate: CommentsTableViewActionsProtocol
     private let shouldShowRelatedPost: Bool
 
@@ -26,7 +26,7 @@ class CommentListFactory {
         self.shouldShowRelatedPost = shouldShowRelatedPost
     }
 
-    func buildSections(for viewModel: CommentsViewModel){
+    func buildSections(for viewModel: CommentsViewModel) {
 
         if shouldShowRelatedPost {
             let postController = createPostController(postViewModel: viewModel.postViewModel)

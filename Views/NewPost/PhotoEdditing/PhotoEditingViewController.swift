@@ -266,7 +266,7 @@ class PhotoEditingViewController: UIViewController {
     }
 
     @objc private func autoEnhanceImage() {
-        guard var imageToEnhance = CIImage(image: self.originalImage), self.autoEnhancedImage == nil 
+        guard var imageToEnhance = CIImage(image: self.originalImage), self.autoEnhancedImage == nil
         else {
             self.autoEnhancedImage = nil
             updateCurrentImage()

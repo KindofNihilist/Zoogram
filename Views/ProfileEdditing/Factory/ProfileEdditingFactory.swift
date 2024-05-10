@@ -7,7 +7,7 @@
 
 import UIKit.UITableView
 
-class ProfileEdditingFactory {
+@MainActor class ProfileEdditingFactory {
 
     weak var delegate: ProfileEdditingViewDelegate?
 

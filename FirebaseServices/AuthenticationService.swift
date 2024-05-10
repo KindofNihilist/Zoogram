@@ -7,122 +7,93 @@
 import FirebaseAuth
 
 protocol AuthenticationProtocol {
-    func createNewUser(email: String, password: String, username: String, completion: @escaping (Result<UserID, Error>) -> Void)
-    func signInUsing(email: String, password: String, completion: @escaping (Result<ZoogramUser, Error>) -> Void)
+    func createNewUser(email: String, password: String, username: String) async throws -> UserID
+    func signInUsing(email: String, password: String) async throws -> ZoogramUser
     func listenToAuthenticationState(completion: @escaping (User?) -> Void)
-    func resetPassword(email: String, completion: @escaping (VoidResult) -> Void)
-    func checkIfEmailIsAvailable(email: String, completion: @escaping (Result<IsAvailable, Error>) -> Void)
-    func getCurrentUserUID() -> String?
-    func signOut(completion: (VoidResult) -> Void)
+    func resetPassword(email: String) async throws
+    func checkIfEmailIsAvailable(email: String) async throws -> Bool
+    func getCurrentUserUID() throws -> String
+    func signOut() throws
 }
 
 class AuthenticationService: AuthenticationProtocol {
 
     static let shared = AuthenticationService()
 
-    func getCurrentUserBasicModel() -> ZoogramUser? {
-        guard let currentUser = Auth.auth().currentUser else {
-            return nil
+    func startObservingCurrentUser(with uid: UserID, completion: @escaping (Result<ZoogramUser, Error>) -> Void) {
+        UserDataService.shared.observeCurrentUser(with: uid) { result in
+            completion(result)
         }
-        let userModel = ZoogramUser(
-            userID: currentUser.uid,
-            profilePhotoURL: "",
-            email: currentUser.email!,
-            username: currentUser.displayName ?? "",
-            name: "",
-            birthday: "",
-            gender: "",
-            posts: 0,
-            joinDate: 0.0)
-        return userModel
     }
 
-    func createNewUser(email: String, password: String, username: String, completion: @escaping (Result<UserID, Error>) -> Void) {
-        Auth.auth().createUser(withEmail: email, password: password) { authResult, error in
-            if let error = error {
-                let handledError = self.handleError(error: error)
-                completion(.failure(handledError))
-            } else {
-                guard let authResult = authResult else { return }
+    func createNewUser(email: String, password: String, username: String) async throws -> UserID {
+        do {
+            let authResult = try await Auth.auth().createUser(withEmail: email, password: password)
+            let changeRequest = authResult.user.createProfileChangeRequest()
+            changeRequest.displayName = username
+            try await changeRequest.commitChanges()
+            return authResult.user.uid
+        } catch {
+            throw handleError(error: error)
+        }
+    }
+
+    func signInUsing(email: String, password: String) async throws -> ZoogramUser {
+        do {
+            let authResult = try await Auth.auth().signIn(withEmail: email, password: password)
+            try await Auth.auth().currentUser?.reload()
+            let currentUser = try await UserDataService.shared.getUser(for: authResult.user.uid)
+            if authResult.user.displayName == nil {
                 let changeRequest = authResult.user.createProfileChangeRequest()
-                changeRequest.displayName = username
-                changeRequest.commitChanges()
-                completion(.success(authResult.user.uid))
+                changeRequest.displayName = currentUser.username
+                try await changeRequest.commitChanges()
             }
+            print("currentUser userID: \(currentUser.userID)")
+            return currentUser
+        } catch {
+            throw handleError(error: error)
         }
     }
 
-    func signInUsing(email: String, password: String, completion: @escaping (Result<ZoogramUser, Error>) -> Void) {
-        Auth.auth().signIn(withEmail: email, password: password) { authResult, error in
-            if let error = error {
-                let handledError = self.handleError(error: error)
-                completion(.failure(handledError))
-            } else {
-                Auth.auth().currentUser?.reload(completion: { error in
-                    if let error = error {
-                        let handledError = self.handleError(error: error)
-                        completion(.failure(handledError))
-                    }
-
-                    UserDataService.shared.getCurrentUser { result in
-                        switch result {
-                        case .success(let currentUser):
-                            if authResult?.user.displayName == nil {
-                                let changeRequest = authResult?.user.createProfileChangeRequest()
-                                changeRequest?.displayName = currentUser.username
-                                changeRequest?.commitChanges()
-                            }
-                            completion(.success(currentUser))
-                        case .failure(let error):
-                            completion(.failure(error))
-                        }
-                    }
-                })
-            }
-        }
-    }
-
-    func resetPassword(email: String, completion: @escaping (VoidResult) -> Void) {
+    func resetPassword(email: String) async throws {
         let actionSettings = ActionCodeSettings()
         actionSettings.handleCodeInApp = true
-        Auth.auth().sendPasswordReset(withEmail: email) { error in
-            if let error = error {
-                let handledError = self.handleError(error: error)
-                completion(.failure(handledError))
-            } else {
-                completion(.success)
-            }
+        do {
+            try await Auth.auth().sendPasswordReset(withEmail: email, actionCodeSettings: actionSettings)
+        } catch {
+            throw handleError(error: error)
         }
     }
 
-    func checkIfEmailIsAvailable(email: String, completion: @escaping (Result<IsAvailable, Error>) -> Void) {
-        Auth.auth().fetchSignInMethods(forEmail: email) { signInMethods, error in
-            if let error = error {
-                let handledError = self.handleError(error: error)
-                completion(.failure(handledError))
-            } else {
-                completion(.success(signInMethods == nil))
-            }
+    func checkIfEmailIsAvailable(email: String) async throws -> Bool {
+        do {
+            let signInMethods = try await Auth.auth().fetchSignInMethods(forEmail: email)
+            return signInMethods.isEmpty
+        } catch {
+            throw handleError(error: error)
         }
     }
 
     func listenToAuthenticationState(completion: @escaping (User?) -> Void) {
-        Auth.auth().addStateDidChangeListener { auth, user in
+        Auth.auth().addStateDidChangeListener { _, user in
             completion(user)
         }
     }
 
-    func getCurrentUserUID() -> String? {
-        return Auth.auth().currentUser?.uid
+    func getCurrentUserUID() throws -> String {
+        if let userID = Auth.auth().currentUser?.uid {
+            return userID
+        } else {
+            throw ServiceError.authorizationError
+        }
     }
 
-    func signOut(completion: (VoidResult) -> Void) {
+    func signOut() throws {
+        print("signing out")
         do {
             try Auth.auth().signOut()
-            completion(.success)
         } catch {
-            let handledError = self.handleError(error: error)
-            completion(.failure(handledError))
+            throw handleError(error: error)
         }
     }
 

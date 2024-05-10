@@ -7,7 +7,7 @@
 
 import UIKit
 
-protocol LoadingErrorViewDelegate: AnyObject {
+@MainActor protocol LoadingErrorViewDelegate: AnyObject {
     func didTapReloadButton()
 }
 

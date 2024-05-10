@@ -10,7 +10,7 @@ import UIKit.UITableView
 typealias SectionIndex = Int
 typealias SupplementaryViewKind = String
 
-class SectionController<T: ReusableCellHolder> {
+@MainActor class SectionController<T: ReusableCellHolder> {
 
     var cellControllers: [CellController<T>]
     let sectionHolder: T
@@ -108,7 +108,7 @@ class TableSectionController: SectionController<UITableView> {
 }
 
 class CollectionSectionController: SectionController<UICollectionView> {
-    
+
     override init(sectionHolder: UICollectionView, cellControllers: [CellController<UICollectionView>], sectionIndex: Int) {
         super.init(sectionHolder: sectionHolder, cellControllers: cellControllers, sectionIndex: sectionIndex)
     }
@@ -144,7 +144,7 @@ class CollectionSectionController: SectionController<UICollectionView> {
     public func footerHeight() -> CGSize? {
         return nil
     }
-   
+
     func getSupplementaryView(of kind: SupplementaryViewKind, at indexPath: IndexPath) -> UICollectionReusableView {
         if kind == UICollectionView.elementKindSectionHeader {
             return header(at: indexPath)
@@ -154,12 +154,12 @@ class CollectionSectionController: SectionController<UICollectionView> {
             return UICollectionReusableView()
         }
     }
-    
+
     func getHeader() -> UICollectionReusableView? {
         let supplementaryView = sectionHolder.supplementaryView(forElementKind: UICollectionView.elementKindSectionHeader, at: IndexPath(row: 0, section: sectionIndex))
         return supplementaryView
     }
-    
+
     func getFooter() -> UICollectionReusableView? {
         let supplementaryView = sectionHolder.supplementaryView(forElementKind: UICollectionView.elementKindSectionFooter, at: IndexPath(row: 0, section: sectionIndex))
         return supplementaryView

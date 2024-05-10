@@ -10,11 +10,11 @@ import SDWebImage
 
 protocol FollowListServiceProtocol {
     var followSystemService: FollowSystemProtocol { get }
-    func getUserList(completion: @escaping (Result<[ZoogramUser], Error>) -> Void)
-    func followUser(uid: String, completion: @escaping (Result<FollowStatus, Error>) -> Void)
-    func unfollowUser(uid: String, completion: @escaping (Result<FollowStatus, Error>) -> Void)
-    func removeUserFollowingMe(uid: String, completion: @escaping (VoidResult) -> Void)
-    func undoUserRemoval(uid: String, completion: @escaping (VoidResult) -> Void)
+    func getUserList() async throws -> [ZoogramUser]
+    func followUser(uid: String) async throws -> FollowStatus
+    func unfollowUser(uid: String) async throws -> FollowStatus
+    func removeUserFollowingMe(uid: String) async throws
+    func undoUserRemoval(uid: String) async throws
 }
 
 class FollowedListService: ImageService, FollowListServiceProtocol {
@@ -28,90 +28,44 @@ class FollowedListService: ImageService, FollowListServiceProtocol {
         self.followSystemService = followSystemService
     }
 
-    func getUserList(completion: @escaping (Result<[ZoogramUser], Error>) -> Void) {
-        let dispatchGroup = DispatchGroup()
-        followSystemService.getFollowing(for: userID) { result in
-            print("got result for followers")
-            switch result {
-            case .success(let followedUsers):
-                for user in followedUsers {
-                    if let profilePhotoURL = user.profilePhotoURL {
-                        dispatchGroup.enter()
-                        self.getImage(for: profilePhotoURL) { result in
-                            switch result {
-                            case .success(let image):
-                                user.setProfilePhoto(image)
-                            case .failure(let error):
-                                completion(.failure(error))
-                                break
-                            }
-                            dispatchGroup.leave()
-                        }
-                    }
-                }
-                dispatchGroup.notify(queue: .main) {
-                    completion(.success(followedUsers))
-                }
-
-            case .failure(let error):
-                completion(.failure(error))
+    func getUserList() async throws -> [ZoogramUser] {
+        let followedUsers = try await followSystemService.getFollowing(for: userID)
+        for followedUser in followedUsers {
+            if let profilePhotoURL = followedUser.profilePhotoURL {
+                let profilePhoto = try await getImage(for: profilePhotoURL)
+                followedUser.setProfilePhoto(profilePhoto)
             }
-
         }
+        return followedUsers
     }
 
-    func followUser(uid: String, completion: @escaping (Result<FollowStatus, Error>) -> Void) {
-        followSystemService.followUser(uid: uid) { result in
-            completion(result)
-        }
+    func followUser(uid: String) async throws -> FollowStatus {
+        return try await followSystemService.followUser(uid: uid)
     }
 
-    func unfollowUser(uid: String, completion: @escaping (Result<FollowStatus, Error>) -> Void) {
-        followSystemService.unfollowUser(uid: uid) { result in
-            completion(result)
-        }
+    func unfollowUser(uid: String) async throws -> FollowStatus {
+        return try await followSystemService.unfollowUser(uid: uid)
     }
 
-    func removeUserFollowingMe(uid: String, completion: @escaping (VoidResult) -> Void) {
-        followSystemService.forcefullyRemoveFollower(uid: uid) { result in
-            completion(result)
-        }
+    func removeUserFollowingMe(uid: String) async throws {
+        try await followSystemService.forcefullyRemoveFollower(uid: uid)
     }
 
-    func undoUserRemoval(uid: String, completion: @escaping (VoidResult) -> Void) {
-        followSystemService.undoForcefullRemoval(ofUser: uid) { result in
-            completion(result)
-        }
+    func undoUserRemoval(uid: String) async throws {
+        try await followSystemService.undoForcefullRemoval(ofUser: uid)
     }
 }
 
 class FollowersListService: FollowedListService {
-    override func getUserList(completion: @escaping (Result<[ZoogramUser], Error>) -> Void) {
-        let dispatchGroup = DispatchGroup()
-        followSystemService.getFollowers(for: userID) { result in
-            switch result {
-            case .success(let followers):
-                for user in followers {
-                    if let profilePhotoURL = user.profilePhotoURL {
-                        dispatchGroup.enter()
-                        self.getImage(for: profilePhotoURL) { result in
-                            switch result {
-                            case .success(let image):
-                                user.setProfilePhoto(image)
-                            case .failure(let error):
-                                completion(.failure(error))
-                            }
-                            dispatchGroup.leave()
-                        }
-                    }
-                }
-                dispatchGroup.notify(queue: .main) {
-                    completion(.success(followers))
-                }
 
-            case .failure(let error):
-                completion(.failure(error))
+    override func getUserList() async throws -> [ZoogramUser] {
+        let followedUsers = try await followSystemService.getFollowers(for: userID)
+        for followedUser in followedUsers {
+            if let profilePhotoURL = followedUser.profilePhotoURL {
+                let profilePhoto = try await getImage(for: profilePhotoURL)
+                followedUser.setProfilePhoto(profilePhoto)
             }
         }
+        return followedUsers
     }
 }

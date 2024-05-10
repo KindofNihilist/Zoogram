@@ -17,66 +17,25 @@ protocol CommentsServiceProtocol: ImageService, PostActionsService {
 
     var postID: String { get set }
     var postAuthorID: String { get set }
-    func getComments(completion: @escaping (Result<[PostComment], Error>) -> Void)
-    func postComment(comment: PostComment, completion: @escaping (Result<PostComment, Error>) -> Void)
-    func deleteComment(commentID: String, completion: @escaping (VoidResult) -> Void)
+    func getComments() async throws -> [PostComment]
+    func postComment(comment: PostComment) async throws -> PostComment
+    func deleteComment(commentID: String) async throws
 }
 
 extension CommentsServiceProtocol {
 
-    func getAdditionalPostData(for post: UserPost, completion: @escaping (Result<UserPost, Error>) -> Void) {
-
-        let dispatchGroup = DispatchGroup()
+    func getAdditionalPostData(for post: UserPost) async throws -> UserPost {
 
         if let profilePhotoURL = post.author.profilePhotoURL {
-            dispatchGroup.enter()
-            getImage(for: profilePhotoURL) { result in
-                switch result {
-                case .success(let profilePhoto):
-                    post.author.setProfilePhoto(profilePhoto)
-                case .failure(let error):
-                    completion(.failure(error))
-                }
-                dispatchGroup.leave()
-            }
+            let profilePhoto = try await getImage(for: profilePhotoURL)
+            post.author.setProfilePhoto(profilePhoto)
         }
 
-        dispatchGroup.enter()
-        LikeSystemService.shared.getLikesCountForPost(id: post.postID) { result in
-            switch result {
-            case .success(let likesCount):
-                post.likesCount = likesCount
-            case.failure(let error):
-                completion(.failure(error))
-            }
-            dispatchGroup.leave()
-        }
-
-        dispatchGroup.enter()
-        BookmarksSystemService.shared.checkIfBookmarked(postID: post.postID) { result in
-            switch result {
-            case .success(let bookmarkState):
-                post.bookmarkState = bookmarkState
-            case .failure(let error):
-                completion(.failure(error))
-            }
-            dispatchGroup.leave()
-        }
-
-        dispatchGroup.enter()
-        LikeSystemService.shared.checkIfPostIsLiked(postID: post.postID) { result in
-            switch result {
-            case .success(let likeState):
-                post.likeState = likeState
-            case .failure(let error):
-                completion(.failure(error))
-            }
-            dispatchGroup.leave()
-        }
-
-        dispatchGroup.notify(queue: .main) {
-            completion(.success(post))
-        }
+        let postID = post.postID
+        post.likesCount = try await LikeSystemService.shared.getLikesCountForPost(id: postID)
+        post.likeState = try await LikeSystemService.shared.checkIfPostIsLiked(postID: postID)
+        post.bookmarkState = try await BookmarksSystemService.shared.checkIfBookmarked(postID: postID)
+        return post
     }
 }
 
@@ -109,138 +68,56 @@ class CommentsService: ImageService, CommentsServiceProtocol {
         self.bookmarksService = bookmarksService
     }
 
-    func getCurrentUser(completion: @escaping (ZoogramUser) -> Void) {
-        userDataService.getLatestUserModel { result in
-            switch result {
-            case .success(let currentUser):
-                completion(currentUser)
-            case .failure(_):
-                completion(ZoogramUser())
-            }
-        }
+    func getCurrentUser() -> ZoogramUser {
+        return UserManager.shared.getCurrentUser()
     }
 
-    func getComments(completion: @escaping (Result<[PostComment], Error>) -> Void) {
-        print("getcomments service called")
-        commentsService.getCommentsForPost(postID: postID) { result in
-            print("getComments service completion called")
-            print(result)
-            switch result {
-            case .success(let comments):
-                let dispatchGroup = DispatchGroup()
-                for comment in comments {
-                    if let profilePhotoURL = comment.author.profilePhotoURL {
-                        dispatchGroup.enter()
-                        self.getImage(for: profilePhotoURL) { result in
-                            switch result {
-                            case .success(let image):
-                                comment.author.setProfilePhoto(image)
-                            case .failure(let error):
-                                completion(.failure(error))
-                                return
-                            }
-                            dispatchGroup.leave()
-                        }
-                    }
-                }
-                dispatchGroup.notify(queue: .main) {
-                    completion(.success(comments))
-                }
-
-            case .failure(let error):
-                completion(.failure(error))
-                return
-            }
-
+    func getComments() async throws -> [PostComment] {
+        let comments = try await commentsService.getCommentsForPost(postID: postID)
+        for comment in comments {
+            let authorPfp = try await getImage(for: comment.author.profilePhotoURL)
+            comment.author.setProfilePhoto(authorPfp)
         }
+        return comments
     }
 
-    func postComment(comment: PostComment, completion: @escaping (Result<PostComment, Error>) -> Void) {
-        CommentSystemService.shared.postComment(for: postID, comment: comment) { result in
-            switch result {
-            case .success:
-                let activityEvent = ActivityEvent.createActivityEventFor(comment: comment, postID: self.postID)
-
-                ActivitySystemService.shared.addEventToUserActivity(event: activityEvent, userID: self.postAuthorID)
-
-                // Receiveing newly made comment's author profile to append it to tableView
-                self.userDataService.getUser(for: comment.authorID) { result in
-                    switch result {
-                    case .success(let author):
-                        comment.author = author
-                        completion(.success(comment))
-                    case .failure(let error):
-                        completion(.failure(error))
-                    }
-                }
-
-            case .failure(let error):
-                completion(.failure(error))
-            }
-        }
+    func postComment(comment: PostComment) async throws -> PostComment {
+        try await commentsService.postComment(for: postID, comment: comment)
+        let activityEvent = ActivityEvent.createActivityEventFor(comment: comment, postID: self.postID)
+        try await ActivitySystemService.shared.addEventToUserActivity(event: activityEvent, userID: self.postAuthorID)
+        comment.author = try await userDataService.getUser(for: comment.authorID)
+        return comment
     }
 
-    func deleteComment(commentID: String, completion: @escaping (VoidResult) -> Void) {
-        commentsService.deleteComment(postID: postID, commentID: commentID) { result in
-            switch result {
-            case .success:
-                ActivitySystemService.shared.removeCommentEventForPost(commentID: commentID, postAuthorID: self.postAuthorID)
-                completion(.success)
-
-            case .failure(let error):
-                completion(.failure(error))
-            }
-        }
+    func deleteComment(commentID: String) async throws {
+        try await commentsService.deleteComment(postID: postID, commentID: commentID)
+        try await ActivitySystemService.shared.removeCommentEventForPost(commentID: commentID, postAuthorID: self.postAuthorID)
     }
 
-    func likePost(postID: String, likeState: LikeState, postAuthorID: String, completion: @escaping (Result<LikeState, Error>) -> Void) {
-
+    func likePost(postID: String, likeState: LikeState, postAuthorID: String) async throws -> LikeState {
         switch likeState {
         case .liked:
-            likesService.removeLikeFromPost(postID: postID) { result in
-                switch result {
-                case .success:
-                    ActivitySystemService.shared.removeLikeEventForPost(postID: postID, postAuthorID: postAuthorID)
-                    completion(.success(.notLiked))
-
-                case .failure(let error):
-                    completion(.failure(error))
-                }
-            }
+            try await likesService.removeLikeFromPost(postID: postID)
+            try await ActivitySystemService.shared.removeLikeEventForPost(postID: postID, postAuthorID: postAuthorID)
+            return .notLiked
         case .notLiked:
-            likesService.likePost(postID: postID) { result in
-                switch result {
-                case .success:
-                    let activityEvent = ActivityEvent.createActivityEventFor(likedPostID: postID)
-
-                    ActivitySystemService.shared.addEventToUserActivity(event: activityEvent, userID: postAuthorID)
-                    completion(.success(.liked))
-
-                case .failure(let error):
-                    completion(.failure(error))
-                }
-            }
+            try await likesService.likePost(postID: postID)
+            let activityEvent = ActivityEvent.createActivityEventFor(likedPostID: postID)
+            try await ActivitySystemService.shared.addEventToUserActivity(event: activityEvent, userID: postAuthorID)
+            return .liked
         }
     }
 
-    func deletePost(postModel: PostViewModel, completion: @escaping (VoidResult) -> Void) {
-        postsService.deletePost(postID: postModel.postID, postImageURL: postModel.postImageURL) { result in
-            completion(result)
-        }
+    func deletePost(postModel: PostViewModel) async throws {
+        try await postsService.deletePost(postID: postModel.postID, postImageURL: postModel.postImageURL)
     }
 
-    func bookmarkPost(postID: String, authorID: String, bookmarkState: BookmarkState, completion: @escaping (Result<BookmarkState, Error>) -> Void) {
-
+    func bookmarkPost(postID: String, authorID: String, bookmarkState: BookmarkState) async throws -> BookmarkState {
         switch bookmarkState {
         case .bookmarked:
-            bookmarksService.removeBookmark(postID: postID) { bookmarkState in
-                completion(bookmarkState)
-            }
-
+            return try await bookmarksService.removeBookmark(postID: postID)
         case .notBookmarked:
-            bookmarksService.bookmarkPost(postID: postID, authorID: authorID) { bookmarkState in
-                completion(bookmarkState)
-            }
+            return try await bookmarksService.bookmarkPost(postID: postID, authorID: authorID)
         }
     }
 }

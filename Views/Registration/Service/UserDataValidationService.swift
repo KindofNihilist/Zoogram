@@ -8,118 +8,22 @@
 import Foundation
 
 protocol UserDataValidationServiceProtocol: AnyObject {
-    func checkIfEmailIsAvailable(email: String, completion: @escaping (Result<IsAvailable, Error>) -> Void)
+    func checkIfEmailIsAvailable(email: String) async throws -> Bool
     func checkIfEmailIsValid(email: String) -> Bool
-    func checkIfUsernameIsAvailable(username: String, completion: @escaping (Result<IsAvailable, Error>) -> Void)
-    func checkIfUsernameIsValid(username: String, completion: @escaping (VoidResultWithErrorDescription) -> Void)
-    func checkIfPasswordIsValid(password: String, completion: @escaping (VoidResultWithErrorDescription) -> Void)
-    func checkIfNameIsValid(name: String, completion: @escaping (VoidResultWithErrorDescription) -> Void)
-}
-
-protocol LocalizableEnum {
-    func localizedString() -> String
+    func checkIfUsernameIsAvailable(username: String) async throws -> Bool
+    func checkIfUsernameIsValid(username: String) throws
+    func checkIfPasswordIsValid(password: String) throws
+    func checkIfNameIsValid(name: String) throws
 }
 
 class UserDataValidationService: UserDataValidationServiceProtocol {
 
-    func checkIfNameIsValid(name: String, completion: @escaping (VoidResultWithErrorDescription) -> Void) {
+    func checkIfNameIsValid(name: String) throws {
         let nameWithoutWhiteSpaces = name.trimmingExtraWhitespace()
 
         if nameWithoutWhiteSpaces.isEmpty {
-            completion(.failure(String(localized: "Name can't be empty")))
-        } else {
-            completion(.success)
+            throw NameValidationError.empty
         }
-    }
-
-    func checkIfEmailIsAvailable(email: String, completion: @escaping (Result<IsAvailable, Error>) -> Void) {
-        AuthenticationService.shared.checkIfEmailIsAvailable(email: email) { result in
-            completion(result)
-        }
-    }
-
-    func checkIfUsernameIsAvailable(username: String, completion: @escaping (Result<IsAvailable, Error>) -> Void) {
-        UserDataService.shared.checkIfUsernameIsAvailable(username: username) { result in
-            completion(result)
-        }
-    }
-
-    func checkIfUsernameIsValid(username: String, completion: @escaping (VoidResultWithErrorDescription) -> Void) {
-        guard username.isEmpty != true else {
-            let failureText = String(localized: "You must enter a username")
-            completion(.failure(failureText))
-            return
-        }
-        var validationErrors = [UsernameValidationError]()
-
-        if username.count < 4 {
-            validationErrors.append(.tooShort)
-        }
-
-        // At least one letter
-        if username.range(of: #"\p{Alphabetic}+"#, options: .regularExpression) == nil {
-            validationErrors.append(.noLetters)
-        }
-
-        // No whitespace charcters
-        if username.range(of: #"\s+"#, options: .regularExpression) != nil {
-            validationErrors.append(.includesWhitespaces)
-        }
-
-        if validationErrors.isEmpty {
-            completion(.success)
-        } else {
-            let errorDescriptionBeginning = String(localized: "The username should")
-            let errorDescription = createValidationErrorDescription(for: validationErrors, withBeginningDescription: errorDescriptionBeginning)
-            completion(.failure(errorDescription))
-        }
-    }
-
-    func checkIfPasswordIsValid(password: String, completion: @escaping (VoidResultWithErrorDescription) -> Void) {
-        var validationErrors = [PasswordValidationError]()
-
-        if password.count < 8 {
-            validationErrors.append(.tooShort)
-        }
-
-        // At least one digit
-        if password.range(of: #"\d+"#, options: .regularExpression) == nil {
-            validationErrors.append(.noDigits)
-        }
-
-        // At least one letter
-        if password.range(of: #"\p{Alphabetic}+"#, options: .regularExpression) == nil {
-            validationErrors.append(.noLetters)
-        }
-
-        // No whitespace charcters
-        if password.range(of: #"\s+"#, options: .regularExpression) != nil {
-            validationErrors.append(.includesWhitespaces)
-        }
-
-        if validationErrors.isEmpty {
-            completion(.success)
-        } else {
-            let errorDescriptionBeginning = String(localized: "The password should")
-            let errorDescription = createValidationErrorDescription(for: validationErrors, withBeginningDescription: errorDescriptionBeginning)
-            completion(.failure(errorDescription))
-        }
-    }
-
-    func createValidationErrorDescription<T: LocalizableEnum>(for errors: [T], withBeginningDescription description: String) -> String {
-        var errorDescription = description
-        let endIndex = errors.endIndex - 1
-        let startIndex = errors.startIndex
-
-        for (index, error) in errors.enumerated() {
-            if index < endIndex && index > startIndex {
-                errorDescription += ","
-            } else if index > startIndex && index == endIndex {
-                errorDescription += String(localized: " and")
-            }
-            errorDescription += error.localizedString()
-        }
-        return errorDescription
     }
 
     func checkIfEmailIsValid(email: String) -> Bool {
@@ -128,42 +32,112 @@ class UserDataValidationService: UserDataValidationServiceProtocol {
         let emailPred = NSPredicate(format: "SELF MATCHES %@", emailRegEx)
         return emailPred.evaluate(with: email)
     }
+
+    func checkIfEmailIsAvailable(email: String) async throws -> Bool {
+        return try await AuthenticationService.shared.checkIfEmailIsAvailable(email: email)
+    }
+
+    func checkIfUsernameIsAvailable(username: String) async throws -> Bool {
+        return try await UserDataService.shared.checkIfUsernameIsAvailable(username: username)
+    }
+
+    func checkIfUsernameIsValid(username: String) throws {
+        guard username.isEmpty != true else {
+            throw UsernameValidationError.empty
+        }
+
+        // At least 4 characters long
+        if username.count < 4 {
+            throw UsernameValidationError.tooShort
+        }
+
+        // At least one letter
+        if username.range(of: #"\p{Alphabetic}+"#, options: .regularExpression) == nil {
+            throw UsernameValidationError.noLetters
+        }
+
+        // No whitespace charcters
+        if username.range(of: #"\s+"#, options: .regularExpression) != nil {
+            throw UsernameValidationError.includesWhitespaces
+        }
+    }
+
+    func checkIfPasswordIsValid(password: String) throws {
+
+        // At least 8 characters long
+        if password.count < 8 {
+            throw PasswordValidationError.tooShort
+        }
+
+        // At least one digit
+        if password.range(of: #"\d+"#, options: .regularExpression) == nil {
+            throw PasswordValidationError.noDigits
+        }
+
+        // At least one letter
+        if password.range(of: #"\p{Alphabetic}+"#, options: .regularExpression) == nil {
+            throw PasswordValidationError.noLetters
+        }
+
+        // No whitespace charcters
+        if password.range(of: #"\s+"#, options: .regularExpression) != nil {
+            throw PasswordValidationError.includesWhitespaces
+        }
+    }
 }
 
-fileprivate enum PasswordValidationError: LocalizableEnum {
+ enum PasswordValidationError: LocalizedError {
     case tooShort
     case noLetters
     case noDigits
     case includesWhitespaces
 
-    func localizedString() -> String {
+    var errorDescription: String? {
         switch self {
         case .tooShort:
-            return String(localized: " be at least 8 characters long")
+            return String(localized: "The password should be at least 8 characters long")
         case .noLetters:
-            return String(localized: " include at least one letter")
+            return String(localized: "The password should include at least one letter")
         case .noDigits:
-            return String(localized: " include at least one digit")
+            return String(localized: "The password should include at least one digit")
         case .includesWhitespaces:
-            return String(localized: " have no whitespaces")
+            return String(localized: "The password should have no whitespaces")
         }
     }
 }
 
-fileprivate enum UsernameValidationError: LocalizableEnum {
+ enum UsernameValidationError: LocalizedError {
+    case empty
     case tooShort
     case noLetters
     case includesWhitespaces
+    case taken
 
-    func localizedString() -> String {
+    var errorDescription: String? {
         switch self {
+        case .empty:
+            return String(localized: "You must enter a username")
         case .tooShort:
-            return String(localized: " be at least 4 characters long")
+            return String(localized: "The username should be at least 4 characters long")
         case .noLetters:
-            return String(localized: " include at least one letter")
+            return String(localized: "The username should include at least one letter")
         case .includesWhitespaces:
-            return String(localized: " have no whitespaces")
+            return String(localized: "The username should have no whitespaces")
+        case .taken:
+            return String(localized: "The username is already taken")
         }
     }
 }
+
+ enum NameValidationError: LocalizedError {
+    case empty
+
+    var errorDescription: String? {
+        switch self {
+        case .empty:
+            return String(localized: "You must enter a name")
+        }
+    }
+}
+
 

@@ -101,15 +101,15 @@ class HomeViewController: UIViewController {
 
     func makeNewPost(with postModel: UserPost, for user: ZoogramUser, completion: @escaping () -> Void) {
         self.showMakingNewPostNotificationViewFor(username: user.username, with: postModel.image)
-        self.service.makeANewPost(post: postModel) { progress in
-            self.updateProgressBar(progress: progress)
-        } completion: { result in
-            switch result {
-            case .success:
+        Task {
+            do {
+                try await service.makeANewPost(post: postModel) { progress in
+                    self.updateProgressBar(progress: progress)
+                }
                 postModel.author = user
                 self.animateInsertionOfCreatedPost(post: postModel)
                 completion()
-            case .failure(let error):
+            } catch {
                 self.notificationView?.removeFromSuperview()
                 self.tableView.isUserInteractionEnabled = true
                 self.tableView.removeBlankCell()
@@ -137,6 +137,7 @@ class HomeViewController: UIViewController {
         ])
     }
 
+    @MainActor
     private func updateProgressBar(progress: Progress?) {
         guard let notificationView = self.notificationView as? NewPostProgressView else {
             return
@@ -144,6 +145,7 @@ class HomeViewController: UIViewController {
         notificationView.setProgressToProgressBar(progress: progress)
     }
 
+    @MainActor
     private func animateInsertionOfCreatedPost(post: UserPost) {
         guard let notificationView = self.notificationView as? NewPostProgressView else {
             return

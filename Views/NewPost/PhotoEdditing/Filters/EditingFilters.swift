@@ -52,7 +52,7 @@ class EditingFilters {
     lazy var saturationFilter = Filter(
         filterType: .saturation,
         filterName: "CIColorControls",
-        displayName: String(localized: "Saturation"), 
+        displayName: String(localized: "Saturation"),
         filterIcon: UIImage(systemName: "drop")!,
         filterKey: kCIInputSaturationKey,
         filterDefaultValue: 1.00,
@@ -62,7 +62,7 @@ class EditingFilters {
     lazy var warmthFilter = Filter(
         filterType: .warmth,
         filterName: "CITemperatureAndTint",
-        displayName: String(localized: "Warmth"), 
+        displayName: String(localized: "Warmth"),
         filterIcon: UIImage(systemName: "thermometer.sun")!,
         filterKey: "inputTargetNeutral",
         filterDefaultValue: 0,
@@ -72,7 +72,7 @@ class EditingFilters {
     lazy var tintFilter = Filter(
         filterType: .tint,
         filterName: "CITemperatureAndTint",
-        displayName: String(localized: "Tint"), 
+        displayName: String(localized: "Tint"),
         filterIcon: UIImage(systemName: "eyedropper.halffull")!,
         filterKey: "inputTargetNeutral",
         filterDefaultValue: 0.0,
@@ -92,7 +92,7 @@ class EditingFilters {
     lazy var shadowsFilter = Filter(
         filterType: .shadows,
         filterName: "CIHighlightShadowAdjust",
-        displayName: String(localized: "Shadows"), 
+        displayName: String(localized: "Shadows"),
         filterIcon: UIImage(systemName: "circle.fill")!,
         filterKey: "inputShadowAmount",
         filterDefaultValue: 0.0,
@@ -102,7 +102,7 @@ class EditingFilters {
     lazy var vignetteFilter = Filter(
         filterType: .vignette,
         filterName: "CIVignette",
-        displayName: String(localized: "Vignette"), 
+        displayName: String(localized: "Vignette"),
         filterIcon: UIImage(systemName: "smallcircle.filled.circle")!,
         filterKey: "inputIntensity",
         filterDefaultValue: 0.0,

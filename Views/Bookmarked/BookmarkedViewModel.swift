@@ -21,32 +21,20 @@ class BookmarksViewModel {
         return service.hasHitTheEndOfPosts == false && service.isAlreadyPaginating == false
     }
 
-    func getBookmarks(completion: @escaping (Result<[Bookmark]?, Error>) -> Void) {
-        self.service.getItems { bookmarks, error in
-            if let error = error {
-                completion(.failure(error))
-                return
-            } else if let bookmarks = bookmarks {
-                self.bookmarks = bookmarks
-                completion(.success(bookmarks))
-            } else {
-                completion(.success(nil))
-            }
+    func getBookmarks() async throws -> [Bookmark]? {
+        let receivedBookmarks = try await service.getItems()
+        if let receivedBookmarks = receivedBookmarks {
+            self.bookmarks = receivedBookmarks
         }
+        return bookmarks
     }
 
-    func getMoreBookmarks(completion: @escaping (Result<[Bookmark]?, Error>) -> Void) {
-        self.service.getMoreItems { bookmarks, error in
-            if let error = error {
-                completion(.failure(error))
-                return
-            } else if let bookmarks = bookmarks {
-                self.bookmarks.append(contentsOf: bookmarks)
-                completion(.success(bookmarks))
-            } else {
-                completion(.success(nil))
-            }
+    func getMoreBookmarks() async throws -> [Bookmark]? {
+        let paginatedBookmarks = try await service.getMoreItems()
+        if let paginatedBookmarks = paginatedBookmarks {
+            self.bookmarks.append(contentsOf: paginatedBookmarks)
         }
+        return paginatedBookmarks
     }
 
     func hasHitTheEndOfBookmarks() -> Bool {

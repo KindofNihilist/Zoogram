@@ -2,6 +2,7 @@
   "sourceLanguage" : "en",
   "strings" : {
     " and" : {
+      "extractionState" : "stale",
       "localizations" : {
         "uk" : {
           "stringUnit" : {
@@ -12,6 +13,7 @@
       }
     },
     " be at least 4 characters long" : {
+      "extractionState" : "stale",
       "localizations" : {
         "uk" : {
           "stringUnit" : {
@@ -22,6 +24,7 @@
       }
     },
     " be at least 8 characters long" : {
+      "extractionState" : "stale",
       "localizations" : {
         "uk" : {
           "stringUnit" : {
@@ -32,6 +35,7 @@
       }
     },
     " have no whitespaces" : {
+      "extractionState" : "stale",
       "localizations" : {
         "uk" : {
           "stringUnit" : {
@@ -42,6 +46,7 @@
       }
     },
     " include at least one digit" : {
+      "extractionState" : "stale",
       "localizations" : {
         "uk" : {
           "stringUnit" : {
@@ -52,6 +57,7 @@
       }
     },
     " include at least one letter" : {
+      "extractionState" : "stale",
       "localizations" : {
         "uk" : {
           "stringUnit" : {
@@ -228,6 +234,9 @@
           }
         }
       }
+    },
+    "Authorization Error" : {
+
     },
     "Be the first to leave a comment" : {
 
@@ -422,6 +431,9 @@
         }
       }
     },
+    "Couldn't load comments" : {
+
+    },
     "Couldn't load data" : {
       "localizations" : {
         "uk" : {
@@ -431,6 +443,9 @@
           }
         }
       }
+    },
+    "Couldn't load post" : {
+
     },
     "Couldn't load posts" : {
       "localizations" : {
@@ -521,6 +536,9 @@
           }
         }
       }
+    },
+    "Data required for registration is missing, try again." : {
+
     },
     "Date of birth" : {
       "localizations" : {
@@ -666,6 +684,7 @@
       }
     },
     "Error" : {
+      "extractionState" : "stale",
       "localizations" : {
         "uk" : {
           "stringUnit" : {
@@ -811,6 +830,9 @@
         }
       }
     },
+    "Invalid URL" : {
+
+    },
     "liked your post. " : {
       "localizations" : {
         "uk" : {
@@ -862,6 +884,7 @@
       }
     },
     "Name can't be empty" : {
+      "extractionState" : "stale",
       "localizations" : {
         "uk" : {
           "stringUnit" : {
@@ -1162,6 +1185,7 @@
       }
     },
     "The password should" : {
+      "extractionState" : "stale",
       "localizations" : {
         "uk" : {
           "stringUnit" : {
@@ -1170,6 +1194,18 @@
           }
         }
       }
+    },
+    "The password should be at least 8 characters long" : {
+
+    },
+    "The password should have no whitespaces" : {
+
+    },
+    "The password should include at least one digit" : {
+
+    },
+    "The password should include at least one letter" : {
+
     },
     "The user has been disabled" : {
       "localizations" : {
@@ -1181,7 +1217,11 @@
         }
       }
     },
+    "The username is already taken" : {
+
+    },
     "The username should" : {
+      "extractionState" : "stale",
       "localizations" : {
         "uk" : {
           "stringUnit" : {
@@ -1190,6 +1230,15 @@
           }
         }
       }
+    },
+    "The username should be at least 4 characters long" : {
+
+    },
+    "The username should have no whitespaces" : {
+
+    },
+    "The username should include at least one letter" : {
+
     },
     "There was a network error, please try again later" : {
       "localizations" : {
@@ -1402,6 +1451,9 @@
           }
         }
       }
+    },
+    "You must enter a name" : {
+
     },
     "You must enter a username" : {
       "localizations" : {

@@ -16,13 +16,14 @@ class ActivityViewModel {
             checkIfHasUnseenEvents()
         }
     }
+
     private var seenEvents = Set<ActivityEvent>()
 
     var eventsCount: Int {
         return events.count
     }
 
-    var hasInitialized = Observable(false)
+//    var hasReceivedEvents = Observable(false)
     var hasUnseenEvents = Observable(false)
     var hasZeroEvents: Bool {
         return events.isEmpty
@@ -34,13 +35,14 @@ class ActivityViewModel {
     }
 
     func observeActivityEvents() {
-        service.observeActivityEvents { result in
-            switch result {
-            case .success(let events):
-                self.events = events
-                self.hasInitialized.value = true
-            case .failure(let error):
-                self.hasInitialized.value = false
+        Task {
+            do {
+                for try await events in service.observeActivityEvents() {
+                    let eventsWithAdditionalData = try await service.getAdditionalDataFor(events: events)
+                    self.events = eventsWithAdditionalData
+                }
+            } catch {
+                print(error.localizedDescription)
             }
         }
     }
@@ -61,15 +63,9 @@ class ActivityViewModel {
         return events[indexPath.row].seen
     }
 
-    func updateActivityEventsSeenStatus() {
-        service.updateActivityEventsSeenStatus(events: seenEvents) { result in
-            switch result {
-            case .success:
-                self.seenEvents = Set<ActivityEvent>()
-            case .failure(let error):
-                print(error)
-            }
-        }
+    func updateActivityEventsSeenStatus() async throws {
+        try await service.updateActivityEventsSeenStatus(events: seenEvents)
+        self.seenEvents = Set<ActivityEvent>()
     }
 
     func markEventAsSeen(at indexPath: IndexPath) {

@@ -75,9 +75,8 @@ class ActivityEvent: Codable, Hashable {
     }
 
     static func createActivityEventFor(likedPostID: String) -> ActivityEvent {
-        let currentUserID = AuthenticationService.shared.getCurrentUserUID()!
+        let currentUserID = UserManager.shared.getUserID()
         let eventID = ActivitySystemService.shared.createEventUID()
-
         return ActivityEvent(
             eventType: .postLiked,
             userID: currentUserID,

@@ -8,14 +8,10 @@ import FirebaseStorage
 import Foundation
 
 protocol StorageManagerProtocol {
-    typealias APICallResult = Result<URL, Error>
-    typealias ResultBlock = (APICallResult) -> Void
-    typealias CompletionBlockWithoutValue = (VoidResult) -> Void
-
-    func uploadUserProfilePhoto(for userID: String, with image: UIImage, fileName: String, completion: @escaping ResultBlock)
-    func uploadPostPhoto(photo: UIImage, fileName: String, progressUpdate: @escaping (Progress?) -> Void, completion: @escaping ResultBlock)
-    func deletePostPhoto(photoURL: String, completion: @escaping CompletionBlockWithoutValue)
-    func getDownloadURL(for path: String, completion: @escaping ResultBlock)
+    func uploadUserProfilePhoto(for userID: String, with image: UIImage, fileName: String) async throws -> URL
+    func uploadPostPhoto(photo: UIImage, fileName: String, progressUpdate: @escaping (Progress?) -> Void) async throws -> URL
+    func deletePostPhoto(photoURL: String) async throws
+    func getDownloadURL(for path: String) async throws -> URL
 }
 
 class StorageManager: StorageManagerProtocol {
@@ -30,82 +26,47 @@ class StorageManager: StorageManagerProtocol {
         storageReference.storage.maxDownloadRetryTime = 5
     }
 
-    func uploadUserProfilePhoto(for userID: String, with image: UIImage, fileName: String, completion: @escaping ResultBlock) {
-        guard let data = image.jpegData(compressionQuality: 1) else {
-            return
-        }
+    func uploadUserProfilePhoto(for userID: String, with image: UIImage, fileName: String) async throws -> URL {
+        guard let data = image.jpegData(compressionQuality: 1) else { throw ServiceError.unexpectedError }
         let storagePath = "ProfilePictures/\(userID)/\(fileName)"
+        let query = storageReference.child(storagePath)
 
-        storageReference.child(storagePath).putData(data, metadata: nil) { _, error in
-            if let error = error {
-                completion(.failure(ServiceError.couldntLoadData))
-            } else {
-                self.storageReference.child(storagePath).downloadURL { url, error in
-                    if let error = error {
-                        completion(.failure(ServiceError.couldntLoadData))
-                        return
-                    } else if let url = url {
-                        completion(.success(url))
-                    }
-                }
-            }
+        do {
+            let uploadTask = try await query.putDataAsync(data)
+            let downloadURL = try await getDownloadURL(for: storagePath)
+            return downloadURL
+        } catch {
+            throw ServiceError.couldntUploadUserData
         }
     }
 
-    func uploadPostPhoto(photo: UIImage, fileName: String, progressUpdate: @escaping (Progress?) -> Void, completion: @escaping ResultBlock) {
-        guard let imageData = photo.jpegData(compressionQuality: 1),
-              let userID = AuthenticationService.shared.getCurrentUserUID()
-        else {
-            return
-        }
-        let storagePath = "UserPhotoPosts/\(userID)/\(fileName)"
-
-        let uploadTask = storageReference.child(storagePath).putData(imageData) { _, error in
-            if let error = error {
-                completion(.failure(ServiceError.couldntUploadPost))
-                return
-            } else {
-                self.storageReference.child(storagePath).downloadURL { result in
-                    switch result {
-                    case .failure(let error):
-                        completion(.failure(ServiceError.couldntUploadPost))
-                    case .success(let url):
-                        completion(.success(url))
-                    }
-                }
+    func uploadPostPhoto(photo: UIImage, fileName: String, progressUpdate: @escaping (Progress?) -> Void) async throws -> URL {
+        guard let imageData = photo.jpegData(compressionQuality: 1) else { throw ServiceError.unexpectedError }
+        do {
+            let userID =  try AuthenticationService.shared.getCurrentUserUID()
+            let storagePath = "UserPhotoPosts/\(userID)/\(fileName)"
+            let uploadTask = try await storageReference.child(storagePath).putDataAsync(imageData) { progress in
+                progressUpdate(progress)
             }
-        }
-        uploadTask.observe(.progress) { snapshot in
-            progressUpdate(snapshot.progress)
-            if let error = snapshot.error {
-                completion(.failure(ServiceError.couldntUploadPost))
-                uploadTask.cancel()
-            }
+            let downloadURL = try await storageReference.child(storagePath).downloadURL()
+            return downloadURL
+        } catch {
+            throw ServiceError.couldntUploadPost
         }
     }
 
-    func deletePostPhoto(photoURL: String, completion: @escaping CompletionBlockWithoutValue) {
+    func deletePostPhoto(photoURL: String) async throws {
         let path = storageReference.storage.reference(forURL: photoURL).fullPath
-
-        storageReference.child(path).delete { error in
-            if let error = error {
-                completion(.failure(error))
-            } else {
-                completion(.success)
-            }
+        do {
+            try await storageReference.child(path).delete()
+        } catch {
+            throw ServiceError.couldntDeletePost
         }
     }
 
-    func getDownloadURL(for path: String, completion: @escaping ResultBlock) {
-        let reference = storageReference.child(path)
-        reference.downloadURL { result in
-            switch result {
-
-            case .success(let url):
-                completion(.success(url))
-            case .failure(let error):
-                completion(.failure(error))
-            }
-        }
+    func getDownloadURL(for path: String) async throws -> URL {
+        let query = storageReference.child(path)
+        let url = try await query.downloadURL()
+        return url
     }
 }

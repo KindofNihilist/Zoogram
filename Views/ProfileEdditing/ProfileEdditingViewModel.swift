@@ -58,16 +58,12 @@ class ProfileEdditingViewModel {
     }
 
 
-    func checkIfUsernameIsValid(username: String, completion: @escaping (VoidResultWithErrorDescription) -> Void) {
-        service.checkIfUsernameIsValid(username: username, completion: { result in
-            completion(result)
-        })
+    func checkIfUsernameIsValid(username: String) throws {
+        try service.checkIfUsernameIsValid(username: username)
     }
 
-    func checkIfUsernameIsAvailable(username: String, completion: @escaping (Result<IsAvailable, Error>) -> Void) {
-        service.checkIfUsernameIsAvailable(username: username) { result in
-            completion(result)
-        }
+    func checkIfUsernameIsAvailable(username: String) async throws -> Bool {
+        return try await service.checkIfUsernameIsAvailable(username: username)
     }
 
     func configureModels() {
@@ -96,78 +92,30 @@ class ProfileEdditingViewModel {
         }
     }
 
-    func checkIfNewValuesAreValid(completion: @escaping (VoidResultWithErrorDescription) -> Void) {
+    func checkIfNewValuesAreValid() async throws {
         guard changedValues.isEmpty != true else {
-            completion(.success)
             return
         }
-        var errorDescriptions: String = ""
-        let dispatchGroup = DispatchGroup()
-        
+
         if let newName = changedValues["name"] as? String {
-            dispatchGroup.enter()
-            service.checkIfNameIsValid(name: newName) { result in
-                switch result {
-                case .success:
-                    print("cool")
-                case .failure(let description):
-                    errorDescriptions += "\n\(description)"
-                }
-                dispatchGroup.leave()
-            }
+            try service.checkIfNameIsValid(name: newName)
         }
 
         if let newUsername = changedValues["username"] as? String {
-            dispatchGroup.enter()
-            service.checkIfUsernameIsValid(username: newUsername) { result in
-                switch result {
-                case .success:
-                    self.service.checkIfUsernameIsAvailable(username: newUsername) { result in
-                        print("cool")
-                    }
-                case .failure(let description):
-                    errorDescriptions += "\n\(description)"
-                }
-                dispatchGroup.leave()
-            }
-        }
-
-        dispatchGroup.notify(queue: .main) {
-            if errorDescriptions.isEmpty {
-                completion(.success)
-            } else {
-                completion(.failure(errorDescriptions))
+            try service.checkIfUsernameIsValid(username: newUsername)
+            let isAvailable = try await service.checkIfUsernameIsAvailable(username: newUsername)
+            if isAvailable == false {
+                throw UsernameValidationError.taken
             }
         }
     }
 
-    func saveChanges(completion: @escaping (VoidResult) -> Void) {
-        if hasChangedProfilePic {
-            let dispatchGroup = DispatchGroup()
-            dispatchGroup.enter()
-            UserDataService.shared.updateUserProfilePicture(newProfilePic: newProfilePicture!) { result in
-                if case .failure(let error) = result {
-                    completion(.failure(error))
-                }
-                dispatchGroup.leave()
-            }
-
-            dispatchGroup.enter()
-            UserDataService.shared.updateUserProfile(with: self.changedValues) { result in
-                if case .failure(let error) = result {
-                    completion(.failure(error))
-                }
-                dispatchGroup.leave()
-            }
-            dispatchGroup.notify(queue: .main) {
-                completion(.success)
-            }
-        } else {
-            print("Changed values", changedValues)
-            UserDataService.shared.updateUserProfile(with: self.changedValues) { result in
-                print("finished updating profile data")
-                completion(result)
-            }
+    func saveChanges() async throws {
+        if let newProfilePicture = newProfilePicture {
+            try await UserDataService.shared.updateUserProfilePicture(newProfilePic: newProfilePicture)
         }
+        try await UserDataService.shared.updateUserProfile(with: self.changedValues)
+        
+        print("Changed values", changedValues)
     }
 }

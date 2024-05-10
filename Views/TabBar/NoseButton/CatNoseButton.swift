@@ -168,14 +168,14 @@ class CatNoseButton: UIButton {
         gradient.opacity = 1
         gradient.isHidden = false
         let animationGroup = CAAnimationGroup()
-        var animation = CABasicAnimation(keyPath: "endPoint")
+        let animation = CABasicAnimation(keyPath: "endPoint")
         animation.fromValue = leftNoseCanal.endPoint
         animation.toValue = leftNoseCanal.startPoint
         animation.duration = 0.1
         animation.isRemovedOnCompletion = true
         animationGroup.animations?.append(animation)
 
-        var opacityAnimation = CABasicAnimation(keyPath: "opacity")
+        let opacityAnimation = CABasicAnimation(keyPath: "opacity")
         opacityAnimation.fromValue = 0
         opacityAnimation.toValue = 1
         opacityAnimation.duration = 0.1
@@ -187,7 +187,7 @@ class CatNoseButton: UIButton {
     private func hide(gradient: CAGradientLayer) {
         gradient.opacity = 0
         CATransaction.begin()
-        var animation = CABasicAnimation(keyPath: "opacity")
+        let animation = CABasicAnimation(keyPath: "opacity")
         animation.fromValue = 1
         animation.toValue = 0
         animation.duration = 0.1

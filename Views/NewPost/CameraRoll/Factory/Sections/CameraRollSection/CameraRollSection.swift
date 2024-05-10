@@ -29,7 +29,7 @@ class CameraRollSection: CollectionSectionController {
 
     override func itemSize() -> CGSize {
         guard let superview = sectionHolder.superview else {
-            return CGSizeZero
+            return CGSize.zero
         }
 
         let numberOfItems: CGFloat = 4

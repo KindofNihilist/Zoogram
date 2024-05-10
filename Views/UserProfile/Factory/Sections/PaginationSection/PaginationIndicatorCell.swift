@@ -7,7 +7,7 @@
 
 import UIKit
 
-protocol PaginationIndicatorCellDelegate: AnyObject {
+@MainActor protocol PaginationIndicatorCellDelegate: AnyObject {
     func didTapRetryPaginationButton()
 }
 

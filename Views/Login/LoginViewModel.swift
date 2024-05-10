@@ -17,25 +17,21 @@ final class LoginViewModel {
         self.service = service
     }
 
-    func loginUser(with email: String, password: String, completion: @escaping (ZoogramUser) -> Void) {
-        service.loginUser(with: email, password: password) { result in
-            switch result {
-            case .success(let loggedInUser):
-                completion(loggedInUser)
-            case .failure(let error):
-                self.errorHandler?(error.localizedDescription)
-            }
+    func loginUser(with email: String, password: String) async {
+        do {
+            let loggedInUser = try await service.loginUser(with: email, password: password)
+            print("logged in userID: ", loggedInUser.userID)
+            UserManager.shared.setDefaultsForNewlyLoggedInUser(loggedInUser)
+        } catch {
+            self.errorHandler?(error.localizedDescription)
         }
     }
 
-    func resetPassword(for email: String, completion: @escaping () -> Void) {
-        service.resetPassword(for: email) { result in
-            switch result {
-            case .success:
-                completion()
-            case .failure(let error):
-                self.errorHandler?(error.localizedDescription)
-            }
+    func resetPassword(for email: String) async {
+        do {
+            try await service.resetPassword(for: email)
+        } catch {
+            self.errorHandler?(error.localizedDescription)
         }
     }
 }

@@ -10,7 +10,7 @@ import UIKit
 
 class TabBarController: UITabBarController {
 
-    private var currentUser: ZoogramUser
+    private var currentUser = ZoogramUser(UserManager.shared.getUserID())
     private var isBeingPresentedForTheFirstTime: Bool = true
     private var shouldShowAppearAnimation: Bool
 
@@ -28,7 +28,7 @@ class TabBarController: UITabBarController {
 
     lazy var userProfileVC: UserProfileViewController = {
         let service = UserProfileService(
-            userID: AuthenticationService.shared.getCurrentUserUID()!,
+            userID: UserManager.shared.getUserID(),
             followService: FollowSystemService.shared,
             userPostsService: UserPostsService.shared,
             userService: UserDataService.shared,
@@ -71,12 +71,12 @@ class TabBarController: UITabBarController {
 
     private var noseButtonSize = CGSize(width: 65, height: 65)
 
-    init(currentUser: ZoogramUser, showAppearAnimation: Bool = false) {
-        self.currentUser = currentUser
+    init(showAppearAnimation: Bool = false) {
         self.shouldShowAppearAnimation = showAppearAnimation
         super.init(nibName: nil, bundle: nil)
         activityVC.delegate = self
         cameraRollVC.delegate = self
+        setupCurrentUserListener()
     }
 
     required init?(coder: NSCoder) {
@@ -162,26 +162,35 @@ class TabBarController: UITabBarController {
         completion(controllers)
     }
 
-    func updateCurrentUserModel(with model: ZoogramUser) {
-        self.currentUser = model
-    }
-
     private func addNotificationBadge() {
         let barActivityItem = tabBar.items?[3]
         barActivityItem?.badgeValue = "●"
 
     }
 
+    @MainActor
     private func removeNotificationBadge() {
         let barActivityItem = tabBar.items?[3]
         barActivityItem?.badgeValue = nil
     }
 
     @objc func didTapNose() {
-        print("Nose tapped")
         let viewController = UINavigationController(rootViewController: cameraRollVC)
         viewController.modalPresentationStyle = .fullScreen
         present(viewController, animated: true)
+    }
+
+    private func setupCurrentUserListener() {
+        AuthenticationService.shared.startObservingCurrentUser(with: currentUser.userID) { result in
+            switch result {
+            case .success(let currentUser):
+                self.currentUser = currentUser
+                UserManager.shared.updateCurrentUserModel(currentUser)
+                self.userProfileVC.updateUserModel(currentUser)
+            case .failure(let error):
+                self.selectedViewController?.showPopUp(issueText: error.localizedDescription)
+            }
+        }
     }
 
     private func setupConnectionMonitor() {
@@ -194,7 +203,7 @@ class TabBarController: UITabBarController {
                 }
             } else if connectionState == .connected {
                 self.activityVC.observeActivityEvents()
-                self.userProfileVC.getUserProfileDataIfNeeded()
+                self.userProfileVC.getUserProfileDataAndPostsIfNeeded()
                 self.homeVC.shouldRefreshFeedIfNeeded()
                 self.discoverVC.getDataIfNeeded()
             }
@@ -227,7 +236,7 @@ extension TabBarController: UITabBarControllerDelegate {
     }
 
     @objc func refreshUserProfile() {
-        userProfileVC.getUserProfileData()
+        userProfileVC.getUserProfileDataAndPosts()
     }
 
     @objc func refreshUserFeed() {
@@ -236,13 +245,15 @@ extension TabBarController: UITabBarControllerDelegate {
 }
 
 extension TabBarController: ActivityViewNotificationProtocol {
-    func displayUnseenEventsBadge() {
-        self.addNotificationBadge()
-    }
 
     func removeUnseenEventsBadge() {
         self.removeNotificationBadge()
     }
+
+    func displayUnseenEventsBadge() {
+        self.addNotificationBadge()
+    }
+
 }
 
 extension TabBarController: NewPostProtocol {
@@ -251,15 +262,9 @@ extension TabBarController: NewPostProtocol {
         homeVC.setTableViewVisibleContentToTop(animated: false)
         homeVC.removeNoPostsNotificationIfDisplayed()
         cameraRollVC.dismiss(animated: true) {
-            UserDataService.shared.getLatestUserModel { result in
-                switch result {
-                case .success(let currentUser):
-                    self.homeVC.makeNewPost(with: post, for: currentUser) {
-                        self.userProfileVC.getUserProfileData()
-                    }
-                case .failure(let error):
-                    self.showPopUp(issueText: error.localizedDescription)
-                }
+            let currentUser = UserManager.shared.getCurrentUser()
+            self.homeVC.makeNewPost(with: post, for: currentUser) {
+                self.userProfileVC.getUserProfileDataAndPosts()
             }
         }
     }

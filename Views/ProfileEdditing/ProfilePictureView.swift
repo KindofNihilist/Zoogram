@@ -7,6 +7,7 @@
 
 import UIKit
 
+@MainActor
 protocol ProfilePictureViewDelegate: AnyObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
     var imagePicker: UIImagePickerController { get set }
     func didTapChangeProfilePic()
@@ -66,7 +67,6 @@ class ProfilePictureView: UIView {
     }
 
     private func setupSubviews(for frame: CGRect) {
-        let imageViewSize = frame.height * 0.80
         NSLayoutConstraint.activate([
             imageView.topAnchor.constraint(equalTo: self.topAnchor, constant: 10),
             imageView.centerXAnchor.constraint(equalTo: self.centerXAnchor),

@@ -8,12 +8,12 @@
 import UIKit
 import SDWebImage
 
-protocol PostTableViewCellProtocol: AnyObject {
+@MainActor protocol PostTableViewCellProtocol: AnyObject {
     func menuButtonTapped(cell: PostTableViewCell)
     func didTapPostAuthor(cell: PostTableViewCell)
-    func didTapLikeButton(cell: PostTableViewCell, completion: @escaping (Result<LikeState, Error>) -> Void)
+    func didTapLikeButton(cell: PostTableViewCell, completion: @escaping (LikeState) -> Void)
     func didTapCommentButton(cell: PostTableViewCell)
-    func didTapBookmarkButton(cell: PostTableViewCell, completion: @escaping (Result<BookmarkState, Error>) -> Void)
+    func didTapBookmarkButton(cell: PostTableViewCell, completion: @escaping (BookmarkState) -> Void)
 }
 
 class PostTableViewCell: UITableViewCell {
@@ -361,13 +361,11 @@ class PostTableViewCell: UITableViewCell {
         if isTriggeredByDoubleTap && self.likeButton.buttonState == .liked {
             return
         } else {
-            delegate?.didTapLikeButton(cell: self) { [weak self] result in
-                if case .success(let newlikeState) = result {
-                    self?.likeButton.setLikeButtonState(likeState: newlikeState, isUserInitiated: true)
+            delegate?.didTapLikeButton(cell: self) { [weak self] likeState in
+                self?.likeButton.setLikeButtonState(likeState: likeState, isUserInitiated: true)
 
-                    if newlikeState == .liked || isTriggeredByDoubleTap {
-                        self?.likeHapticFeedbackGenerator.notificationOccurred(.success)
-                    }
+                if likeState == .liked || isTriggeredByDoubleTap {
+                    self?.likeHapticFeedbackGenerator.notificationOccurred(.success)
                 }
             }
         }
@@ -378,10 +376,8 @@ class PostTableViewCell: UITableViewCell {
     }
 
     @objc func bookmarkButtonTapped() {
-        delegate?.didTapBookmarkButton(cell: self) { [weak self] result in
-            if case .success(let newbookmarkState) = result {
-                self?.bookmarkButton.setBookmarkButtonState(state: newbookmarkState, animated: true)
-            }
+        delegate?.didTapBookmarkButton(cell: self) { [weak self] bookmarkState in
+            self?.bookmarkButton.setBookmarkButtonState(state: bookmarkState, animated: true)
         }
     }
 

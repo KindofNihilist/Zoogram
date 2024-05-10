@@ -8,7 +8,7 @@
 import SDWebImage
 import UIKit
 
-protocol ProfileHeaderDelegate: AnyObject {
+@MainActor protocol ProfileHeaderDelegate: AnyObject {
     func postsButtonTapped()
     func followingButtonTapped()
     func followersButtonTapped()
@@ -137,10 +137,10 @@ final class ProfileHeaderCell: UICollectionViewCell {
         actionButton.addTarget(self, action: #selector(didTapFollowUnfollowButton), for: .touchUpInside)
     }
 
-    private func setupActionButton(isUserProfile: Bool, followStatus: FollowStatus) {
+    private func setupActionButton(isUserProfile: Bool, followStatus: FollowStatus?) {
         if isUserProfile {
             setupActionButtonAsEditButton()
-        } else {
+        } else if let followStatus = followStatus {
             setupActionButtonAsFollowButton(followStatus: followStatus)
         }
     }

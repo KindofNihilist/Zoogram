@@ -12,33 +12,41 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var window: UIWindow?
 
     private var shouldListenToAuthenticationStateChanges: Bool = true
+    private var tabBarController: TabBarController?
+
+    private func logOut() {
+        Task {
+            do {
+                try AuthenticationService.shared.signOut()
+            } catch {
+                print(error)
+            }
+        }
+    }
 
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
 
         guard let windowScene = (scene as? UIWindowScene) else { return }
         window = UIWindow(frame: UIScreen.main.bounds)
         window?.backgroundColor = Colors.background
+
+//        logOut()
+
         AuthenticationService.shared.listenToAuthenticationState { user in
             guard self.shouldListenToAuthenticationStateChanges else { return }
             guard let unwrappedUser = user else {
+                print("should show login view")
                 self.hideCurrentRootViewControllerIfNeeded {
                     self.showLoginView(for: windowScene)
                 }
                 return
             }
-            let dummyViewModel = ZoogramUser(isCurrentUser: true)
-            let tabBarController = TabBarController(currentUser: dummyViewModel, showAppearAnimation: false)
+            print("Logged in user id: ", unwrappedUser.uid)
+            print("should show tab bar")
+            self.tabBarController = TabBarController(showAppearAnimation: false)
             self.window?.windowScene = windowScene
-            self.window?.rootViewController = tabBarController
+            self.window?.rootViewController = self.tabBarController
             self.window?.makeKeyAndVisible()
-            UserDataService.shared.getCurrentUser { result in
-                switch result {
-                case .success(let currentUser):
-                    tabBarController.updateCurrentUserModel(with: currentUser)
-                case .failure(let error):
-                    tabBarController.selectedViewController?.showPopUp(issueText: ServiceError.couldntLoadUserData.localizedDescription)
-                }
-            }
         }
     }
 

@@ -7,7 +7,7 @@
 
 import UIKit.UICollectionView
 
-class BookmarksFactory {
+@MainActor class BookmarksFactory {
 
     private let collectionView: UICollectionView
 

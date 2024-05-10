@@ -9,7 +9,7 @@ import Foundation
 
 import UIKit.UICollectionView
 
-class CollectionFactoryWithPaginationIndicator {
+@MainActor class CollectionFactoryWithPaginationIndicator {
 
     let collectionView: UICollectionView
 
@@ -35,6 +35,7 @@ class CollectionFactoryWithPaginationIndicator {
         fatalError("Should be overriden")
     }
 
+    @MainActor
     func updatePostsSection(with items: [Any], completion: @escaping () -> Void) {
         guard let cellControllers = createCellControllers(for: items) else { return }
         let postsCountBeforeUpdate = mainContentSection.numberOfCells()
@@ -73,9 +74,11 @@ class CollectionFactoryWithPaginationIndicator {
         collectionView.reloadSections(IndexSet(integer: sectionIndex))
     }
 
+    @MainActor
     func showPaginationRetryButton(error: Error, delegate: PaginationIndicatorCellDelegate?) {
         let sectionIndex = paginationIndicatorSection.sectionIndex
-        guard let paginationCell = collectionView.cellForItem(at: IndexPath(row: 0, section: sectionIndex)) as? PaginationIndicatorCell
+        let indexPath = IndexPath(row: 0, section: sectionIndex)
+        guard let paginationCell = collectionView.cellForItem(at: indexPath) as? PaginationIndicatorCell
         else { return }
         paginationCell.displayLoadingError(error, delegate: delegate)
     }

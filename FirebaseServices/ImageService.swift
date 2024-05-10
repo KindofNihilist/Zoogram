@@ -7,26 +7,52 @@
 
 import Foundation
 import SDWebImage
-
+import UIKit.UIImage
 typealias URLString = String
 
 class ImageService {
 
     static let shared = ImageService()
 
-    func getImage(for urlString: String, completion: @escaping(Result<UIImage, Error>) -> Void) {
+    func getImage(for urlString: URLString?) async throws -> UIImage? {
+        guard let urlString = urlString,
+              let url = URL(string: urlString)
+        else {
+            return nil
+        }
 
-        let url = URL(string: urlString)
-        
-        SDWebImageManager.shared.loadImage(with: url, progress: .none) { downloadedImage, _, error, _, _, _ in
+        if let image = SDImageCache.shared.imageFromCache(forKey: urlString) {
+            return image
+        } else {
+            return try await downloadImage(for: url)
+        }
+    }
+
+    func getImage(for urlString: URLString?, completion: @escaping (Result<UIImage?, Error>) -> Void) {
+        guard let urlString = urlString,
+              let url = URL(string: urlString)
+        else {
+            return
+        }
+        SDWebImageManager.shared.loadImage(with: url, progress: .none) { image, _, error, _, _, _ in
             if let error = error {
                 completion(.failure(ServiceError.couldntLoadData))
-                print(error)
                 return
-            } else if let image = downloadedImage {
-                completion(.success(image))
-            } else {
-                completion(.failure(ServiceError.unexpectedError))
+            }
+            completion(.success(image))
+        }
+    }
+
+    private func downloadImage(for url: URL?) async throws -> UIImage {
+        try await withCheckedThrowingContinuation { continuation in
+            SDWebImageManager.shared.loadImage(with: url, progress: .none) { image, _, error, _, _, _ in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                } else if let image = image {
+                    continuation.resume(returning: image)
+                } else {
+                    continuation.resume(throwing: ServiceError.unexpectedError)
+                }
             }
         }
     }

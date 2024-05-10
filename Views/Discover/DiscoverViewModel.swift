@@ -11,7 +11,7 @@ class DiscoverViewModel {
 
     private var service: any DiscoverServiceProtocol
 
-    var foundUsers = [ZoogramUser]()
+    var foundUsers = Observable([ZoogramUser]())
     var posts = Observable([PostViewModel]())
 
     init(service: any DiscoverServiceProtocol) {
@@ -22,52 +22,35 @@ class DiscoverViewModel {
         return service.hasHitTheEndOfPosts == false && service.isAlreadyPaginating == false
     }
 
-    func getPostsToDiscover(completion: @escaping (VoidResult) -> Void) {
-        service.getItems { posts, error in
-            if let error = error {
-                completion(.failure(error))
-            } else if let posts = posts {
-                self.posts.value = posts.map({ post in
-                    return PostViewModel(post: post)
-                })
-                completion(.success)
-            } else {
-                completion(.success)
-            }
+    func getPostsToDiscover() async throws -> [PostViewModel] {
+        let retrievedPosts = try await service.getItems()
+        if let retrievedPosts = retrievedPosts {
+            posts.value = retrievedPosts.map({ post in
+                return PostViewModel(post: post)
+            })
+        }
+        return posts.value
+    }
+
+    func getMorePostsToDiscover() async throws -> [PostViewModel] {
+        let paginatedPosts = try await service.getMoreItems()
+        if let paginatedPosts = paginatedPosts {
+            let viewModels = paginatedPosts.map({ post in
+                return PostViewModel(post: post)
+            })
+            posts.value.append(contentsOf: viewModels)
+            return viewModels
+        } else {
+            return []
         }
     }
 
-    func getMorePostsToDiscover(completion: @escaping (Result<[PostViewModel]?, Error>) -> Void) {
-        service.getMoreItems { posts, error in
-            if let error = error {
-                completion(.failure(error))
-            } else if let posts = posts {
-                let postViewModels = posts.map { post in
-                    return PostViewModel(post: post)
-                }
-                self.posts.value.append(contentsOf: postViewModels)
-                completion(.success(postViewModels))
-            } else {
-                completion(.success(nil))
-            }
-        }
-    }
-
-    func searchUser(for input: String, completion: @escaping (VoidResult) -> Void) {
+    func searchUser(for input: String) async throws {
         guard input.isEmpty == false else {
-            foundUsers = []
-            completion(.success)
+            foundUsers.value = []
             return
         }
-        service.searchUserWith(username: input) { [weak self] result in
-            switch result {
-            case .success(let users):
-                self?.foundUsers = users
-                completion(.success)
-            case .failure(let error):
-                completion(.failure(error))
-            }
-        }
+        foundUsers.value = try await service.searchUserWith(username: input)
     }
 
     func hasHitTheEndOfPosts() -> Bool {

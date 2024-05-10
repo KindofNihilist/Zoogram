@@ -7,7 +7,7 @@
 
 import UIKit
 
-protocol CollectionViewDataSourceDelegate: AnyObject {
+@MainActor protocol CollectionViewDataSourceDelegate: AnyObject {
     func scrollViewDidScroll(scrollView: UIScrollView)
 }
 

@@ -57,6 +57,7 @@ class PostLikedEventTableViewCell: UITableViewCell {
     }
 
     public func configure(with event: ActivityEvent) {
+        print("configuring activity event", event.eventID)
         self.event = event
         likedPostPhotoImageView.image = event.post?.image
 
