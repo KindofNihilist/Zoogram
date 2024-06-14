@@ -8,7 +8,7 @@
 import UIKit
 import SDWebImage
 
-class PostViewModel {
+struct PostViewModel: Sendable {
     let postID: String
     let author: ZoogramUser
     let isMadeByCurrentUser: Bool
@@ -18,7 +18,7 @@ class PostViewModel {
 
     let postImage: UIImage
     let postImageURL: String
-    let postCaption: NSMutableAttributedString?
+    let postCaption: AttributedString?
     let unAttributedPostCaption: String?
 
     var likeState: LikeState {
@@ -67,14 +67,14 @@ class PostViewModel {
         self.commentsCount = post.commentsCount
     }
 
-    init() {
+    init(author: ZoogramUser) {
         self.postID = ""
-        self.author = UserManager.shared.getCurrentUser()
+        self.author = author
         self.datePosted = Date()
         self.isMadeByCurrentUser = true
         self.postImage = UIImage(systemName: "photo")!
         self.postImageURL = ""
-        self.postCaption = NSMutableAttributedString()
+        self.postCaption = AttributedString()
         self.unAttributedPostCaption = ""
         self.bookmarkState = .notBookmarked
         self.likeState = .notLiked
@@ -86,44 +86,44 @@ class PostViewModel {
         self.commentsCount = 0
     }
 
-    class func createBlankViewModel() -> PostViewModel {
-        let postViewModel = PostViewModel()
+    static func createBlankViewModel() async -> PostViewModel {
+        let author = await UserManager.shared.getCurrentUser()
+        var postViewModel = PostViewModel(author: author)
         postViewModel.shouldShowBlankCell = true
         return postViewModel
     }
 
-    class func formatPostCaption(caption: String?, username: String) -> NSMutableAttributedString? {
+    static func formatPostCaption(caption: String?, username: String) -> AttributedString? {
         guard let caption = caption else {
             return nil
         }
 
-        let usernameWithCaption = NSMutableAttributedString()
-        let attributedUsername = NSAttributedString(
-            string: "\(username) ",
-            attributes: [.font: CustomFonts.boldFont(ofSize: 14), .foregroundColor: Colors.label])
+        var usernameWithCaption = AttributedString()
+
+        var attributedUsername = AttributedString("\(username) ")
+        attributedUsername.font = CustomFonts.boldFont(ofSize: 14)
+        attributedUsername.foregroundColor = Colors.label
         usernameWithCaption.append(attributedUsername)
 
-        let attributedCaption = NSAttributedString(
-            string: caption,
-            attributes: [.font: CustomFonts.regularFont(ofSize: 14), .foregroundColor: Colors.label])
+        var attributedCaption = AttributedString(caption)
+        attributedCaption.font = CustomFonts.regularFont(ofSize: 14)
+        attributedCaption.foregroundColor = Colors.label
         usernameWithCaption.append(attributedCaption)
-
         return usernameWithCaption
     }
 
-    class func createTitleFor(likesCount: Int) -> String {
+    static func createTitleFor(likesCount: Int) -> String {
         return String(localized: "\(likesCount) like")
     }
 
-    class func createTitleFor(commentsCount: Int?) -> String? {
+    static func createTitleFor(commentsCount: Int?) -> String? {
         guard let count = commentsCount, count > 0 else {
             return nil
         }
         return String(localized: "View \(count) comment")
     }
 
-    class func createTitleFor(timeSincePosted: Date) -> String {
+    static func createTitleFor(timeSincePosted: Date) -> String {
         return timeSincePosted.timeAgoDisplay()
     }
 }
-

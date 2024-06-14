@@ -4,10 +4,9 @@
 //
 //  Created by Artem Dolbiiev on 28.01.2023.
 //
-
 import UIKit
 
-protocol CommentAccessoryViewProtocol: AnyObject {
+@MainActor protocol CommentAccessoryViewProtocol: AnyObject {
     func postButtonTapped(commentText: String, completion: @escaping () -> Void)
 }
 
@@ -113,7 +112,7 @@ class CommentAccessoryView: UIInputView {
 
     override var intrinsicContentSize: CGSize {
         if commentTextView.isScrollEnabled {
-            return CGSizeMake(UIView.noIntrinsicMetric, inputViewHeight)
+            return CGSize(width: UIView.noIntrinsicMetric, height: inputViewHeight)
         } else {
             return .zero
         }
@@ -263,11 +262,11 @@ class CommentAccessoryView: UIInputView {
         let extraCharactersCount = abs(charactersLeft)
         let excessiveTextColor = UIColor.systemRed.withAlphaComponent(0.5)
 
-        let fittingText = NSAttributedString(string: String(textView.text.prefix(textViewCharacterLimit)), 
-                                             attributes: [.font: commentTextView.font])
+        let fittingText = NSAttributedString(string: String(textView.text.prefix(textViewCharacterLimit)),
+                                             attributes: [.font: commentTextView.font as Any])
 
-        var textPastTheLimit = NSAttributedString(string: String(textView.text.suffix(extraCharactersCount)), 
-                                                  attributes: [.backgroundColor: excessiveTextColor, .font: commentTextView.font])
+        let textPastTheLimit = NSAttributedString(string: String(textView.text.suffix(extraCharactersCount)),
+                                                  attributes: [.backgroundColor: excessiveTextColor, .font: commentTextView.font as Any])
 
         let wholeAttributedText = NSMutableAttributedString()
         wholeAttributedText.append(fittingText)

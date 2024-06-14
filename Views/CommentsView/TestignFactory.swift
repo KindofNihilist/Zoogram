@@ -17,7 +17,6 @@ class TestingFactory {
 
     private let delegate: CommentsTableViewActionsProtocol
 
-
     init(tableView: UITableView, delegate: CommentsTableViewActionsProtocol) {
         self.tableView = tableView
         self.delegate = delegate

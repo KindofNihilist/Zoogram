@@ -143,7 +143,6 @@ class PostTableViewCell: UITableViewCell {
         button.titleLabel?.font = CustomFonts.regularFont(ofSize: 14)
         button.setTitleColor(.secondaryLabel, for: .normal)
         button.contentHorizontalAlignment = .left
-        button.titleEdgeInsets = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
         button.configuration?.titlePadding = 0
         button.configuration?.contentInsets = .zero
         button.backgroundColor = Colors.background
@@ -319,9 +318,9 @@ class PostTableViewCell: UITableViewCell {
         self.layoutIfNeeded()
     }
 
-    private func configureFooter(username: String, caption: NSMutableAttributedString?, likesTitle: String, timeSincePostedTitle: String) {
+    private func configureFooter(username: String, caption: AttributedString?, likesTitle: String, timeSincePostedTitle: String) {
         if let caption = caption {
-            captionLabel.attributedText = caption
+            captionLabel.attributedText = NSAttributedString(caption)
             captionLabel.sizeToFit()
         } else {
             captionLabel.removeFromSuperview()
@@ -362,6 +361,7 @@ class PostTableViewCell: UITableViewCell {
             return
         } else {
             delegate?.didTapLikeButton(cell: self) { [weak self] likeState in
+                print("inside like button completion")
                 self?.likeButton.setLikeButtonState(likeState: likeState, isUserInitiated: true)
 
                 if likeState == .liked || isTriggeredByDoubleTap {

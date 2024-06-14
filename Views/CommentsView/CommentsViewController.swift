@@ -7,11 +7,12 @@
 
 import UIKit
 
-protocol CommentsTableViewActionsProtocol: PostTableViewCellProtocol, CommentCellProtocol {}
+@MainActor protocol CommentsTableViewActionsProtocol: PostTableViewCellProtocol, CommentCellProtocol {}
 
 class CommentsViewController: ViewControllerWithLoadingIndicator {
 
-    let viewModel: CommentsViewModel
+    private let viewModel: CommentsViewModel
+    private var task: Task<Void, Error>?
     private(set) var factory: CommentListFactory!
     private(set) var dataSource: TableViewDataSource?
     private var hasFinishedAppearing: Bool = false
@@ -90,8 +91,8 @@ class CommentsViewController: ViewControllerWithLoadingIndicator {
         title = String(localized: "Comments")
         setupKeyboardEventsObservers()
         setupConstraints()
-        keyboardAccessoryView.configure(with: viewModel.getCurrentUserProfilePicture())
         reloadAction = { self.fetchComments() }
+        setupKeyboardAccessoryView()
         fetchComments()
     }
 
@@ -101,6 +102,7 @@ class CommentsViewController: ViewControllerWithLoadingIndicator {
     }
 
     override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
         self.viewModel.hasInitialzied.bind { hasIntialized in
             if hasIntialized {
                 self.setupFactory()
@@ -113,8 +115,13 @@ class CommentsViewController: ViewControllerWithLoadingIndicator {
         }
     }
 
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        task?.cancel()
+    }
+
     private func showNoCommentsViewIfNeeded() {
-        guard self.viewModel.comments.isEmpty else { return }
+        guard self.viewModel.comments.isEmpty && self.viewModel.shouldShowRelatedPost == false else { return }
         noCommentsView.alpha = 1
         view.addSubview(noCommentsView)
         NSLayoutConstraint.activate([
@@ -134,9 +141,10 @@ class CommentsViewController: ViewControllerWithLoadingIndicator {
     }
 
     private func fetchComments() {
-        Task { @MainActor in
+        task = Task {
             do {
                 try await viewModel.fetchData()
+
             } catch {
                 self.showLoadingErrorNotification(text: error.localizedDescription)
             }
@@ -151,6 +159,14 @@ class CommentsViewController: ViewControllerWithLoadingIndicator {
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             tableView.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor)
         ])
+    }
+
+    private func setupKeyboardAccessoryView() {
+        task = Task {
+            await viewModel.getCurrentUserModel()
+            let userPfp = viewModel.getCurrentUserProfilePicture()
+            keyboardAccessoryView.configure(with: userPfp)
+        }
     }
 
     private func setupKeyboardEventsObservers() {
@@ -174,7 +190,7 @@ class CommentsViewController: ViewControllerWithLoadingIndicator {
         }
     }
 
-    private func markNewlyCreatedCommentAsSeen(comment: PostComment) {
+    private func markNewlyCreatedCommentAsSeen() {
         guard let indexPath = viewModel.indexPathOfCommentToToFocusOn else {
             return
         }
@@ -183,7 +199,7 @@ class CommentsViewController: ViewControllerWithLoadingIndicator {
             UIView.animate(withDuration: 0.6) {
                 cell?.backgroundColor = Colors.background
             } completion: { _ in
-                comment.shouldBeMarkedUnseen = false
+                self.viewModel.comments[indexPath.row].shouldBeMarkedUnseen = false
                 self.viewModel.hasAlreadyFocusedOnComment = true
             }
         }
@@ -227,7 +243,7 @@ class CommentsViewController: ViewControllerWithLoadingIndicator {
             let indexPath = IndexPath(row: 0, section: self.factory.getCommentSectionIndex())
             self.factory?.insertComment(with: createdComment, at: indexPath) {
                 self.viewModel.shouldShowNewlyCreatedComment = false
-                self.markNewlyCreatedCommentAsSeen(comment: createdComment)
+                self.markNewlyCreatedCommentAsSeen()
             }
         }
     }
@@ -290,7 +306,6 @@ extension CommentsViewController {
             delegate: self)
     }
 
-    @MainActor
     func setupDataSource() {
         self.factory.buildSections(for: self.viewModel)
         let dataSource = DefaultTableViewDataSource(sections: factory.sections)
@@ -317,11 +332,14 @@ extension CommentsViewController {
         guard tableView.contentSize.height > tableView.frame.height else {
             return
         }
-        guard let beginKeyboardSize = (notification.userInfo?[UIResponder.keyboardFrameBeginUserInfoKey] as? NSValue)?.cgRectValue else { return }
-        guard let endKeyboardSize = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue else { return }
-
-        let keyboardAnimationDuration = notification.userInfo![UIResponder.keyboardAnimationDurationUserInfoKey] as! Double
-        let keyboardAnimationCurve = UIView.AnimationCurve(rawValue: notification.userInfo![UIResponder.keyboardAnimationCurveUserInfoKey] as! Int)!
+        guard let beginKeyboardSize = (notification.userInfo?[UIResponder.keyboardFrameBeginUserInfoKey] as? NSValue)?.cgRectValue,
+              let endKeyboardSize = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue,
+              let keyboardAnimationDuration = notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double,
+              let animationCurve = notification.userInfo?[UIResponder.keyboardAnimationCurveUserInfoKey] as? Int,
+              let keyboardAnimationCurve = UIView.AnimationCurve(rawValue: animationCurve)
+        else {
+            return
+        }
 
         var contentOffset = tableView.contentOffset
 
@@ -348,7 +366,7 @@ extension CommentsViewController {
 // MARK: Post button tapped
 extension CommentsViewController: CommentAccessoryViewProtocol {
     func postButtonTapped(commentText: String, completion: @escaping () -> Void) {
-        Task { @MainActor in
+        task = Task {
             do {
                 let postedComment = try await viewModel.postComment(commentText: commentText)
                 self.removeNoCommentsViewIfNeeded()
@@ -371,7 +389,7 @@ extension CommentsViewController: CommentsTableViewActionsProtocol {
     func menuButtonTapped(cell: PostTableViewCell) {
         let postVM = viewModel.getPostViewModel()
         showMenuForPost(postViewModel: postVM, onDelete: {
-            Task { @MainActor in
+            self.task = Task {
                 do {
                     try await self.viewModel.deleteThisPost()
                     sendNotificationToUpdateUserProfile()
@@ -390,37 +408,22 @@ extension CommentsViewController: CommentsTableViewActionsProtocol {
         showProfile(of: user)
     }
 
-    func didTapLikeButton(cell: PostTableViewCell, completion: @escaping (LikeState) -> Void) {
-        Task {
-            do {
-                let newLikeState = try await viewModel.likeThisPost()
-                completion(newLikeState)
-            } catch {
-                self.showPopUp(issueText: error.localizedDescription)
-            }
-        }
+    func didTapLikeButton(cell: PostTableViewCell) async throws {
+        try await viewModel.likeThisPost()
     }
 
     func didTapCommentButton(cell: PostTableViewCell) {
         tableView.scrollToRow(at: IndexPath(row: 0, section: 1), at: .top, animated: true)
     }
 
-    func didTapBookmarkButton(cell: PostTableViewCell, completion: @escaping (BookmarkState) -> Void) {
-        Task {
-            do {
-                let newBookmarkState = try await viewModel.bookmarkThisPost()
-                completion(newBookmarkState)
-            } catch {
-                showPopUp(issueText: error.localizedDescription)
-            }
-        }
+    func didTapBookmarkButton(cell: PostTableViewCell) async throws {
+        try await viewModel.bookmarkThisPost()
     }
 }
 
 extension CommentsViewController: TableViewDataSourceDelegate {
 
-    func didSelectCell(at indexPath: IndexPath) {
-    }
+    func didSelectCell(at indexPath: IndexPath) {}
 
     func scrollViewDidEndScrollingAnimation() {
         showCreatedCommentIfNeeded(isTriggeredAfterScroll: true)
@@ -428,9 +431,9 @@ extension CommentsViewController: TableViewDataSourceDelegate {
         viewModel.isAlreadyScrolling = false
     }
 
-    func didCommit(editingStyle: UITableViewCell.EditingStyle, at indexPath: IndexPath) {
+   func didCommit(editingStyle: UITableViewCell.EditingStyle, at indexPath: IndexPath) {
         if editingStyle == .delete {
-            Task {
+            task = Task {
                 do {
                     try await viewModel.deleteComment(at: indexPath)
                     self.factory?.deleteComment(at: indexPath)

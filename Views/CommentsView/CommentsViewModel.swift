@@ -8,11 +8,12 @@
 import Foundation
 import UIKit
 
+@MainActor
 class CommentsViewModel {
 
     private let service: CommentsServiceProtocol
 
-    private var currentUser: ZoogramUser
+    private var currentUser: ZoogramUser!
     var hasInitialzied = Observable(false)
     var shouldShowRelatedPost: Bool
     var shouldShowNewlyCreatedComment: Bool = false
@@ -27,7 +28,6 @@ class CommentsViewModel {
     private var relatedPost: UserPost?
 
     init(post: UserPost, commentIDToFocusOn: String?, shouldShowRelatedPost: Bool, service: CommentsServiceProtocol) {
-        self.currentUser = UserManager.shared.getCurrentUser()
         self.service = service
         self.commentIDToFocusOn = commentIDToFocusOn
         self.shouldShowRelatedPost = shouldShowRelatedPost
@@ -36,12 +36,16 @@ class CommentsViewModel {
     }
 
     init(postViewModel: PostViewModel, commentIDToFocusOn: String?, shouldShowRelatedPost: Bool, service: CommentsServiceProtocol) {
-        self.currentUser = UserManager.shared.getCurrentUser()
         self.service = service
         self.commentIDToFocusOn = commentIDToFocusOn
         self.shouldShowRelatedPost = shouldShowRelatedPost
         self.postViewModel = postViewModel
         self.postCaption = createPostCaptionForCommentArea(with: postViewModel)
+    }
+
+    func getCurrentUserModel() async {
+        let currentUser = await UserManager.shared.getCurrentUser()
+        self.currentUser = currentUser
     }
 
     func fetchData() async throws {
@@ -52,12 +56,13 @@ class CommentsViewModel {
 
         let comments = try await service.getComments()
         self.comments = comments.reversed().enumerated().map({ index, comment in
-            if comment.commentID == self.commentIDToFocusOn {
+            var mappedComment = comment
+            if mappedComment.commentID == self.commentIDToFocusOn {
                 self.indexPathOfCommentToToFocusOn = IndexPath(row: index, section: 1)
                 self.hasAlreadyFocusedOnComment = false
             }
-            comment.canBeEdited = self.checkIfCommentCanBeEdited(comment: comment)
-            return comment
+            mappedComment.canBeEdited = self.checkIfCommentCanBeEdited(comment: mappedComment)
+            return mappedComment
         })
 
         self.hasInitialzied.value = true
@@ -79,14 +84,14 @@ class CommentsViewModel {
             commentID: "",
             authorID: postViewModel.author.userID,
             commentText: caption,
-            datePosted: postViewModel.datePosted,
+            datePosted: postViewModel.postedDate,
             author: postViewModel.author)
 
         return postCaption
     }
 
-    func getCurrentUserProfilePicture() -> UIImage? {
-        return currentUser.getProfilePhoto()
+    func getCurrentUserProfilePicture() -> UIImage {
+        return currentUser.getProfilePhoto() ?? UIImage.profilePicturePlaceholder
     }
 
     private func getPostCaption() -> PostComment? {
@@ -103,8 +108,9 @@ class CommentsViewModel {
     }
 
     func insertNewlyCreatedComment(comment: PostComment) {
-        comment.shouldBeMarkedUnseen = true
-        self.comments.insert(comment, at: 0)
+        var commentToInsert = comment
+        commentToInsert.shouldBeMarkedUnseen = true
+        self.comments.insert(commentToInsert, at: 0)
         self.shouldShowNewlyCreatedComment = true
         self.indexPathOfCommentToToFocusOn = IndexPath(row: 0, section: commentSectionIndex)
     }
@@ -135,7 +141,7 @@ class CommentsViewModel {
     func postComment(commentText: String) async throws -> PostComment {
         let newComment = try createPostComment(text: commentText)
 
-        let postedComment = try await service.postComment(comment: newComment)
+        var postedComment = try await service.postComment(comment: newComment)
         postedComment.author = currentUser
         postedComment.canBeEdited = true
         return postedComment
@@ -153,19 +159,20 @@ class CommentsViewModel {
         try await service.deletePost(postModel: postViewModel)
     }
 
-    func likeThisPost() async throws -> LikeState {
-        let postViewModel = self.postViewModel
-        let likeState = try await service.likePost(postID: postViewModel.postID, likeState: postViewModel.likeState, postAuthorID: postViewModel.author.userID)
-        postViewModel.likeState = likeState
-        return likeState
+    func likeThisPost() async throws {
+        try await service.likePost(
+            postID: postViewModel.postID,
+            likeState: postViewModel.likeState,
+            postAuthorID: postViewModel.author.userID)
+        postViewModel.switchLikeState()
     }
 
-    func bookmarkThisPost() async throws -> BookmarkState {
-        let postViewModel = self.postViewModel
-        let bookmarkState = try await service.bookmarkPost(postID: postViewModel.postID,
-                                                           authorID: postViewModel.author.userID,
-                                                           bookmarkState: postViewModel.bookmarkState)
-        postViewModel.bookmarkState = bookmarkState
-        return bookmarkState
+    func bookmarkThisPost() async throws {
+        var postViewModel = self.postViewModel
+        try await service.bookmarkPost(
+            postID: postViewModel.postID,
+            authorID: postViewModel.author.userID,
+            bookmarkState: postViewModel.bookmarkState)
+        postViewModel.switchBookmarkState()
     }
 }

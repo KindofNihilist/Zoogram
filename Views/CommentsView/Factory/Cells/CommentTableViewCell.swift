@@ -8,7 +8,7 @@
 import UIKit
 import SDWebImage
 
-protocol CommentCellProtocol: AnyObject {
+@MainActor protocol CommentCellProtocol: AnyObject {
     func openUserProfile(of commentAuthor: ZoogramUser)
 }
 
@@ -76,17 +76,18 @@ class CommentTableViewCell: UITableViewCell {
         messageLabel.attributedText = comment.commentText.lineWithSpacing(2)
         timePassedLabel.text = comment.datePosted.timeAgoDisplay()
         usernameLabel.text = comment.author.username
-        profilePhotoImageView.image = comment.author.getProfilePhoto()
+        profilePhotoImageView.image = comment.author.getProfilePhoto() ?? UIImage.profilePicturePlaceholder
         if comment.shouldBeMarkedUnseen {
             backgroundColor = Colors.unseenBlue
         }
     }
 
     func configurePostCaption(with comment: PostComment) {
+        author = comment.author
         messageLabel.text = comment.commentText
         timePassedLabel.text = comment.datePosted.timeAgoDisplay()
         usernameLabel.text = comment.author.username
-        profilePhotoImageView.image = comment.author.getProfilePhoto()
+        profilePhotoImageView.image = comment.author.getProfilePhoto() ?? UIImage.profilePicturePlaceholder
     }
 
     private func setupViewsAndConstraints() {
@@ -106,7 +107,7 @@ class CommentTableViewCell: UITableViewCell {
             messageLabel.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -30),
 
             timePassedLabel.leadingAnchor.constraint(equalTo: messageLabel.leadingAnchor),
-            timePassedLabel.topAnchor.constraint(equalTo:  messageLabel.bottomAnchor, constant: 5),
+            timePassedLabel.topAnchor.constraint(equalTo: messageLabel.bottomAnchor, constant: 5),
             timePassedLabel.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -5)
         ])
     }

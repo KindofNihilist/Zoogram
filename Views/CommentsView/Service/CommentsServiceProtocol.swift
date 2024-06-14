@@ -8,15 +8,13 @@
 import Foundation
 import SDWebImage
 
-protocol CommentsServiceProtocol: ImageService, PostActionsService {
+protocol CommentsServiceProtocol: Sendable, PostActionsService {
     var userDataService: UserDataServiceProtocol { get }
     var postsService: UserPostsServiceProtocol { get }
     var commentsService: CommentSystemServiceProtocol { get }
     var likesService: LikeSystemServiceProtocol { get }
     var bookmarksService: BookmarksSystemServiceProtocol { get }
 
-    var postID: String { get set }
-    var postAuthorID: String { get set }
     func getComments() async throws -> [PostComment]
     func postComment(comment: PostComment) async throws -> PostComment
     func deleteComment(commentID: String) async throws
@@ -25,25 +23,25 @@ protocol CommentsServiceProtocol: ImageService, PostActionsService {
 extension CommentsServiceProtocol {
 
     func getAdditionalPostData(for post: UserPost) async throws -> UserPost {
-
-        if let profilePhotoURL = post.author.profilePhotoURL {
-            let profilePhoto = try await getImage(for: profilePhotoURL)
-            post.author.setProfilePhoto(profilePhoto)
-        }
-
+        var postWithAdditionalData = post
         let postID = post.postID
-        post.likesCount = try await LikeSystemService.shared.getLikesCountForPost(id: postID)
-        post.likeState = try await LikeSystemService.shared.checkIfPostIsLiked(postID: postID)
-        post.bookmarkState = try await BookmarksSystemService.shared.checkIfBookmarked(postID: postID)
-        return post
+
+        async let profilePhoto = ImageService.shared.getImage(for: post.author.profilePhotoURL)
+        async let likesCount = LikeSystemService.shared.getLikesCountForPost(id: postID)
+        async let likeState = LikeSystemService.shared.checkIfPostIsLiked(postID: postID)
+        async let bookmarkState = BookmarksSystemService.shared.checkIfBookmarked(postID: postID)
+        try await postWithAdditionalData.likesCount = likesCount
+        try await postWithAdditionalData.likeState = likeState
+        try await postWithAdditionalData.bookmarkState = bookmarkState
+        try await postWithAdditionalData.author.setProfilePhoto(profilePhoto)
+        return postWithAdditionalData
     }
 }
 
-class CommentsService: ImageService, CommentsServiceProtocol {
+final class CommentsService: CommentsServiceProtocol {
 
-    var postID: String
-
-    var postAuthorID: String
+    let postID: String
+    let postAuthorID: String
 
     let userDataService: UserDataServiceProtocol
     let postsService: UserPostsServiceProtocol
@@ -51,14 +49,13 @@ class CommentsService: ImageService, CommentsServiceProtocol {
     let likesService: LikeSystemServiceProtocol
     let bookmarksService: BookmarksSystemServiceProtocol
 
-    init(postID: String, 
+    init(postID: String,
          postAuthorID: String,
          userDataService: UserDataServiceProtocol,
          postsService: UserPostsServiceProtocol,
          commentsService: CommentSystemServiceProtocol,
          likesService: LikeSystemServiceProtocol,
-         bookmarksService: BookmarksSystemServiceProtocol)
-    {
+         bookmarksService: BookmarksSystemServiceProtocol) {
         self.postID = postID
         self.postAuthorID = postAuthorID
         self.userDataService = userDataService
@@ -68,25 +65,37 @@ class CommentsService: ImageService, CommentsServiceProtocol {
         self.bookmarksService = bookmarksService
     }
 
-    func getCurrentUser() -> ZoogramUser {
-        return UserManager.shared.getCurrentUser()
+    func getCurrentUser() async -> ZoogramUser {
+        return await UserManager.shared.getCurrentUser()
     }
 
     func getComments() async throws -> [PostComment] {
-        let comments = try await commentsService.getCommentsForPost(postID: postID)
-        for comment in comments {
-            let authorPfp = try await getImage(for: comment.author.profilePhotoURL)
-            comment.author.setProfilePhoto(authorPfp)
+        var comments = try await commentsService.getCommentsForPost(postID: postID)
+        try await withThrowingTaskGroup(of: (Int, PostComment).self) { group in
+
+            for (index, comment) in comments.enumerated() {
+                group.addTask {
+                    var commentWithPfp = comment
+                    let authorPfp = try await ImageService.shared.getImage(for: comment.author.profilePhotoURL)
+                    commentWithPfp.author.setProfilePhoto(authorPfp)
+                    return (index, commentWithPfp)
+                }
+            }
+
+            for try await (index, comment) in group {
+                comments[index] = comment
+            }
         }
         return comments
     }
 
     func postComment(comment: PostComment) async throws -> PostComment {
-        try await commentsService.postComment(for: postID, comment: comment)
-        let activityEvent = ActivityEvent.createActivityEventFor(comment: comment, postID: self.postID)
+        var commentToPost = comment
+        try await commentsService.postComment(for: postID, comment: commentToPost)
+        let activityEvent = ActivityEvent.createActivityEventFor(comment: commentToPost, postID: self.postID)
         try await ActivitySystemService.shared.addEventToUserActivity(event: activityEvent, userID: self.postAuthorID)
-        comment.author = try await userDataService.getUser(for: comment.authorID)
-        return comment
+        commentToPost.author = try await userDataService.getUser(for: commentToPost.authorID)
+        return commentToPost
     }
 
     func deleteComment(commentID: String) async throws {
@@ -94,17 +103,15 @@ class CommentsService: ImageService, CommentsServiceProtocol {
         try await ActivitySystemService.shared.removeCommentEventForPost(commentID: commentID, postAuthorID: self.postAuthorID)
     }
 
-    func likePost(postID: String, likeState: LikeState, postAuthorID: String) async throws -> LikeState {
+    func likePost(postID: String, likeState: LikeState, postAuthorID: String) async throws {
         switch likeState {
         case .liked:
             try await likesService.removeLikeFromPost(postID: postID)
             try await ActivitySystemService.shared.removeLikeEventForPost(postID: postID, postAuthorID: postAuthorID)
-            return .notLiked
         case .notLiked:
             try await likesService.likePost(postID: postID)
             let activityEvent = ActivityEvent.createActivityEventFor(likedPostID: postID)
             try await ActivitySystemService.shared.addEventToUserActivity(event: activityEvent, userID: postAuthorID)
-            return .liked
         }
     }
 
@@ -112,12 +119,12 @@ class CommentsService: ImageService, CommentsServiceProtocol {
         try await postsService.deletePost(postID: postModel.postID, postImageURL: postModel.postImageURL)
     }
 
-    func bookmarkPost(postID: String, authorID: String, bookmarkState: BookmarkState) async throws -> BookmarkState {
+    func bookmarkPost(postID: String, authorID: String, bookmarkState: BookmarkState) async throws {
         switch bookmarkState {
         case .bookmarked:
-            return try await bookmarksService.removeBookmark(postID: postID)
+            try await bookmarksService.removeBookmark(postID: postID)
         case .notBookmarked:
-            return try await bookmarksService.bookmarkPost(postID: postID, authorID: authorID)
+            try await bookmarksService.bookmarkPost(postID: postID, authorID: authorID)
         }
     }
 }
