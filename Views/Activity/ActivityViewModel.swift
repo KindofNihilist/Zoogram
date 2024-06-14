@@ -7,6 +7,23 @@
 
 import Foundation
 
+actor EventLogger {
+    private var events = [ActivityEvent]()
+
+    func checkIfHasUnseenEvents() -> Bool {
+        if events.filter({$0.seen == false}).count != 0 {
+            return true
+        } else {
+            return false
+        }
+    }
+
+    func setEvents(_ events: [ActivityEvent]) {
+        self.events = events
+    }
+}
+
+@MainActor
 class ActivityViewModel {
 
     let service: ActivityServiceProtocol
@@ -23,7 +40,7 @@ class ActivityViewModel {
         return events.count
     }
 
-//    var hasReceivedEvents = Observable(false)
+    var hasReceivedNewEvents = Observable(false)
     var hasUnseenEvents = Observable(false)
     var hasZeroEvents: Bool {
         return events.isEmpty
@@ -39,7 +56,7 @@ class ActivityViewModel {
             do {
                 for try await events in service.observeActivityEvents() {
                     let eventsWithAdditionalData = try await service.getAdditionalDataFor(events: events)
-                    self.events = eventsWithAdditionalData
+                    self.events = eventsWithAdditionalData.reversed()
                 }
             } catch {
                 print(error.localizedDescription)

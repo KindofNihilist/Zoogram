@@ -38,7 +38,7 @@ class UserDataValidationService: UserDataValidationServiceProtocol {
     }
 
     func checkIfUsernameIsAvailable(username: String) async throws -> Bool {
-        return try await UserDataService.shared.checkIfUsernameIsAvailable(username: username)
+        return try await UserDataService().checkIfUsernameIsAvailable(username: username)
     }
 
     func checkIfUsernameIsValid(username: String) throws {
@@ -124,7 +124,7 @@ class UserDataValidationService: UserDataValidationServiceProtocol {
         case .includesWhitespaces:
             return String(localized: "The username should have no whitespaces")
         case .taken:
-            return String(localized: "The username is already taken")
+            return String(localized: "This username is already taken")
         }
     }
 }
@@ -139,5 +139,3 @@ class UserDataValidationService: UserDataValidationServiceProtocol {
         }
     }
 }
-
-

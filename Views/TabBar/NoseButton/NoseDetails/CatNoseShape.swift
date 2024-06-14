@@ -15,6 +15,10 @@ class CatNoseShape: CAShapeLayer {
         createNoseShape(in: rect)
     }
 
+    override init(layer: Any) {
+        super.init(layer: layer)
+    }
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
@@ -37,20 +41,4 @@ class CatNoseShape: CAShapeLayer {
         path.close()
         self.path = path.scaledToFit(rect: rect).centered(to: rect.center).cgPath
     }
-
-//    func calculateControlPoint(for middlePoint: CGPoint, startPoint: CGPoint, endPoint: CGPoint) -> CGPoint {
-//
-//        let ax = startPoint.x
-//        let cx = endPoint.x
-//        let ay = startPoint.y
-//        let cy = endPoint.y
-//        let mx = middlePoint.x
-//        let my = middlePoint.y
-//
-//        let controlPointX = 2*mx - (ax + cx) / 2
-//        let controlPointY = 2*my - (ay + cy) / 2
-//
-//        return CGPoint(x: controlPointX, y: controlPointY)
-//    }
 }
-

@@ -7,7 +7,7 @@
 
 import UIKit
 
-protocol FollowListCellDelegate: AnyObject {
+@MainActor protocol FollowListCellDelegate: AnyObject {
     func removeButtonTapped(userID: String, removeCompletion: @escaping (FollowStatus) -> Void)
     func undoButtonTapped(userID: String, undoCompletion: @escaping (FollowStatus) -> Void)
     func followButtonTapped(userID: String, followCompletion: @escaping (FollowStatus) -> Void)
@@ -128,7 +128,7 @@ class FollowerTableViewCell: UITableViewCell {
     func configure(for user: ZoogramUser) {
         nameLabel.text = user.name
         usernameLabel.text = user.username
-        profileImageView.image = user.getProfilePhoto()
+        profileImageView.image = user.getProfilePhoto() ?? UIImage.profilePicturePlaceholder
         self.followStatus = user.followStatus
         self.userID = user.userID
         switchFollowUnfollowButton(followStatus: followStatus)

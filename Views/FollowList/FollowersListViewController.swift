@@ -14,9 +14,8 @@ enum FollowListType {
 class FollowersListViewController: ViewControllerWithLoadingIndicator {
 
     private let viewModel: FollowListViewModel
-
+    private var tasks = [Task<Void, Never>?]()
     internal var factory: FollowListFactory!
-
     private var dataSource: DefaultTableViewDataSource!
 
     internal let tableView: UITableView = {
@@ -86,8 +85,15 @@ class FollowersListViewController: ViewControllerWithLoadingIndicator {
         self.getData()
     }
 
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+//        tasks.forEach { task in
+//            task?.cancel()
+//        }
+    }
+
     private func getData() {
-        Task { @MainActor in
+        let task = Task {
             do {
                 let userList = try await viewModel.getUserList()
                 if userList.isEmpty {
@@ -100,6 +106,7 @@ class FollowersListViewController: ViewControllerWithLoadingIndicator {
                 self.showLoadingErrorNotification(text: error.localizedDescription)
             }
         }
+        tasks.append(task)
     }
 
     internal func setFactory() {
@@ -182,7 +189,7 @@ class FollowersListViewController: ViewControllerWithLoadingIndicator {
 
 extension FollowersListViewController: FollowListCellDelegate {
     func removeButtonTapped(userID: String, removeCompletion: @escaping (FollowStatus) -> Void) {
-        Task { @MainActor in
+        let task = Task {
             do {
                 try await viewModel.removeUserFollowingMe(uid: userID)
                 removeCompletion(.notFollowing)
@@ -190,10 +197,11 @@ extension FollowersListViewController: FollowListCellDelegate {
                 self.showPopUp(issueText: error.localizedDescription)
             }
         }
+        tasks.append(task)
     }
 
     func undoButtonTapped(userID: String, undoCompletion: @escaping (FollowStatus) -> Void) {
-        Task { @MainActor in
+        let task = Task {
             do {
                 try await viewModel.undoUserRemoval(uid: userID)
                 undoCompletion(.following)
@@ -201,10 +209,11 @@ extension FollowersListViewController: FollowListCellDelegate {
                 self.showPopUp(issueText: error.localizedDescription)
             }
         }
+        tasks.append(task)
     }
 
     func followButtonTapped(userID: String, followCompletion: @escaping (FollowStatus) -> Void) {
-        Task { @MainActor in
+        let task = Task {
             do {
                 let newFollowStatus = try await viewModel.followUser(uid: userID)
                 followCompletion(newFollowStatus)
@@ -212,10 +221,11 @@ extension FollowersListViewController: FollowListCellDelegate {
                 self.showPopUp(issueText: error.localizedDescription)
             }
         }
+        tasks.append(task)
     }
 
     func unfollowButtonTapped(userID: String, unfollowCompletion: @escaping (FollowStatus) -> Void) {
-        Task { @MainActor in
+        let task = Task {
             do {
                 let newFollowStatus = try await viewModel.unfollowUser(uid: userID)
                 unfollowCompletion(newFollowStatus)
@@ -223,5 +233,6 @@ extension FollowersListViewController: FollowListCellDelegate {
                 self.showPopUp(issueText: error.localizedDescription)
             }
         }
+        tasks.append(task)
     }
 }

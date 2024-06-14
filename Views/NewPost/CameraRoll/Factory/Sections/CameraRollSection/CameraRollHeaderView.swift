@@ -7,7 +7,7 @@
 
 import UIKit
 
-protocol CameraRollHeaderDelegate: UIImagePickerControllerDelegate, UINavigationControllerDelegate, AnyObject {
+@MainActor protocol CameraRollHeaderDelegate: UIImagePickerControllerDelegate, UINavigationControllerDelegate, AnyObject {
     func didTapCameraButton(_ header: CameraRollHeaderView)
 }
 

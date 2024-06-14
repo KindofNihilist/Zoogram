@@ -8,92 +8,99 @@
 import UIKit
 import SDWebImage
 
-struct PostViewModel: Sendable {
-    let postID: String
-    let author: ZoogramUser
-    let isMadeByCurrentUser: Bool
-    var isNewlyCreated: Bool
-    var datePosted: Date
-    var shouldShowBlankCell: Bool = false
+typealias LikesCountTitle = String
 
-    let postImage: UIImage
-    let postImageURL: String
-    let postCaption: AttributedString?
-    let unAttributedPostCaption: String?
+struct PostViewModel: Sendable {
+
+    var shouldDisplayAsPlaceholder: Bool = false
+
+    var postModel: UserPost
+
+    var author: ZoogramUser {
+        return postModel.author
+    }
+
+    var postID: String {
+        return postModel.postID
+    }
+
+    var isMadeByCurrentUser: Bool {
+        return postModel.isMadeByCurrentUser()
+    }
+    var isNewlyCreated: Bool {
+        return postModel.isNewlyCreated
+    }
+    var postedDate: Date {
+        return postModel.postedDate
+    }
+
+    var postImage: UIImage {
+        return postModel.image ?? UIImage()
+    }
+
+    var postImageURL: String {
+        return postModel.photoURL
+    }
+
+    var unAttributedPostCaption: String? {
+        return postModel.caption
+    }
 
     var likeState: LikeState {
-        didSet {
-            if likeState == .liked {
-                self.likesCount += 1
-            } else {
-                self.likesCount -= 1
-            }
-        }
+        return postModel.likeState
     }
-    var bookmarkState: BookmarkState
 
-    var likesCountTitle: String
-    var commentsCountTitle: String?
-    var timeSincePostedTitle: String
+    var bookmarkState: BookmarkState {
+        return postModel.bookmarkState
+    }
 
     var likesCount: Int {
-        didSet {
-            likesCountTitle = PostViewModel.createTitleFor(likesCount: likesCount)
-        }
+        return postModel.likesCount
     }
 
     var commentsCount: Int? {
-        didSet {
-            commentsCountTitle = PostViewModel.createTitleFor(commentsCount: commentsCount)
-        }
+        return postModel.commentsCount
+    }
+
+    var postCaption: AttributedString? {
+        return createFormatedPostCaption(caption: self.unAttributedPostCaption, username: self.author.username)
+    }
+
+    var timeSincePostedTitle: String {
+        return createTitleFor(timeSincePosted: self.postedDate)
+    }
+
+    var likesCountTitle: LikesCountTitle {
+        return createTitleFor(likesCount: self.likesCount)
+    }
+
+    var commentsCountTitle: String? {
+        return createTitleFor(commentsCount: self.commentsCount)
     }
 
     init(post: UserPost) {
-        self.postID = post.postID
-        self.author = post.author
-        self.datePosted = post.postedDate
-        self.isMadeByCurrentUser = post.isMadeByCurrentUser()
-        self.postImage = post.image ?? UIImage()
-        self.postImageURL = post.photoURL
-        self.postCaption = PostViewModel.formatPostCaption(caption: post.caption, username: post.author.username)
-        self.unAttributedPostCaption = post.caption
-        self.bookmarkState = post.bookmarkState
-        self.likeState = post.likeState
-        self.isNewlyCreated = post.isNewlyCreated
-        self.likesCountTitle = PostViewModel.createTitleFor(likesCount: post.likesCount)
-        self.commentsCountTitle = PostViewModel.createTitleFor(commentsCount: post.commentsCount)
-        self.timeSincePostedTitle = PostViewModel.createTitleFor(timeSincePosted: post.postedDate)
-        self.likesCount = post.likesCount
-        self.commentsCount = post.commentsCount
+        self.postModel = post
     }
 
-    init(author: ZoogramUser) {
-        self.postID = ""
-        self.author = author
-        self.datePosted = Date()
-        self.isMadeByCurrentUser = true
-        self.postImage = UIImage(systemName: "photo")!
-        self.postImageURL = ""
-        self.postCaption = AttributedString()
-        self.unAttributedPostCaption = ""
-        self.bookmarkState = .notBookmarked
-        self.likeState = .notLiked
-        self.isNewlyCreated = true
-        self.likesCountTitle = ""
-        self.commentsCountTitle = ""
-        self.timeSincePostedTitle = ""
-        self.likesCount = 0
-        self.commentsCount = 0
+    mutating func switchLikeState() {
+        postModel.switchLikeState()
     }
 
-    static func createBlankViewModel() async -> PostViewModel {
-        let author = await UserManager.shared.getCurrentUser()
-        var postViewModel = PostViewModel(author: author)
-        postViewModel.shouldShowBlankCell = true
+    mutating func switchBookmarkState() {
+        postModel.switchBookmarkState()
+    }
+
+    mutating func changeIsNewlyCreatedStatus(to value: Bool) {
+        postModel.changeIsNewlyCreatedStatus(to: value)
+    }
+
+    static func createPlaceholderViewModel() -> PostViewModel {
+        var postViewModel = PostViewModel(post: UserPost.createNewPostModel())
+        postViewModel.shouldDisplayAsPlaceholder = true
         return postViewModel
     }
 
-    static func formatPostCaption(caption: String?, username: String) -> AttributedString? {
+    private func createFormatedPostCaption(caption: String?, username: String) -> AttributedString? {
         guard let caption = caption else {
             return nil
         }
@@ -112,18 +119,18 @@ struct PostViewModel: Sendable {
         return usernameWithCaption
     }
 
-    static func createTitleFor(likesCount: Int) -> String {
+    private func createTitleFor(likesCount: Int) -> String {
         return String(localized: "\(likesCount) like")
     }
 
-    static func createTitleFor(commentsCount: Int?) -> String? {
+    private func createTitleFor(commentsCount: Int?) -> String? {
         guard let count = commentsCount, count > 0 else {
             return nil
         }
         return String(localized: "View \(count) comment")
     }
 
-    static func createTitleFor(timeSincePosted: Date) -> String {
+    private func createTitleFor(timeSincePosted: Date) -> String {
         return timeSincePosted.timeAgoDisplay()
     }
 }

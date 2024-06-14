@@ -7,7 +7,7 @@
 
 import UIKit
 
-protocol TextFieldResponder {
+@MainActor protocol TextFieldResponder {
     func becomeResponder()
     func resignResponder()
 }
@@ -94,7 +94,6 @@ class RegistrationForm: UIView {
         return textField.text!
     }
 
-    @MainActor
     func removeErrorNotification() {
         errorNotificationView.text?.removeAll()
         UIView.animate(withDuration: 0.5) {
@@ -102,7 +101,6 @@ class RegistrationForm: UIView {
         }
     }
 
-    @MainActor
     func showErrorNotification(error: String) {
         errorNotificationView.text = error
         errorNotificationView.shakeByX(offset: 5.0, repeatCount: 2, durationOfOneCycle: 0.07)

@@ -13,7 +13,7 @@ enum ActivityEventType: String, Codable {
     case postCommented
 }
 
-class ActivityEvent: Codable, Hashable {
+struct ActivityEvent: Sendable, Codable, Hashable {
 
     let eventType: ActivityEventType
     let userID: String
@@ -48,7 +48,7 @@ class ActivityEvent: Codable, Hashable {
         }
     }
 
-    required public init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.eventType = try container.decode(ActivityEventType.self, forKey: .eventType)
         self.userID = try container.decode(String.self, forKey: .userID)

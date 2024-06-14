@@ -26,7 +26,6 @@ import UIKit.UICollectionView
 
     func buildSections(profileViewModel: UserProfileViewModel) {}
 
-
     func getSections() -> [CollectionSectionController] {
         return self.sections
     }
@@ -35,7 +34,6 @@ import UIKit.UICollectionView
         fatalError("Should be overriden")
     }
 
-    @MainActor
     func updatePostsSection(with items: [Any], completion: @escaping () -> Void) {
         guard let cellControllers = createCellControllers(for: items) else { return }
         let postsCountBeforeUpdate = mainContentSection.numberOfCells()
@@ -74,7 +72,6 @@ import UIKit.UICollectionView
         collectionView.reloadSections(IndexSet(integer: sectionIndex))
     }
 
-    @MainActor
     func showPaginationRetryButton(error: Error, delegate: PaginationIndicatorCellDelegate?) {
         let sectionIndex = paginationIndicatorSection.sectionIndex
         let indexPath = IndexPath(row: 0, section: sectionIndex)

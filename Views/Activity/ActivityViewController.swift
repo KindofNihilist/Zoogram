@@ -59,12 +59,10 @@ class ActivityViewController: UIViewController {
         super.init(nibName: nil, bundle: nil)
 
         viewModel.hasUnseenEvents.bind { hasUnseenEvents in
-            Task.detached(priority: .userInitiated) {
-                if hasUnseenEvents {
-                    await self.delegate?.displayUnseenEventsBadge()
-                } else {
-                    await self.delegate?.removeUnseenEventsBadge()
-                }
+            if hasUnseenEvents {
+                self.delegate?.displayUnseenEventsBadge()
+            } else {
+                self.delegate?.removeUnseenEventsBadge()
             }
         }
     }
@@ -80,11 +78,6 @@ class ActivityViewController: UIViewController {
         tableView.dataSource = self
         setupViewsConstraints()
         navigationItem.leftBarButtonItem = UIBarButtonItem(customView: activityNavBarlabel)
-//        viewModel.hasReceivedEvents.bind { hasReceivedEvents in
-//            if hasReceivedEvents {
-//                self.tableView.reloadData()
-//            }
-//        }
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -93,11 +86,14 @@ class ActivityViewController: UIViewController {
     }
 
     override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+//        navigationController?.setNavigationBarHidden(true, animated: animated)
         self.tableView.reloadData()
         showRecentNotificationsOnAppear()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
+//        navigationController?.setNavigationBarHidden(false, animated: animated)
         super.viewWillDisappear(animated)
         Task {
             do {
@@ -187,7 +183,7 @@ class ActivityViewController: UIViewController {
         let service = CommentsService(
             postID: post.postID,
             postAuthorID: post.author.userID,
-            userDataService: UserDataService.shared,
+            userDataService: UserDataService(),
             postsService: UserPostsService.shared,
             commentsService: CommentSystemService.shared,
             likesService: LikeSystemService.shared,
@@ -273,7 +269,7 @@ extension ActivityViewController: ActivityViewCellActionsDelegate {
             userID: user.userID,
             followService: FollowSystemService.shared,
             userPostsService: UserPostsService.shared,
-            userService: UserDataService.shared,
+            userService: UserDataService(),
             likeSystemService: LikeSystemService.shared,
             bookmarksService: BookmarksSystemService.shared)
         let userProfileViewController = UserProfileViewController(service: service, user: user, isTabBarItem: false)

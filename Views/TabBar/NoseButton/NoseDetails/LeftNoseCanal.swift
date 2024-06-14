@@ -15,7 +15,11 @@ class LeftNoseCanal: CAShapeLayer {
         fillColor = UIColor.systemPink.cgColor
         print("LeftNoseFrame: ", rect)
     }
-    
+
+    override init(layer: Any) {
+        super.init(layer: layer)
+    }
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }

@@ -57,10 +57,8 @@ class PostLikedEventTableViewCell: UITableViewCell {
     }
 
     public func configure(with event: ActivityEvent) {
-        print("configuring activity event", event.eventID)
         self.event = event
         likedPostPhotoImageView.image = event.post?.image
-
         let attributedUsername = NSAttributedString(string: "\(event.user!.username) ", attributes: [NSAttributedString.Key.font: CustomFonts.boldFont(ofSize: 14), NSAttributedString.Key.foregroundColor: Colors.label])
         let localizedMessage = String(localized: "liked your post. ")
         let attributedEventMessage = NSAttributedString(
@@ -82,10 +80,9 @@ class PostLikedEventTableViewCell: UITableViewCell {
         paragraphStyle.lineSpacing = 2
         wholeMessage.addAttribute(.paragraphStyle,
                                   value: paragraphStyle,
-                                  range: NSMakeRange(0, wholeMessage.length))
+                                  range: NSRange(location: 0, length: wholeMessage.length))
 
-        profileImageView.image = event.user?.getProfilePhoto()
-
+        profileImageView.image = event.user?.getProfilePhoto() ?? UIImage.profilePicturePlaceholder
         activityMessageLabel.attributedText = wholeMessage
 
         if event.seen == false {

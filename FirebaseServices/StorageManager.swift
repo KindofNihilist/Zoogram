@@ -4,17 +4,17 @@
 //
 //  Created by Artem Dolbiev on 17.01.2022.
 //
-import FirebaseStorage
+@preconcurrency import FirebaseStorage
 import Foundation
 
-protocol StorageManagerProtocol {
+protocol StorageManagerProtocol: Sendable {
     func uploadUserProfilePhoto(for userID: String, with image: UIImage, fileName: String) async throws -> URL
     func uploadPostPhoto(photo: UIImage, fileName: String, progressUpdate: @escaping (Progress?) -> Void) async throws -> URL
     func deletePostPhoto(photoURL: String) async throws
     func getDownloadURL(for path: String) async throws -> URL
 }
 
-class StorageManager: StorageManagerProtocol {
+final class StorageManager: StorageManagerProtocol {
 
     static let shared = StorageManager()
 
@@ -32,7 +32,7 @@ class StorageManager: StorageManagerProtocol {
         let query = storageReference.child(storagePath)
 
         do {
-            let uploadTask = try await query.putDataAsync(data)
+            _ = try await query.putDataAsync(data)
             let downloadURL = try await getDownloadURL(for: storagePath)
             return downloadURL
         } catch {
@@ -45,7 +45,7 @@ class StorageManager: StorageManagerProtocol {
         do {
             let userID =  try AuthenticationService.shared.getCurrentUserUID()
             let storagePath = "UserPhotoPosts/\(userID)/\(fileName)"
-            let uploadTask = try await storageReference.child(storagePath).putDataAsync(imageData) { progress in
+            _ = try await storageReference.child(storagePath).putDataAsync(imageData) { progress in
                 progressUpdate(progress)
             }
             let downloadURL = try await storageReference.child(storagePath).downloadURL()

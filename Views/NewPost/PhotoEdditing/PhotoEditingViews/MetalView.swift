@@ -31,7 +31,7 @@ class MetalView: MTKView {
         self.device = defaultDevice
         self.framebufferOnly = false
         context = CIContext(mtlDevice: defaultDevice)
-        let loader = MTKTextureLoader(device: defaultDevice)
+//        let loader = MTKTextureLoader(device: defaultDevice)
     }
 
     required init(coder: NSCoder) {

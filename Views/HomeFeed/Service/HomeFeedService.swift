@@ -8,27 +8,20 @@
 import Foundation
 
 protocol HomeFeedServiceProtocol: PostsNetworking<UserPost> {
-    func makeANewPost(post: UserPost, progressUpdateCallback: @escaping (Progress?) -> Void) async throws
+    func makeANewPost(post: UserPost, progressUpdateCallback: @Sendable @escaping (Progress?) -> Void) async throws
 }
 
-class HomeFeedService: ImageService, HomeFeedServiceProtocol {
+final class HomeFeedService: HomeFeedServiceProtocol {
 
-    var numberOfAllItems: UInt = 0
-    var numberOfRetrievedItems: UInt = 0
-    var numberOfItemsToGet: UInt = 8
+    internal let paginationManager = PaginationManager(numberOfItemsToGetPerPagination: 10)
 
-    let feedService: FeedService
-    let likeSystemService: LikeSystemServiceProtocol
-    let userPostsService: UserPostsServiceProtocol
-    let bookmarksService: BookmarksSystemServiceProtocol
-    let storageManager: StorageManagerProtocol
+    private let feedService: FeedService
+    private let likeSystemService: LikeSystemServiceProtocol
+    private let userPostsService: UserPostsServiceProtocol
+    private let bookmarksService: BookmarksSystemServiceProtocol
+    private let storageManager: StorageManagerProtocol
 
-    var lastReceivedItemKey: String = ""
-    var isAlreadyPaginating: Bool = false
-    var isPaginationAllowed: Bool = true
-    var hasHitTheEndOfPosts: Bool = false
-
-    init(feedService: FeedService, 
+    init(feedService: FeedService,
          likeSystemService: LikeSystemService,
          userPostsService: UserPostsService,
          bookmarksService: BookmarksSystemService,
@@ -42,80 +35,92 @@ class HomeFeedService: ImageService, HomeFeedServiceProtocol {
 
     func getNumberOfItems() async throws -> Int {
         let numberOfFeedPosts = try await feedService.getFeedPostsCount()
-        self.numberOfAllItems = UInt(numberOfFeedPosts)
+        await self.paginationManager.setNumberOfAllItems(numberOfFeedPosts)
         return numberOfFeedPosts
     }
 
     func getItems() async throws -> [UserPost]? {
-        _ = try await getNumberOfItems()
-        let feedPosts = try await feedService.getPostsForTimeline(quantity: numberOfItemsToGet)
-        guard feedPosts.items.isEmpty != true else {
-            self.hasHitTheEndOfPosts = true
+        let isPaginating = await paginationManager.isPaginating()
+        guard isPaginating == false else { return nil }
+        await paginationManager.startPaginating()
+
+        let numberOfItemsToGet = paginationManager.numberOfItemsToGetPerPagination
+        async let numberOfAllItems = getNumberOfItems()
+        async let feedPosts = feedService.getPostsForTimeline(quantity: numberOfItemsToGet)
+
+        guard try await feedPosts.items.isEmpty != true else {
+            await self.paginationManager.setHasHitEndOfItemsStatus(to: true)
+            await paginationManager.finishPaginating()
             return nil
         }
+
         let postsWithAdditionalData = try await getAdditionalPostDataFor(postsOfMultipleUsers: feedPosts.items)
-        self.lastReceivedItemKey = feedPosts.lastRetrievedItemKey
-        self.hasHitTheEndOfPosts = false
-        self.numberOfRetrievedItems = UInt(postsWithAdditionalData.count)
-        if self.numberOfRetrievedItems == self.numberOfAllItems {
-            self.hasHitTheEndOfPosts = true
+        let lastRetrievedItemKey = try await feedPosts.lastRetrievedItemKey
+        await paginationManager.setLastReceivedItemKey(lastRetrievedItemKey)
+        await paginationManager.setHasHitEndOfItemsStatus(to: false)
+        await paginationManager.updateNumberOfRetrievedItems(value: postsWithAdditionalData.count)
+
+        let numberOfRetrievedItems = await paginationManager.getNumberOfRetrievedItems()
+        if try await numberOfRetrievedItems == numberOfAllItems {
+            await paginationManager.setHasHitEndOfItemsStatus(to: true)
         }
+        await paginationManager.finishPaginating()
         return postsWithAdditionalData
     }
 
     func getMoreItems() async throws -> [UserPost]? {
-        guard isAlreadyPaginating == false, lastReceivedItemKey != "" else {
+        let lastReceivedItemKey = await paginationManager.getLastReceivedItemKey()
+        let isPaginating = await paginationManager.isPaginating()
+        guard isPaginating == false, lastReceivedItemKey != "" else { return nil }
+        await paginationManager.startPaginating()
+
+        let numberOfItemsToGet = paginationManager.numberOfItemsToGetPerPagination
+        let feedPosts = try await feedService.getMorePostsForTimeline(quantity: numberOfItemsToGet, after: lastReceivedItemKey)
+
+        guard feedPosts.items.isEmpty != true, feedPosts.lastRetrievedItemKey != lastReceivedItemKey else {
+            await self.paginationManager.finishPaginating()
+            await paginationManager.setHasHitEndOfItemsStatus(to: true)
             return nil
         }
 
-        isAlreadyPaginating = true
+        let postsWithAdditionalData = try await getAdditionalPostDataFor(postsOfMultipleUsers: feedPosts.items)
+        await paginationManager.setLastReceivedItemKey(feedPosts.lastRetrievedItemKey)
+        await paginationManager.updateNumberOfRetrievedItems(value: postsWithAdditionalData.count)
+        let numberOfAllItems = await paginationManager.getNumberOfAllItems()
+        let numberOfRetrievedItems = await paginationManager.getNumberOfRetrievedItems()
 
-        do {
-            let feedPosts = try await feedService.getMorePostsForTimeline(quantity: numberOfItemsToGet, after: lastReceivedItemKey)
-            guard feedPosts.items.isEmpty != true, feedPosts.lastRetrievedItemKey != self.lastReceivedItemKey else {
-                self.isAlreadyPaginating = false
-                self.hasHitTheEndOfPosts = true
-                return nil
-            }
-            let postsWithAdditionalData = try await getAdditionalPostDataFor(postsOfMultipleUsers: feedPosts.items)
-            self.lastReceivedItemKey = feedPosts.lastRetrievedItemKey
-            self.numberOfRetrievedItems += UInt(feedPosts.items.count)
-            if self.numberOfRetrievedItems == self.numberOfAllItems {
-                self.hasHitTheEndOfPosts = true
-            }
-            return postsWithAdditionalData
-        } catch {
-            self.isAlreadyPaginating = false
-            throw error
+        if numberOfRetrievedItems == numberOfAllItems {
+            await paginationManager.setHasHitEndOfItemsStatus(to: true)
         }
+        await paginationManager.finishPaginating()
+        return postsWithAdditionalData
     }
 
-    func makeANewPost(post: UserPost, progressUpdateCallback: @escaping (Progress?) -> Void) async throws {
+    func makeANewPost(post: UserPost, progressUpdateCallback: @Sendable @escaping (Progress?) -> Void) async throws {
         guard let image = post.image else {
             return
         }
-        let fileName = "\(post.postID)_post.png"
+        var postToPost = post
+        let fileName = "\(postToPost.postID)_post.png"
 
         let uploadedPhotoURL = try await storageManager.uploadPostPhoto(photo: image, fileName: fileName) { progress in
             progressUpdateCallback(progress)
         }
-        post.photoURL = uploadedPhotoURL.absoluteString
-        try await userPostsService.insertNewPost(post: post)
+        postToPost.photoURL = uploadedPhotoURL.absoluteString
+        try await userPostsService.insertNewPost(post: postToPost)
     }
 
-    func likePost(postID: String, likeState: LikeState, postAuthorID: String) async throws -> LikeState {
+    func likePost(postID: String, likeState: LikeState, postAuthorID: String) async throws {
         switch likeState {
         case .liked:
             try await likeSystemService.removeLikeFromPost(postID: postID)
             try await ActivitySystemService.shared.removeLikeEventForPost(postID: postID, postAuthorID: postAuthorID)
-            return .notLiked
         case .notLiked:
             try await likeSystemService.likePost(postID: postID)
             let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
             let eventID = ActivitySystemService.shared.createEventUID()
             let activityEvent = ActivityEvent(eventType: .postLiked, userID: currentUserID, postID: postID, eventID: eventID, date: Date())
             try await ActivitySystemService.shared.addEventToUserActivity(event: activityEvent, userID: postAuthorID)
-            return .liked
         }
     }
 
@@ -123,15 +128,12 @@ class HomeFeedService: ImageService, HomeFeedServiceProtocol {
         try await userPostsService.deletePost(postID: postModel.postID, postImageURL: postModel.postImageURL)
     }
 
-    func bookmarkPost(postID: String, authorID: String, bookmarkState: BookmarkState) async throws -> BookmarkState {
+    func bookmarkPost(postID: String, authorID: String, bookmarkState: BookmarkState) async throws {
         switch bookmarkState {
         case .bookmarked:
-            let bookmarkState = try await bookmarksService.removeBookmark(postID: postID)
-            return bookmarkState
+            try await bookmarksService.removeBookmark(postID: postID)
         case .notBookmarked:
-            let bookmarkState = try await bookmarksService.bookmarkPost(postID: postID, authorID: authorID)
-            return bookmarkState
+            try await bookmarksService.bookmarkPost(postID: postID, authorID: authorID)
         }
     }
 }
-

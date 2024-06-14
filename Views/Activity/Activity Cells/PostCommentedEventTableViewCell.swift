@@ -83,9 +83,11 @@ class PostCommentedEventTableViewCell: UITableViewCell {
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.lineSpacing = 2
         paragraphStyle.lineBreakStrategy = .pushOut
-        wholeMessage.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSMakeRange(0, wholeMessage.length))
+        wholeMessage.addAttribute(.paragraphStyle,
+                                  value: paragraphStyle,
+                                  range: NSRange(location: 0, length: wholeMessage.length))
 
-        profileImageView.image = event.user?.getProfilePhoto()
+        profileImageView.image = event.user?.getProfilePhoto() ?? UIImage.profilePicturePlaceholder
 
         activityMessageLabel.attributedText = wholeMessage
 

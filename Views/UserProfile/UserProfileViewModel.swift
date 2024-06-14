@@ -8,53 +8,67 @@
 import Foundation
 import SDWebImage
 
+@MainActor
 class UserProfileViewModel {
 
-    private var service: any UserProfileServiceProtocol
-
-    var user: ZoogramUser {
-        didSet {
-            self.isCurrentUserProfile = user.isCurrentUserProfile
-        }
-    }
-
-    var isCurrentUserProfile: Bool = false
+    let service: any UserProfileServiceProtocol
 
     var postsCount: Int?
     var followersCount: Int?
     var followedUsersCount: Int?
-
     var posts: Observable = Observable([PostViewModel]())
 
-    init(service: any UserProfileServiceProtocol, user: ZoogramUser, postsCount: Int, followersCount: Int, followingCount: Int) {
-        self.service = service
-        self.user = user
-        self.postsCount = postsCount
-        self.followersCount = followersCount
-        self.followedUsersCount = followingCount
-        self.isCurrentUserProfile = user.isCurrentUserProfile
+    private var user: ZoogramUser
+
+    var userID: String {
+        return user.userID
     }
 
-    init(service: any UserProfileServiceProtocol) {
+    var bio: String? {
+        return user.bio
+    }
+
+    var name: String {
+        return user.name
+    }
+
+    var username: String {
+        return user.username
+    }
+
+    var profileImage: UIImage {
+        return user.getProfilePhoto() ?? UIImage.profilePicturePlaceholder
+    }
+
+    var isCurrentUserProfile: Bool {
+        return user.isCurrentUserProfile
+    }
+
+    var followStatus: FollowStatus? {
+        return user.followStatus
+    }
+
+    init(service: any UserProfileServiceProtocol, user: ZoogramUser) {
+        self.user = user
         self.service = service
         self.user = ZoogramUser(service.userID)
         self.postsCount = nil
         self.followersCount = nil
         self.followedUsersCount = nil
-        self.isCurrentUserProfile = false
     }
 
-    func isPaginationAllowed() -> Bool {
-        return service.hasHitTheEndOfPosts == false && service.isAlreadyPaginating == false
+    func isPaginationAllowed() async -> Bool {
+        let isPaginating = await service.paginationManager.isPaginating()
+        let hasHitTheEndOfPosts = await service.checkIfHasHitEndOfItems()
+        return hasHitTheEndOfPosts == false && isPaginating == false
     }
 
     func getPosts() async throws {
         let posts = try await service.getItems()
         if let posts = posts {
-            let postViewModels = posts.compactMap { post in
+            self.posts.value = posts.compactMap { post in
                 return PostViewModel(post: post)
             }
-            self.posts.value = postViewModels
         }
     }
 
@@ -72,18 +86,21 @@ class UserProfileViewModel {
     }
 
     func getUserProfileData() async throws {
+        async let user = service.getUserData()
         async let followersCount = service.getFollowersCount()
         async let followedUsersCount = service.getFollowingCount()
         async let postsCount = service.getNumberOfItems()
 
+        self.user = try await user
         self.followersCount = try await followersCount
         self.followedUsersCount = try await followedUsersCount
         self.postsCount = try await postsCount
+    }
 
-        if !isCurrentUserProfile {
-            async let user = service.getUserData()
-            self.user = try await user
-        }
+    func updateCurrentUserModel() async {
+        guard isCurrentUserProfile else { return }
+        let userModel = await UserManager.shared.getCurrentUser()
+        self.user = userModel
     }
 
     func followUser() async throws -> FollowStatus {
@@ -98,18 +115,17 @@ class UserProfileViewModel {
         return newFollowStatus
     }
 
-    func hasHitTheEndOfPosts() -> Bool {
-        return service.hasHitTheEndOfPosts
+    func hasHitTheEndOfPosts() async -> Bool {
+        return await service.checkIfHasHitEndOfItems()
     }
 
-    func hasFinishedPaginating() {
-        service.isAlreadyPaginating = false
-    }
-
-    func hasLoadedData() -> Bool {
-        let hasntRetrievedPosts = service.numberOfRetrievedItems == 0
-        let numberOfReceivedItemsIsLessThanRequired = service.numberOfRetrievedItems < service.numberOfItemsToGet
-        let hasntRetrievedAllPosts = service.numberOfRetrievedItems < service.numberOfAllItems
+    func hasLoadedData() async -> Bool {
+        let numberOfRetrievedItems = await service.paginationManager.getNumberOfRetrievedItems()
+        let numberOfAllItems = await service.paginationManager.getNumberOfAllItems()
+        let numberOfItemsToGet = service.paginationManager.numberOfItemsToGetPerPagination
+        let hasntRetrievedPosts = numberOfRetrievedItems == 0
+        let numberOfReceivedItemsIsLessThanRequired = numberOfRetrievedItems < numberOfItemsToGet
+        let hasntRetrievedAllPosts = numberOfRetrievedItems < numberOfAllItems
         let retrievedLessPostsThanRequired = numberOfReceivedItemsIsLessThanRequired && hasntRetrievedAllPosts
 
         if hasntRetrievedPosts || retrievedLessPostsThanRequired {

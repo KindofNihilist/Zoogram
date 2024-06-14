@@ -6,12 +6,12 @@
 //
 
 import Foundation
-import FirebaseDatabase
+@preconcurrency import FirebaseDatabase
 
 typealias PostCount = Int
 typealias PhotoURLString = String
 
-protocol UserPostsServiceProtocol {
+protocol UserPostsServiceProtocol: Sendable {
     func insertNewPost(post: UserPost) async throws
     func deletePost(postID: String, postImageURL: String) async throws
     func createDeletePostFromFollowersTimelineActions(postID: String) async throws -> [String: Any]
@@ -23,7 +23,7 @@ protocol UserPostsServiceProtocol {
     func getMorePosts(quantity: UInt, after postKey: String, for userID: UserID) async throws -> PaginatedItems<UserPost>
 }
 
-class UserPostsService: UserPostsServiceProtocol {
+final class UserPostsService: UserPostsServiceProtocol {
 
     static let shared = UserPostsService()
 
@@ -40,8 +40,8 @@ class UserPostsService: UserPostsServiceProtocol {
 
     func insertNewPost(post: UserPost) async throws {
         let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
-        let databaseKey = "Posts/\(currentUserID)/\(post.postID)"
-        let query = databaseRef.child("Followers/\(currentUserID)")
+        let databaseKey = "Followers/\(currentUserID)"
+        let query = databaseRef.child(databaseKey)
 
         do {
             let data = try await query.getData()
@@ -86,6 +86,7 @@ class UserPostsService: UserPostsServiceProtocol {
             try await databaseRef.updateChildValues(deleteActions)
             try await StorageManager.shared.deletePostPhoto(photoURL: postImageURL)
         } catch {
+            print(error.localizedDescription)
             throw ServiceError.couldntDeletePost
         }
     }
@@ -112,7 +113,7 @@ class UserPostsService: UserPostsServiceProtocol {
         let data = try await query.getData()
         var bookmarksToRemove = [String: Any]()
         if let usersBookmarkedThePost = data.value as? [String: [String: Any]] {
-        usersBookmarkedThePost.map { userID, bookmarkDict in
+        _ = usersBookmarkedThePost.map { userID, bookmarkDict in
                 if let bookmarkID = bookmarkDict["bookmarkID"] {
                     bookmarksToRemove["Bookmarks/\(userID)/\(bookmarkID)"] = NSNull()
                     bookmarksToRemove[reverseIndexBookmarksPath + "/\(userID)"] = NSNull()
@@ -130,17 +131,16 @@ class UserPostsService: UserPostsServiceProtocol {
 
         var activityEventToDelete = [String: Any]()
         for snapshot in data.children {
-            guard let snapshot = snapshot as? [String: Any],
-                  let eventID = snapshot["eventID"]
-            else {
+            guard let snapshotDict = snapshot as? DataSnapshot else {
                 throw ServiceError.snapshotCastingError
             }
+            let eventID = snapshotDict.key
             activityEventToDelete["Activity/\(currentUserID)/\(eventID)"] = NSNull()
         }
         return activityEventToDelete
     }
 
-    //MARK: Get Post
+    // MARK: Get Post
     func getPostCount(for userID: UserID) async throws -> PostCount {
         let databaseKey = "Posts/\(userID)/"
         let query = databaseRef.child(databaseKey)
@@ -161,8 +161,8 @@ class UserPostsService: UserPostsServiceProtocol {
 
             guard let postDictionary = data.value as? [String: Any] else { throw ServiceError.snapshotCastingError }
             let jsonData = try JSONSerialization.data(withJSONObject: postDictionary as Any)
-            let decodedPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
-            decodedPost.author = try await UserDataService.shared.getUser(for: decodedPost.userID)
+            var decodedPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
+            decodedPost.author = try await UserDataService().getUser(for: decodedPost.userID)
             return decodedPost
         } catch {
             throw ServiceError.couldntLoadPost
@@ -178,7 +178,7 @@ class UserPostsService: UserPostsServiceProtocol {
 
             var retrievedPosts = [UserPost]()
             var lastPostKey = ""
-            var postsAuthor = try await UserDataService.shared.getUser(for: userID)
+            let postsAuthor = try await UserDataService().getUser(for: userID)
 
             for snapshot in data.children.reversed() {
                 guard let postSnapshot = snapshot as? DataSnapshot,
@@ -190,7 +190,7 @@ class UserPostsService: UserPostsServiceProtocol {
 
                 do {
                     let jsonData = try JSONSerialization.data(withJSONObject: postDictionary as Any)
-                    let decodedPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
+                    var decodedPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
                     decodedPost.author = postsAuthor
                     retrievedPosts.append(decodedPost)
                 } catch {
@@ -212,7 +212,7 @@ class UserPostsService: UserPostsServiceProtocol {
 
             var lastRetrievedPostKey = ""
             var retrievedPosts = [UserPost]()
-            var postsAuthor = try await UserDataService.shared.getUser(for: userID)
+            let postsAuthor = try await UserDataService().getUser(for: userID)
 
             for snapshot in data.children.reversed() {
                 guard let postSnapshot = snapshot as? DataSnapshot,
@@ -223,7 +223,7 @@ class UserPostsService: UserPostsServiceProtocol {
                 lastRetrievedPostKey = postSnapshot.key
                 do {
                     let jsonData = try JSONSerialization.data(withJSONObject: postDictionary as Any)
-                    let decodedPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
+                    var decodedPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
                     decodedPost.author = postsAuthor
                     retrievedPosts.append(decodedPost)
                 } catch {

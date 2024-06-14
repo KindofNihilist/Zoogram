@@ -7,6 +7,7 @@
 
 import Foundation
 
+@MainActor
 class FollowListViewModel {
 
     let service: FollowListServiceProtocol

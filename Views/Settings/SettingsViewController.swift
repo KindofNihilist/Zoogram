@@ -17,7 +17,6 @@ struct SettingsCellModel {
 final class SettingsViewController: UIViewController {
 
     private var data = [[SettingsCellModel]]()
-    private let currentUserViewModel: UserProfileViewModel
 
     private let tableView: UITableView = {
         let tableView = UITableView(frame: .zero, style: .insetGrouped)
@@ -26,15 +25,6 @@ final class SettingsViewController: UIViewController {
         tableView.backgroundColor = Colors.naturalSecondaryBackground
         return tableView
     }()
-
-    init(currentUserViewModel: UserProfileViewModel) {
-        self.currentUserViewModel = currentUserViewModel
-        super.init(nibName: nil, bundle: nil)
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -86,7 +76,7 @@ final class SettingsViewController: UIViewController {
 
     private func didTapEditProfile() {
         let service = UserDataValidationService()
-        let profileEdditingViewController = ProfileEdditingViewController(userProfileViewModel: self.currentUserViewModel, service: service)
+        let profileEdditingViewController = ProfileEdditingViewController(service: service)
         let navVC = UINavigationController(rootViewController: profileEdditingViewController)
         navVC.modalPresentationStyle = .fullScreen
         present(navVC, animated: true)

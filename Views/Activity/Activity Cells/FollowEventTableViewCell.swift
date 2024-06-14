@@ -82,11 +82,11 @@ class FollowEventTableViewCell: UITableViewCell {
         paragraphStyle.lineSpacing = 2
         wholeMessage.addAttribute(NSAttributedString.Key.paragraphStyle,
                                   value: paragraphStyle,
-                                  range: NSMakeRange(0, wholeMessage.length))
+                                  range: NSRange(location: 0, length: wholeMessage.length))
 
         activityMessageLabel.attributedText = wholeMessage
 
-        profileImageView.image = event.user?.getProfilePhoto()
+        profileImageView.image = event.user?.getProfilePhoto() ?? UIImage.profilePicturePlaceholder
 
         if event.seen == false {
             self.contentView.backgroundColor = Colors.unseenBlue

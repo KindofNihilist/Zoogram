@@ -15,6 +15,10 @@ class RightNoseCanal: CAShapeLayer {
         fillColor = UIColor.systemPink.cgColor
     }
 
+    override init(layer: Any) {
+        super.init(layer: layer)
+    }
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }

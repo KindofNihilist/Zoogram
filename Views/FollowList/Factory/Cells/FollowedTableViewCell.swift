@@ -93,7 +93,7 @@ class FollowedTableViewCell: UITableViewCell {
         }
         nameLabel.text = user.name
         usernameLabel.text = user.username
-        profileImageView.image = user.getProfilePhoto()
+        profileImageView.image = user.getProfilePhoto() ?? UIImage.profilePicturePlaceholder
         self.userID = user.userID
         if let followStatus = user.followStatus {
             followUnfollowButton.followStatus = followStatus

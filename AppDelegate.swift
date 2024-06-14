@@ -22,7 +22,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         options.projectID = "catogram-58487"
 
         FirebaseApp.configure(options: options)
-        Database.database().isPersistenceEnabled = true
+        Database.database().isPersistenceEnabled = false
 
         let hapticCapability = CHHapticEngine.capabilitiesForHardware()
         supportsHaptics = hapticCapability.supportsHaptics

@@ -30,21 +30,19 @@ extension UIBezierPath {
         let widthDifferenceCoefficient = (pathBounds.width / rect.width)
         let heightDifferenceCoefficient = (pathBounds.height / rect.height)
         let factor = (min(widthDifferenceCoefficient, max(heightDifferenceCoefficient, 0.0))) * 10
-        var transform = CGAffineTransform(scaleX: factor, y: factor)
+        let transform = CGAffineTransform(scaleX: factor, y: factor)
         self.apply(transform)
         return self
     }
 
     func scale(usingScaleFactor factor: CGFloat) -> UIBezierPath {
-        var transform = CGAffineTransform(scaleX: factor, y: factor)
+        let transform = CGAffineTransform(scaleX: factor, y: factor)
         self.apply(transform)
         return self
     }
 
     func centered(to point: CGPoint) -> UIBezierPath {
-        let pathBounds = self.cgPath.boundingBox
         let center = bounds.center
-
         let centeredPoint = CGPoint(x: point.x - bounds.origin.x, y: point.y - bounds.origin.y)
         let vector = center.vector(to: centeredPoint)
         let transform = CGAffineTransform(translationX: vector.dx, y: vector.dy)
@@ -54,8 +52,6 @@ extension UIBezierPath {
 
     func getFactor(for rect: CGRect) -> CGFloat {
         let pathBounds = self.cgPath.boundingBox
-        let center = CGPoint(x: pathBounds.midX, y: pathBounds.midY)
-
         let scaledWidth = rect.width / pathBounds.width
         let scaledHeight = rect.height / pathBounds.height
         let factor = min(scaledWidth, max(scaledHeight, 0.0))

@@ -10,7 +10,7 @@ import SDWebImage
 import UIKit.UIImage
 typealias URLString = String
 
-class ImageService {
+final class ImageService: Sendable {
 
     static let shared = ImageService()
 
@@ -35,7 +35,7 @@ class ImageService {
             return
         }
         SDWebImageManager.shared.loadImage(with: url, progress: .none) { image, _, error, _, _, _ in
-            if let error = error {
+            if error != nil {
                 completion(.failure(ServiceError.couldntLoadData))
                 return
             }

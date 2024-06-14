@@ -6,9 +6,9 @@
 //
 
 import Foundation
-import FirebaseDatabase
+@preconcurrency import FirebaseDatabase
 
-protocol ActivitySystemProtocol {
+protocol ActivitySystemProtocol: Sendable {
     func createEventUID() -> String
     func addEventToUserActivity(event: ActivityEvent, userID: String) async throws
     func updateActivityEventsSeenStatus(events: Set<ActivityEvent>) async throws
@@ -18,7 +18,7 @@ protocol ActivitySystemProtocol {
     func removeFollowEventForUser(userID: String) async throws
 }
 
-class ActivitySystemService: ActivitySystemProtocol {
+final class ActivitySystemService: ActivitySystemProtocol {
 
     static let shared = ActivitySystemService()
 
@@ -29,7 +29,8 @@ class ActivitySystemService: ActivitySystemProtocol {
     }
 
     func addEventToUserActivity(event: ActivityEvent, userID: String) async throws {
-        guard let eventDictionary = event.dictionary, userID != event.userID else { throw ServiceError.unexpectedError }
+        guard userID != event.userID else { return }
+        guard let eventDictionary = event.dictionary else { throw ServiceError.unexpectedError }
         let path = "Activity/\(userID)/\(event.eventID)"
         try await databaseRef.child(path).setValue(eventDictionary)
     }
@@ -64,9 +65,9 @@ class ActivitySystemService: ActivitySystemProtocol {
                     }
                     do {
                         let jsonData = try JSONSerialization.data(withJSONObject: activityEventDictionary as Any)
-                        let decodedEvent = try JSONDecoder().decode(ActivityEvent.self, from: jsonData)
+                        var decodedEvent = try JSONDecoder().decode(ActivityEvent.self, from: jsonData)
                         dispatchGroup.enter()
-                        UserDataService.shared.getUser(for: decodedEvent.userID) { result in
+                        UserDataService().getUser(for: decodedEvent.userID) { result in
                             switch result {
                             case .success(let relatedUser):
                                 decodedEvent.user = relatedUser

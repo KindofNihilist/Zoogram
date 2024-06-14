@@ -7,7 +7,7 @@
 
 import UIKit
 
-protocol PhotoEffectSliderDelegate: AnyObject {
+@MainActor protocol PhotoEffectSliderDelegate: AnyObject {
     func didChangeSliderValue(value: Float)
     func cancelFilterApplication()
     func saveFilterApplication()
@@ -125,7 +125,7 @@ class FilterValueSliderView: UIView {
         }
     }
 
-    func configure(for filter: FilterDelegate) {
+    func configure(for filter: ImageFilter) {
         let effectName = filter.displayName
         let sliderDefaultValue = filter.defaultValue
         let sliderMaximumValue = filter.maximumValue

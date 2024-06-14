@@ -18,7 +18,7 @@ class LoginService: LoginServiceProtocol {
         let loggedInUser = try await AuthenticationService.shared.signInUsing(email: email, password: password)
         return loggedInUser
     }
-    
+
     func resetPassword(for email: String) async throws {
         try await AuthenticationService.shared.resetPassword(email: email)
     }

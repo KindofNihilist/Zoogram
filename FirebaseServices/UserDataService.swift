@@ -6,33 +6,34 @@
 //
 
 import Foundation
-import FirebaseDatabase
-import SDWebImage
+@preconcurrency import FirebaseDatabase
 
 typealias IsAvailable = Bool
 typealias PictureURL = String
 
-protocol UserDataServiceProtocol {
-    func observeCurrentUser(with uid: String, completion: @escaping (Result<ZoogramUser, Error>) -> Void)
+protocol UserDataServiceProtocol: Sendable {
+    func observeUser(with uid: String, completion: @escaping (Result<ZoogramUser, Error>) -> Void)
     func getUser(for userID: UserID) async throws -> ZoogramUser
     func insertNewUserData(with userData: ZoogramUser) async throws
-    func searchUserWith(username: String) async throws -> [ZoogramUser]
     func checkIfUsernameIsAvailable(username: String) async throws -> Bool
     func updateUserProfile(with values: [String: Any]) async throws
     func uploadUserProfilePictureForNewlyCreatedaUser(with uid: UserID, profilePic: UIImage) async throws -> URL
     func updateUserProfilePicture(newProfilePic: UIImage) async throws
 }
 
-class UserDataService: UserDataServiceProtocol {
+final class UserDataService: UserDataServiceProtocol {
 
-    static let shared = UserDataService()
+//    static let shared = UserDataService()
 
     private let databaseRef = Database.database(url: "https://catogram-58487-default-rtdb.europe-west1.firebasedatabase.app").reference()
 
-    func observeCurrentUser(with uid: UserID, completion: @escaping (Result<ZoogramUser, Error>) -> Void) {
-        let path = DatabaseKeys.users + uid
+    func observeUser(with uid: UserID, completion: @escaping (Result<ZoogramUser, Error>) -> Void) {
+//        let path = DatabaseKeys.users + uid
+        let path = "Users/" + uid
+        print("Path: ", path)
         let query = databaseRef.child(path)
         query.observe(.value) { snapshot in
+            print("Observed user snapshot: ", snapshot.value)
             guard let snapshotDict = snapshot.value as? [String: Any] else {
                 completion(.failure(ServiceError.snapshotCastingError))
                 return
@@ -40,7 +41,7 @@ class UserDataService: UserDataServiceProtocol {
 
             do {
                 let jsonData = try JSONSerialization.data(withJSONObject: snapshotDict)
-                let decodedUser = try JSONDecoder().decode(ZoogramUser.self, from: jsonData)
+                var decodedUser = try JSONDecoder().decode(ZoogramUser.self, from: jsonData)
                 ImageService.shared.getImage(for: decodedUser.profilePhotoURL) { result in
                     switch result {
                     case.success(let profilePhoto):
@@ -50,7 +51,6 @@ class UserDataService: UserDataServiceProtocol {
                         completion(.failure(error))
                     }
                 }
-                completion(.success(decodedUser))
             } catch {
                 completion(.failure(ServiceError.jsonParsingError))
             }
@@ -62,12 +62,12 @@ class UserDataService: UserDataServiceProtocol {
         let query = databaseRef.child(path)
 
         query.getData { error, snapshot in
-            if let error = error {
+            if error != nil {
                 completion(.failure(ServiceError.couldntLoadData))
             } else if let snapshot = snapshot {
                 do {
-                    let jsonData = try JSONSerialization.data(withJSONObject: snapshot.value)
-                    let decodedUser = try JSONDecoder().decode(ZoogramUser.self, from: jsonData)
+                    let jsonData = try JSONSerialization.data(withJSONObject: snapshot.value as Any)
+                    var decodedUser = try JSONDecoder().decode(ZoogramUser.self, from: jsonData)
                     ImageService.shared.getImage(for: decodedUser.profilePhotoURL) { result in
                         switch result {
                         case.success(let profilePhoto):
@@ -88,15 +88,15 @@ class UserDataService: UserDataServiceProtocol {
 
     func getUser(for userID: UserID) async throws -> ZoogramUser {
         let path = DatabaseKeys.users + userID
+        let databaseReference = Database.database(url: "https://catogram-58487-default-rtdb.europe-west1.firebasedatabase.app").reference()
 
         do {
-            let data = try await databaseRef.child(path).getData()
-            let json = try JSONSerialization.data(withJSONObject: data.value as Any)
-            let decodedUser = try JSONDecoder().decode(ZoogramUser.self, from: json)
+            let dataSnapshot = try await databaseReference.child("\(path)").getData()
+            var decodedUser = try dataSnapshot.data(as: ZoogramUser.self)
             decodedUser.followStatus = try await FollowSystemService.shared.checkFollowStatus(for: userID)
             return decodedUser
-
         } catch {
+            print("getUser error: ", error.localizedDescription)
             throw ServiceError.couldntLoadUserData
         }
     }
@@ -109,34 +109,6 @@ class UserDataService: UserDataServiceProtocol {
             try await databaseRef.child(databaseKey).setValue(userDictionary)
         } catch {
             throw ServiceError.couldntUploadUserData
-        }
-    }
-
-    func searchUserWith(username: String) async throws -> [ZoogramUser] {
-        let query = databaseRef.child(DatabaseKeys.users).queryOrdered(byChild: "username").queryStarting(atValue: username).queryEnding(atValue: "\(username)~")
-
-        do {
-            let data = try await query.getData()
-            var foundUsers = [ZoogramUser]()
-
-            for snapshot in data.children {
-                guard let userSnapshot = snapshot as? DataSnapshot,
-                      let userDictionary = userSnapshot.value as? [String: Any]
-                else {
-                    throw ServiceError.snapshotCastingError
-                }
-                do {
-                    let jsonData = try JSONSerialization.data(withJSONObject: userDictionary as Any)
-                    let decodedUser = try JSONDecoder().decode(ZoogramUser.self, from: jsonData)
-                    decodedUser.followStatus = try await FollowSystemService.shared.checkFollowStatus(for: decodedUser.userID)
-                    foundUsers.append(decodedUser)
-                } catch {
-                    throw error
-                }
-            }
-            return foundUsers
-        } catch {
-            throw ServiceError.couldntCompleteTheSearch
         }
     }
 

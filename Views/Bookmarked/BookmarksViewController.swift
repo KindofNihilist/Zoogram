@@ -10,9 +10,10 @@ import UIKit
 class BookmarksViewController: UIViewController {
 
     private var viewModel: BookmarksViewModel
-
     private var factory: BookmarksFactory!
     private var dataSource: DefaultCollectionViewDataSource!
+
+    private var task: Task<Void, Error>?
 
     private var postsTableViewController: PostsTableViewController!
     private var bookmarksRefreshControl: UIRefreshControl?
@@ -67,6 +68,11 @@ class BookmarksViewController: UIViewController {
         }
     }
 
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        task?.cancel()
+    }
+
     private func setupCollectionView() {
         view.addSubview(collectionView)
         NSLayoutConstraint.activate([
@@ -95,9 +101,8 @@ class BookmarksViewController: UIViewController {
         self.collectionView.reloadData()
     }
 
-    @MainActor
     @objc private func getBookmarks() {
-        Task {
+        task = Task {
             do {
                 if let bookmarks = try await viewModel.getBookmarks() {
                     self.updateBookmarksTableView(with: bookmarks)
@@ -114,34 +119,35 @@ class BookmarksViewController: UIViewController {
         }
     }
 
-    @MainActor
     private func getMoreBookmarks() {
-        factory.showLoadingIndicator()
-        Task {
+        task = Task {
+            guard await viewModel.isPaginationAllowed() else { return }
+            factory.showLoadingIndicator()
             do {
                 if let unwrappedBookmarks = try await viewModel.getMoreBookmarks() {
                     self.factory.updatePostsSection(with: unwrappedBookmarks) {
                         self.updateBookmarksTableView(with: self.viewModel.bookmarks)
-                        self.viewModel.hasFinishedPagination()
                     }
                 }
-                self.hideLoadingFooterIfNeeded()
             } catch {
                 self.factory.showPaginationRetryButton(error: error, delegate: self)
             }
+            hideLoadingFooterIfNeeded()
         }
     }
 
     private func handleLoadingError(error: Error) {
-        if viewModel.checkIfHasLoadedData() {
-            self.showPopUp(issueText: error.localizedDescription)
-        } else {
-            self.showReloadButton(with: error)
+        Task {
+            let hasLoadedData = await viewModel.checkIfHasLoadedData()
+            if hasLoadedData {
+                self.showPopUp(issueText: error.localizedDescription)
+            } else {
+                self.showReloadButton(with: error)
+            }
+            self.collectionView.refreshControl?.endRefreshing()
         }
-        self.collectionView.refreshControl?.endRefreshing()
     }
 
-    @MainActor
     private func updateBookmarksTableView(with bookmarks: [Bookmark]) {
         let posts = bookmarks.compactMap { $0.getPostViewModel() }
         self.postsTableViewController.updatePostsArrayWith(posts: posts)
@@ -171,10 +177,13 @@ class BookmarksViewController: UIViewController {
     }
 
     private func hideLoadingFooterIfNeeded() {
-        if viewModel.hasHitTheEndOfBookmarks() {
-            self.factory.hideLoadingFooter()
-        } else {
-            self.factory.showLoadingIndicator()
+        Task {
+            let hasHitTheEndOfBookmarks = await viewModel.hasHitTheEndOfBookmarks()
+            if hasHitTheEndOfBookmarks {
+                self.factory.hideLoadingFooter()
+            } else {
+                self.factory.showLoadingIndicator()
+            }
         }
     }
 
@@ -206,7 +215,7 @@ extension BookmarksViewController: PostsTableViewDelegate {
             return
         }
         let bookmarks = postViewModels.map { viewModel in
-            let bookmark = Bookmark(postID: viewModel.postID, postAuthorID: viewModel.author.userID)
+            var bookmark = Bookmark(postID: viewModel.postID, postAuthorID: viewModel.author.userID)
             bookmark.associatedPost = viewModel
             return bookmark
         }
@@ -219,13 +228,10 @@ extension BookmarksViewController: PostsTableViewDelegate {
 extension BookmarksViewController: CollectionViewDataSourceDelegate {
 
     func scrollViewDidScroll(scrollView: UIScrollView) {
-        guard viewModel.isPaginationAllowed() else {
-            return
-        }
         let position = scrollView.contentOffset.y
         let contentHeight = collectionView.contentSize.height
         let scrollViewHeight = scrollView.frame.size.height
-
+        guard position > 0 else { return }
         if position > (contentHeight - scrollViewHeight - 100) {
             self.getMoreBookmarks()
         }

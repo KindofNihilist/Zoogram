@@ -8,8 +8,6 @@
 import Foundation
 import UIKit
 
-
-
 enum FollowStatus {
     case following // Indicates the current user is following the other user
     case notFollowing // Indicates the current user is not following the other user
@@ -32,12 +30,15 @@ enum Gender: LocalizableEnum {
     }
 }
 
-class ZoogramUser: Codable {
+struct ZoogramUser: Codable, Sendable {
 
     var isCurrentUserProfile: Bool {
-        let currentUserID = UserManager.shared.getUserID()
-        return currentUserID == userID
+        get {
+            let currentUserID = UserManager.shared.getUserID()
+            return currentUserID == userID
+        }
     }
+
     var followStatus: FollowStatus?
     var userID: String
     var profilePhotoURL: String?
@@ -49,8 +50,7 @@ class ZoogramUser: Codable {
     var birthday: String
     var gender: String
     var posts: Int
-    var joinDate: Double //TimeInterval
-
+    var joinDate: Double // TimeInterval
 
     init(userID: String, profilePhotoURL: String?, email: String, username: String, name: String, bio: String? = nil, birthday: String, gender: String, posts: Int, joinDate: Double) {
         self.userID = userID
@@ -79,38 +79,19 @@ class ZoogramUser: Codable {
         self.followStatus = .notFollowing
     }
 
-    required init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.userID = try container.decode(String.self, forKey: .userID)
-        self.profilePhotoURL = try container.decodeIfPresent(String.self, forKey: .profilePhotoURL)
-        self.email = try container.decode(String.self, forKey: .email)
-        self.username = try container.decode(String.self, forKey: .username)
-        self.name = try container.decode(String.self, forKey: .name)
-        self.bio = try container.decodeIfPresent(String.self, forKey: .bio)
-        self.birthday = try container.decode(String.self, forKey: .birthday)
-        self.gender = try container.decode(String.self, forKey: .gender)
-        self.posts = try container.decode(Int.self, forKey: .posts)
-        self.joinDate = try container.decode(Double.self, forKey: .joinDate)
-    }
-
     func createDictionary() -> [String: Any]? {
         guard let dictionary = self.dictionary else { return nil }
         return dictionary
     }
 
     func getProfilePhoto() -> UIImage? {
-        return self.profilePhoto ?? UIImage(systemName: "person.crop.circle.fill")
+        return self.profilePhoto ?? nil
     }
 
-    func setProfilePhoto(_ photo: UIImage?) {
+    mutating func setProfilePhoto(_ photo: UIImage?) {
         if let photo = photo {
             self.profilePhoto = photo
         }
-    }
-
-    private func checkIfCurrentUser(uid: String) -> Bool {
-        let currentUserID = UserManager.shared.getUserID()
-        return currentUserID == uid
     }
 
     enum CodingKeys: CodingKey {
@@ -124,12 +105,5 @@ class ZoogramUser: Codable {
         case gender
         case posts
         case joinDate
-    }
-}
-
-class NewUser: ZoogramUser {
-
-    override func getProfilePhoto() -> UIImage? {
-        return self.profilePhoto ?? nil
     }
 }

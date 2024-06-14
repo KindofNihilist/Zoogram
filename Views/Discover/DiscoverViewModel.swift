@@ -7,6 +7,7 @@
 
 import Foundation
 
+@MainActor
 class DiscoverViewModel {
 
     private var service: any DiscoverServiceProtocol
@@ -18,8 +19,10 @@ class DiscoverViewModel {
         self.service = service
     }
 
-    func isPaginationAllowed() -> Bool {
-        return service.hasHitTheEndOfPosts == false && service.isAlreadyPaginating == false
+    func isPaginationAllowed() async -> Bool {
+        let isPaginating = await service.paginationManager.isPaginating()
+        let hasHitTheEndOfPosts = await service.checkIfHasHitEndOfItems()
+        return hasHitTheEndOfPosts == false && isPaginating == false
     }
 
     func getPostsToDiscover() async throws -> [PostViewModel] {
@@ -32,7 +35,7 @@ class DiscoverViewModel {
         return posts.value
     }
 
-    func getMorePostsToDiscover() async throws -> [PostViewModel] {
+    func getMorePostsToDiscover() async throws -> [PostViewModel]? {
         let paginatedPosts = try await service.getMoreItems()
         if let paginatedPosts = paginatedPosts {
             let viewModels = paginatedPosts.map({ post in
@@ -41,7 +44,7 @@ class DiscoverViewModel {
             posts.value.append(contentsOf: viewModels)
             return viewModels
         } else {
-            return []
+            return nil
         }
     }
 
@@ -53,18 +56,17 @@ class DiscoverViewModel {
         foundUsers.value = try await service.searchUserWith(username: input)
     }
 
-    func hasHitTheEndOfPosts() -> Bool {
-        return service.hasHitTheEndOfPosts
+    func hasHitTheEndOfPosts() async -> Bool {
+        return await service.checkIfHasHitEndOfItems()
     }
 
-    func hasFinishedPaginating() {
-        service.isAlreadyPaginating = false
-    }
-
-    func hasLoadedData() -> Bool {
-        let hasntRetrievedPosts = service.numberOfRetrievedItems == 0
-        let numberOfReceivedItemsIsLessThanRequired = service.numberOfRetrievedItems < service.numberOfItemsToGet
-        let hasntRetrievedAllPosts = service.numberOfRetrievedItems < service.numberOfAllItems
+    func hasLoadedData() async -> Bool {
+        let numberOfRetrievedItems = await service.paginationManager.getNumberOfRetrievedItems()
+        let numberOfAllItems = await service.paginationManager.getNumberOfAllItems()
+        let numberOfItemsToGet = service.paginationManager.numberOfItemsToGetPerPagination
+        let hasntRetrievedPosts = numberOfRetrievedItems == 0
+        let numberOfReceivedItemsIsLessThanRequired = numberOfRetrievedItems < numberOfItemsToGet
+        let hasntRetrievedAllPosts = numberOfRetrievedItems < numberOfAllItems
         let retrievedLessPostsThanRequired = numberOfReceivedItemsIsLessThanRequired && hasntRetrievedAllPosts
 
         if hasntRetrievedPosts || retrievedLessPostsThanRequired {

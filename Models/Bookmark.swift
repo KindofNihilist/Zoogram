@@ -7,7 +7,7 @@
 
 import Foundation
 
-final class Bookmark: Codable {
+struct Bookmark: Codable {
     var postID: String
     var postAuthorID: String
     var associatedPost: PostViewModel?
@@ -18,12 +18,12 @@ final class Bookmark: Codable {
         self.associatedPost = associatedPost
     }
 
-    required init(from decoder: Decoder) throws {
+    init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.postID = try container.decode(String.self, forKey: .postID)
         self.postAuthorID = try container.decode(String.self, forKey: .postAuthorID)
     }
-    
+
     enum CodingKeys: CodingKey {
         case postID
         case postAuthorID

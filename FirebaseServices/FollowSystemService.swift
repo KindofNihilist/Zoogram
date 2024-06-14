@@ -6,16 +6,15 @@
 //
 
 import Foundation
-import FirebaseDatabase
+@preconcurrency import FirebaseDatabase
 
-protocol FollowSystemProtocol {
+protocol FollowSystemProtocol: Sendable {
     typealias FollowersNumber = Int
     typealias FollowingNumber = Int
-    
     func getFollowersNumber(for uid: String) async throws -> FollowersNumber
     func getFollowingNumber(for uid: String) async throws -> FollowingNumber
-    func getFollowers(for uid: String) async throws -> [ZoogramUser]
-    func getFollowing(for uid: String) async throws -> [ZoogramUser]
+    func getFollowers(for uid: String) async throws -> [UserID]
+    func getFollowing(for uid: String) async throws -> [UserID]
     func checkFollowStatus(for uid: String) async throws -> FollowStatus
     func followUser(uid: String) async throws -> FollowStatus
     func unfollowUser(uid: String) async throws -> FollowStatus
@@ -25,7 +24,7 @@ protocol FollowSystemProtocol {
     func undoForcefullRemoval(ofUser uid: String) async throws
 }
 
-class FollowSystemService: FollowSystemProtocol {
+final class FollowSystemService: FollowSystemProtocol {
 
     static let shared = FollowSystemService()
 
@@ -53,8 +52,8 @@ class FollowSystemService: FollowSystemProtocol {
         }
     }
 
-    func getFollowers(for uid: String) async throws -> [ZoogramUser] {
-        var followers = [ZoogramUser]()
+    func getFollowers(for uid: String) async throws -> [UserID] {
+        var followers = [UserID]()
         let databaseKey = "Followers/\(uid)"
 
         do {
@@ -62,22 +61,22 @@ class FollowSystemService: FollowSystemProtocol {
 
             for snapshot in data.children {
                 guard let snapshotChild = snapshot as? DataSnapshot,
-                      let snapshotDictionary = snapshotChild.value as? [String : String],
+                      let snapshotDictionary = snapshotChild.value as? [String: String],
                       let userID = snapshotDictionary.first?.value
                 else {
                     throw ServiceError.snapshotCastingError
                 }
-                let follower = try await UserDataService.shared.getUser(for: userID)
-                followers.append(follower)
+                followers.append(userID)
             }
             return followers
         } catch {
+            print(error.localizedDescription)
             throw ServiceError.couldntLoadData
         }
     }
 
-    func getFollowing(for uid: String) async throws -> [ZoogramUser] {
-        var followedUsers = [ZoogramUser]()
+    func getFollowing(for uid: String) async throws -> [UserID] {
+        var followedUsers = [UserID]()
         let databaseKey = "Following/\(uid)"
 
         do {
@@ -85,16 +84,18 @@ class FollowSystemService: FollowSystemProtocol {
 
             for snapshot in data.children {
                 guard let snapshotChild = snapshot as? DataSnapshot,
-                      let snapshotDictionary = snapshotChild.value as? [String : String],
+                      let snapshotDictionary = snapshotChild.value as? [String: String],
                       let userID = snapshotDictionary.first?.value
                 else {
                     throw ServiceError.snapshotCastingError
                 }
-                let followedUser = try await UserDataService.shared.getUser(for: userID)
-                followedUsers.append(followedUser)
+                print("followed user: ", snapshot)
+                print("userID: ", userID)
+                followedUsers.append(userID)
             }
             return followedUsers
         } catch {
+            print("getFollowing error: ", error.localizedDescription)
             throw ServiceError.couldntLoadData
         }
     }
@@ -121,7 +122,7 @@ class FollowSystemService: FollowSystemProtocol {
         let databaseKey = "Following/\(currentUserID)/\(uid)"
 
         do {
-            let followTask = try await databaseRef.child(databaseKey).setValue(["userID": uid])
+            try await databaseRef.child(databaseKey).setValue(["userID": uid])
             try await insertFollower(with: currentUserID, to: uid)
 
             let eventID = ActivitySystemService.shared.createEventUID()
@@ -138,7 +139,7 @@ class FollowSystemService: FollowSystemProtocol {
         let databaseKey = "Following/\(currentUserID)/\(uid)"
 
         do {
-            let unfollowTask = try await databaseRef.child(databaseKey).removeValue()
+            try await databaseRef.child(databaseKey).removeValue()
             try await removeFollower(with: currentUserID, from: uid)
             try await ActivitySystemService.shared.removeFollowEventForUser(userID: uid)
             return .notFollowing

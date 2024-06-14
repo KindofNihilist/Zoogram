@@ -38,7 +38,7 @@ class IssuePopUp: UIView {
         self.layer.cornerRadius = 13
         self.layer.cornerCurve = .continuous
     }
-    
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
@@ -60,7 +60,6 @@ class IssuePopUp: UIView {
 
 extension UIViewController {
 
-    @MainActor
     func showPopUp(issueText: String, completion: @escaping (() -> Void) = {}) {
         var isPopAlreadyDisplayed: Bool = false
 

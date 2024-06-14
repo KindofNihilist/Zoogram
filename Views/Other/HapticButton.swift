@@ -8,7 +8,7 @@
 import UIKit.UIButton
 
 class HapticButton: UIButton {
-    
+
     private let hapticGenerator = UIImpactFeedbackGenerator(style: .rigid)
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {

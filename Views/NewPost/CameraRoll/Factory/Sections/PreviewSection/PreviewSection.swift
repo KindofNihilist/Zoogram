@@ -19,10 +19,13 @@ class PreviewSection: CollectionSectionController {
     }
 
     override func header(at indexPath: IndexPath) -> UICollectionReusableView {
-        let header = sectionHolder.dequeueReusableView(
+        guard let header = sectionHolder.dequeueReusableView(
             withIdentifier: PreviewHeaderView.identifier,
             ofKind: UICollectionView.elementKindSectionHeader,
-            for: indexPath) as! PreviewHeaderView
+            for: indexPath) as? PreviewHeaderView
+        else {
+            fatalError()
+        }
         header.updatePreview(with: previewImage)
         return header
     }

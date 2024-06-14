@@ -6,9 +6,9 @@
 //
 
 import Foundation
-import FirebaseDatabase
+@preconcurrency import FirebaseDatabase
 
-protocol CommentSystemServiceProtocol {
+protocol CommentSystemServiceProtocol: Sendable{
     typealias CommentsCount = Int
 
     func createCommentUID() -> String
@@ -18,7 +18,7 @@ protocol CommentSystemServiceProtocol {
     func getCommentsCountForPost(postID: String) async throws -> Int
 }
 
-class CommentSystemService: CommentSystemServiceProtocol {
+final class CommentSystemService: CommentSystemServiceProtocol {
 
     static let shared = CommentSystemService()
 
@@ -36,6 +36,7 @@ class CommentSystemService: CommentSystemServiceProtocol {
         do {
             try await databaseRef.child(databaseKey).setValue(commentDictionary)
         } catch {
+            print("postComment error: ", error.localizedDescription)
             throw ServiceError.couldntPostAComment
         }
     }
@@ -68,7 +69,7 @@ class CommentSystemService: CommentSystemServiceProtocol {
                 let jsonData = try JSONSerialization.data(withJSONObject: commentDictionary as Any)
                 let decodedComment = try JSONDecoder().decode(PostComment.self, from: jsonData)
                 comments.append(decodedComment)
-                comments[index].author = try await UserDataService.shared.getUser(for: decodedComment.authorID)
+                comments[index].author = try await UserDataService().getUser(for: decodedComment.authorID)
             }
             return comments
         } catch {
@@ -76,7 +77,7 @@ class CommentSystemService: CommentSystemServiceProtocol {
         }
     }
 
-    func getCommentsCountForPost(postID: String) async throws -> Int  {
+    func getCommentsCountForPost(postID: String) async throws -> Int {
         let databaseKey = "PostComments/\(postID)"
 
         do {

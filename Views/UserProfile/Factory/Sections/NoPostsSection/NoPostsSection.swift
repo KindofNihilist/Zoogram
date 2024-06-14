@@ -28,11 +28,11 @@ class NoPostsCell: UICollectionViewCell {
         contentView.addSubview(noPostsAlert)
         setupConstraints()
     }
-    
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-    
+
     private func setupConstraints() {
         NSLayoutConstraint.activate([
             noPostsAlert.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),

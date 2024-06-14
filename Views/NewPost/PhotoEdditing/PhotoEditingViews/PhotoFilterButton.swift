@@ -52,8 +52,7 @@ class PhotoFilterButton: EdditingFilterButton {
             filterPreview.trailingAnchor.constraint(lessThanOrEqualTo: self.trailingAnchor),
             filterPreview.centerXAnchor.constraint(equalTo: self.centerXAnchor),
             filterPreview.widthAnchor.constraint(equalToConstant: 90),
-            filterPreview.heightAnchor.constraint(equalToConstant: 90),
-
+            filterPreview.heightAnchor.constraint(equalToConstant: 90)
         ])
     }
 

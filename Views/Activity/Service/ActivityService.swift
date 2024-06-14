@@ -7,7 +7,7 @@
 
 import Foundation
 
-protocol ActivityServiceProtocol {
+protocol ActivityServiceProtocol: Sendable {
     var activitySystemService: ActivitySystemProtocol { get }
     var followSystemService: FollowSystemProtocol { get }
     var userDataService: UserDataServiceProtocol { get }
@@ -21,7 +21,8 @@ protocol ActivityServiceProtocol {
     func getAdditionalDataFor(events: [ActivityEvent]) async throws -> [ActivityEvent]
 }
 
-class ActivityService: ImageService, ActivityServiceProtocol {
+final class ActivityService: ActivityServiceProtocol {
+
     let activitySystemService: ActivitySystemProtocol
     let followSystemService: FollowSystemProtocol
     let userDataService: UserDataServiceProtocol
@@ -32,8 +33,7 @@ class ActivityService: ImageService, ActivityServiceProtocol {
          followSystemService: FollowSystemProtocol,
          userDataService: UserDataServiceProtocol,
          userPostsService: UserPostsServiceProtocol,
-         storageManager: StorageManagerProtocol)
-    {
+         storageManager: StorageManagerProtocol) {
         self.activitySystemService = activitySystemService
         self.followSystemService = followSystemService
         self.userDataService = userDataService
@@ -60,20 +60,35 @@ class ActivityService: ImageService, ActivityServiceProtocol {
     func getAdditionalDataFor(events: [ActivityEvent]) async throws -> [ActivityEvent] {
         let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
 
-        for event in events {
-            let user = try await userDataService.getUser(for: event.userID)
-            event.user = user
+        let eventsWithAdditionalData = try await withThrowingTaskGroup(of: (Int, ActivityEvent).self, returning: [ActivityEvent].self) { group in
 
-            if let profilePhotoURL = user.profilePhotoURL {
-                let profilePhoto = try await getImage(for: profilePhotoURL)
-                event.user?.setProfilePhoto(profilePhoto)
+            for (index, event) in events.enumerated() {
+                group.addTask {
+                    var eventWithData = event
+                    let user = try await self.userDataService.getUser(for: eventWithData.userID)
+                    eventWithData.user = user
+
+                    if let profilePhotoURL = user.profilePhotoURL {
+                        let profilePhoto = try await ImageService.shared.getImage(for: profilePhotoURL)
+                        eventWithData.user?.setProfilePhoto(profilePhoto)
+                    }
+
+                    if eventWithData.eventType == .postLiked || eventWithData.eventType == .postCommented {
+                        var associatedPost = try await self.userPostsService.getPost(ofUser: currentUserID, postID: eventWithData.postID!)
+                        associatedPost.image = try await ImageService.shared.getImage(for: associatedPost.photoURL)
+                        eventWithData.post = associatedPost
+                    }
+                    return (index, eventWithData)
+                }
             }
 
-            if event.eventType == .postLiked || event.eventType == .postCommented {
-                event.post = try await userPostsService.getPost(ofUser: currentUserID, postID: event.postID!)
-                event.post?.image = try await getImage(for: event.post?.photoURL)
+            var eventsWithAdditionalData = events
+
+            for try await (index, event) in group {
+                eventsWithAdditionalData[index] = event
             }
+            return eventsWithAdditionalData
         }
-        return events
+        return eventsWithAdditionalData
     }
 }

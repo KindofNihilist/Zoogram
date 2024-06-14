@@ -10,10 +10,11 @@ protocol ProfileEdditingViewDelegate: ProfileEdditingCellDelegate, ProfilePictur
 
 class ProfileEdditingViewController: UIViewController {
 
-    let viewModel: ProfileEdditingViewModel
-    lazy var factory = ProfileEdditingFactory(tableView: self.tableView)
-    var dataSource: DefaultTableViewDataSource?
-    lazy var imagePicker = UIImagePickerController()
+    private let viewModel: ProfileEdditingViewModel
+    private var task: Task<Void, Error>?
+    private lazy var factory = ProfileEdditingFactory(tableView: self.tableView)
+    private var dataSource: DefaultTableViewDataSource?
+    internal lazy var imagePicker = UIImagePickerController()
 
     private var shouldUpdateProfilePicture: Bool = false
 
@@ -28,8 +29,8 @@ class ProfileEdditingViewController: UIViewController {
         return tableView
     }()
 
-    init(userProfileViewModel: UserProfileViewModel, service: UserDataValidationServiceProtocol) {
-        self.viewModel = ProfileEdditingViewModel(userViewModel: userProfileViewModel, service: service)
+    init(service: UserDataValidationServiceProtocol) {
+        self.viewModel = ProfileEdditingViewModel(service: service)
         super.init(nibName: nil, bundle: nil)
         factory.delegate = self
     }
@@ -47,19 +48,32 @@ class ProfileEdditingViewController: UIViewController {
         view.backgroundColor = Colors.naturalSecondaryBackground
         navigationController?.navigationBar.configureNavigationBarColor(with: Colors.naturalSecondaryBackground)
         configureNavigationBar()
-        viewModel.configureModels()
-        setupFactory()
         setupEdditingInteruptionGestures()
+        setupEdditingFields()
     }
 
-    override func viewWillAppear(_ animated: Bool) {
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
         if shouldUpdateProfilePicture {
             factory.updateProfilePicture(with: viewModel.newProfilePicture!)
         }
     }
 
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        task?.cancel()
+    }
+
+    private func setupEdditingFields() {
+        task = Task {
+            await viewModel.getCurrentUserModel()
+            viewModel.configureModels()
+            setupFactory()
+        }
+    }
+
     private func setupFactory() {
-        let sections = factory.buildSections(
+        factory.buildSections(
             profilePicture: viewModel.currentProfilePicture,
             profileInfoModels: viewModel.generalInfoModels,
             privateInfoModels: viewModel.privateInfoModels)
@@ -116,10 +130,11 @@ class ProfileEdditingViewController: UIViewController {
 
     @objc func didTapSave() {
         self.showLoadingIndicator()
-        Task { @MainActor in
+        task = Task {
             do {
                 try await viewModel.checkIfNewValuesAreValid()
                 try await viewModel.saveChanges()
+                self.dismiss(animated: true)
             } catch {
                 self.showPopUp(issueText: error.localizedDescription)
                 self.showSaveButton()
@@ -148,8 +163,12 @@ extension ProfileEdditingViewController: ProfileEdditingViewDelegate {
     }
 
     func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
-        if let selectedImage = info[UIImagePickerController.InfoKey.editedImage] as? UIImage {
-            self.viewModel.newProfilePicture = selectedImage
+        if let originalImage = info[UIImagePickerController.InfoKey.originalImage] as? UIImage,
+           let cropRect = info[UIImagePickerController.InfoKey.cropRect] as? CGRect {
+            let croppedImage = originalImage.croppedInRect(rect: cropRect)
+            print("cropRect: ", cropRect)
+            print("edited image size: ", croppedImage.size)
+            self.viewModel.newProfilePicture = croppedImage
             self.shouldUpdateProfilePicture = true
             self.viewModel.hasChangedProfilePic = true
         }

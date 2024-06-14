@@ -10,7 +10,8 @@ import UIKit
 
 class TabBarController: UITabBarController {
 
-    private var currentUser = ZoogramUser(UserManager.shared.getUserID())
+    private var tasks = [Task<Void, Never>?]()
+    private var currentUser: ZoogramUser
     private var isBeingPresentedForTheFirstTime: Bool = true
     private var shouldShowAppearAnimation: Bool
 
@@ -26,35 +27,37 @@ class TabBarController: UITabBarController {
         return HomeViewController(service: service)
     }()
 
-    lazy var userProfileVC: UserProfileViewController = {
-        let service = UserProfileService(
-            userID: UserManager.shared.getUserID(),
-            followService: FollowSystemService.shared,
-            userPostsService: UserPostsService.shared,
-            userService: UserDataService.shared,
-            likeSystemService: LikeSystemService.shared,
-            bookmarksService: BookmarksSystemService.shared)
-        return UserProfileViewController(service: service, user: self.currentUser, isTabBarItem: true)
-    }()
-
-    let activityVC: ActivityViewController = {
-        let service = ActivityService(
-            activitySystemService: ActivitySystemService.shared,
-            followSystemService: FollowSystemService.shared,
-            userDataService: UserDataService.shared,
-            userPostsService: UserPostsService.shared,
-            storageManager: StorageManager.shared)
-        return ActivityViewController(service: service)
-    }()
-
     let discoverVC: DiscoverViewController = {
         let service = DiscoverService(
-            userDataService: UserDataService.shared,
+            searchService: SearchService(),
             discoverPostsService: DiscoverPostsService.shared,
             likeSystemService: LikeSystemService.shared,
             userPostsService: UserPostsService.shared,
             bookmarksService: BookmarksSystemService.shared)
         return DiscoverViewController(service: service)
+    }()
+
+    let cameraRollVC = CameraRollViewController()
+
+    let activityVC: ActivityViewController = {
+        let service = ActivityService(
+            activitySystemService: ActivitySystemService.shared,
+            followSystemService: FollowSystemService.shared,
+            userDataService: UserDataService(),
+            userPostsService: UserPostsService.shared,
+            storageManager: StorageManager.shared)
+        return ActivityViewController(service: service)
+    }()
+
+    lazy var userProfileVC: UserProfileViewController = {
+        let service = UserProfileService(
+            userID: currentUser.userID,
+            followService: FollowSystemService.shared,
+            userPostsService: UserPostsService.shared,
+            userService: UserDataService(),
+            likeSystemService: LikeSystemService.shared,
+            bookmarksService: BookmarksSystemService.shared)
+        return UserProfileViewController(service: service, user: self.currentUser, isTabBarItem: true)
     }()
 
     private lazy var noseButton: CatNoseButton = {
@@ -63,20 +66,18 @@ class TabBarController: UITabBarController {
         return button
     }()
 
-    let cameraRollVC = CameraRollViewController()
-
     var previousViewController: UIViewController?
 
     var generator = UISelectionFeedbackGenerator()
 
     private var noseButtonSize = CGSize(width: 65, height: 65)
 
-    init(showAppearAnimation: Bool = false) {
+    init(for user: ZoogramUser, showAppearAnimation: Bool = false) {
+        self.currentUser = user
         self.shouldShowAppearAnimation = showAppearAnimation
         super.init(nibName: nil, bundle: nil)
         activityVC.delegate = self
         cameraRollVC.delegate = self
-        setupCurrentUserListener()
     }
 
     required init?(coder: NSCoder) {
@@ -87,7 +88,7 @@ class TabBarController: UITabBarController {
         super.viewDidLoad()
         delegate = self
         NotificationCenter.default.addObserver(
-            self, 
+            self,
             selector: #selector(refreshUserFeed),
             name: NSNotification.Name("UpdateUserFeed"),
             object: nil)
@@ -99,6 +100,7 @@ class TabBarController: UITabBarController {
             object: nil)
         loadTabBar()
         setupConnectionMonitor()
+        setupCurrentUserListener()
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -120,6 +122,13 @@ class TabBarController: UITabBarController {
         }
     }
 
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        tasks.forEach { task in
+            task?.cancel()
+        }
+    }
+
     private func setupNoseButton() {
         let multiplier = hasBottomSafeArea() ? 1.25 : 1.1
         self.tabBar.addSubview(noseButton)
@@ -136,10 +145,8 @@ class TabBarController: UITabBarController {
         let tabItems: [UIViewController] = [homeVC, discoverVC, cameraRollVC, activityVC, userProfileVC]
         let tabIcons: [TabItem] = [.home, .discover, .makeAPost, .activity, .myProfile]
         self.setupTabBar(tabItems) { (controllers) in
-            self.view.layoutIfNeeded()
             self.viewControllers = controllers
         }
-
         self.selectedIndex = 0
         self.tabBar.items?[2].isEnabled = false
         for (index, item) in tabBar.items!.enumerated() {
@@ -151,10 +158,9 @@ class TabBarController: UITabBarController {
 
     private func setupTabBar(_ menuItems: [UIViewController], completion: @escaping ([UIViewController]) -> Void) {
         var controllers = [UIViewController]()
-
         menuItems.forEach {
             let navController = UINavigationController(rootViewController: $0)
-            navController.navigationBar.isTranslucent = false
+//            navController.navigationBar.isTranslucent = false
             navController.navigationBar.tintColor = Colors.label
             controllers.append(navController)
         }
@@ -165,10 +171,8 @@ class TabBarController: UITabBarController {
     private func addNotificationBadge() {
         let barActivityItem = tabBar.items?[3]
         barActivityItem?.badgeValue = "●"
-
     }
 
-    @MainActor
     private func removeNotificationBadge() {
         let barActivityItem = tabBar.items?[3]
         barActivityItem?.badgeValue = nil
@@ -181,12 +185,15 @@ class TabBarController: UITabBarController {
     }
 
     private func setupCurrentUserListener() {
-        AuthenticationService.shared.startObservingCurrentUser(with: currentUser.userID) { result in
+        UserDataService().observeUser(with: currentUser.userID) { result in
             switch result {
             case .success(let currentUser):
-                self.currentUser = currentUser
-                UserManager.shared.updateCurrentUserModel(currentUser)
-                self.userProfileVC.updateUserModel(currentUser)
+                let task = Task {
+                    await UserManager.shared.updateCurrentUserModel(currentUser)
+                    self.currentUser = currentUser
+                    self.userProfileVC.updateProfileHeader()
+                }
+                self.tasks.append(task)
             case .failure(let error):
                 self.selectedViewController?.showPopUp(issueText: error.localizedDescription)
             }
@@ -194,20 +201,28 @@ class TabBarController: UITabBarController {
     }
 
     private func setupConnectionMonitor() {
-        self.connectionMonitor = NetworkStatusMonitor(handlerAction: { connectionState in
-            if connectionState == .disconnected {
-                guard let currentVC = self.selectedViewController else { return }
-                self.connectionMonitor?.isBeingHandled = true
-                currentVC.showPopUp(issueText: String(localized: "No Internet Connection")) {
-                    self.connectionMonitor?.isBeingHandled = false
+        let task = Task {
+            self.connectionMonitor = NetworkStatusMonitor()
+            await self.connectionMonitor?.setHandler({ connectionState in
+                Task { @MainActor in
+                    if connectionState == .disconnected {
+                        guard let currentVC = self.selectedViewController else { return }
+                        await self.connectionMonitor?.setConnectionHandlerState(isBeingHandled: true)
+                        currentVC.showPopUp(issueText: String(localized: "No Internet Connection")) {
+                            Task {
+                                await self.connectionMonitor?.setConnectionHandlerState(isBeingHandled: false)
+                            }
+                        }
+                    } else if connectionState == .connected {
+                        self.activityVC.observeActivityEvents()
+                        self.userProfileVC.getUserProfileDataAndPostsIfNeeded()
+                        self.homeVC.shouldRefreshFeedIfNeeded()
+                        self.discoverVC.getDataIfNeeded()
+                    }
                 }
-            } else if connectionState == .connected {
-                self.activityVC.observeActivityEvents()
-                self.userProfileVC.getUserProfileDataAndPostsIfNeeded()
-                self.homeVC.shouldRefreshFeedIfNeeded()
-                self.discoverVC.getDataIfNeeded()
-            }
-        })
+            })
+        }
+        tasks.append(task)
     }
 }
 
@@ -216,16 +231,17 @@ extension TabBarController: UITabBarControllerDelegate {
     func tabBarController(_ tabBarController: UITabBarController, didSelect viewController: UIViewController) {
 
         if previousViewController == viewController {
+            if let navVC = viewController as? UINavigationController {
 
-            if let navVC = viewController as? UINavigationController, let vc = navVC.viewControllers.first as? HomeViewController {
-
-                if vc.isViewLoaded && (vc.view.window != nil) {
-                    vc.setTableViewVisibleContentToTop(animated: true)
+                if let homeVC = navVC.viewControllers.first as? HomeViewController {
+                    if homeVC.isViewLoaded && (homeVC.view.window != nil) {
+                        homeVC.setTableViewVisibleContentToTop(animated: true)
+                    }
                 }
-            } else if let navVC = viewController as? UINavigationController, let vc = navVC.viewControllers.first as? UserProfileViewController {
-
-                if vc.isViewLoaded && (vc.view.window != nil) {
-                    vc.setTopCollectionViewVisibleContent()
+                if let userProfileVC = navVC.viewControllers.first as? UserProfileViewController {
+                    if userProfileVC.isViewLoaded && (userProfileVC.view.window != nil) {
+                        userProfileVC.setTopCollectionViewVisibleContent()
+                    }
                 }
             }
         } else {
@@ -262,8 +278,7 @@ extension TabBarController: NewPostProtocol {
         homeVC.setTableViewVisibleContentToTop(animated: false)
         homeVC.removeNoPostsNotificationIfDisplayed()
         cameraRollVC.dismiss(animated: true) {
-            let currentUser = UserManager.shared.getCurrentUser()
-            self.homeVC.makeNewPost(with: post, for: currentUser) {
+            self.homeVC.makeNewPost(with: post, for: self.currentUser) {
                 self.userProfileVC.getUserProfileDataAndPosts()
             }
         }

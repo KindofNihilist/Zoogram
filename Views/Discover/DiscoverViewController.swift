@@ -16,6 +16,8 @@ class DiscoverViewController: UIViewController {
     private var factory: DiscoverCollectionViewFactory!
     private var refreshControl: UIRefreshControl?
 
+    private var tasks = [Task<Void, Never>?]()
+
     private var timer: Timer?
 
     private lazy var collectionView: UICollectionView = {
@@ -35,12 +37,6 @@ class DiscoverViewController: UIViewController {
         spinner.translatesAutoresizingMaskIntoConstraints = false
         spinner.isHidden = true
         return spinner
-    }()
-
-    private let searchContainerView = {
-        let view = UIView()
-        view.translatesAutoresizingMaskIntoConstraints = false
-        return view
     }()
 
     private lazy var searchBar: UISearchBar = {
@@ -97,6 +93,7 @@ class DiscoverViewController: UIViewController {
         setupCollectionView()
         setupEdditingInteruptionGestures()
         setupRefreshControl()
+        refreshControl?.beginRefreshingManually()
         viewModel.foundUsers.bind { _ in
             self.tableView.reloadData()
         }
@@ -107,16 +104,31 @@ class DiscoverViewController: UIViewController {
         navigationController?.setNavigationBarHidden(true, animated: true)
     }
 
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: true)
+    }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        tasks.forEach { task in
+            task?.cancel()
+        }
+    }
+
     func setupRefreshControl() {
         refreshControl = UIRefreshControl()
         refreshControl?.addTarget(self, action: #selector(getPosts), for: .valueChanged)
         collectionView.refreshControl = refreshControl
-        refreshControl?.beginRefreshingManually()
     }
 
     @objc private func getPosts() {
         loadingErrorView.removeFromSuperview()
-        Task {
+        let task = Task {
             do {
                 let retrievedPosts = try await viewModel.getPostsToDiscover()
                 self.factory = DiscoverCollectionViewFactory(for: self.collectionView)
@@ -127,6 +139,7 @@ class DiscoverViewController: UIViewController {
                 self.handleLoadingError(error: error)
             }
         }
+        tasks.append(task)
     }
 
     private func setupDataSource() {
@@ -167,24 +180,22 @@ class DiscoverViewController: UIViewController {
     }
 
     func getDataIfNeeded() {
-        if viewModel.hasLoadedData() == false {
-            refreshControl?.beginRefreshingManually()
+        let task = Task {
+            let hasLoadedData = await viewModel.hasLoadedData()
+            if hasLoadedData == false {
+                refreshControl?.beginRefreshingManually()
+            }
         }
+        tasks.append(task)
     }
 
     private func setupSearchBar() {
-        view.addSubview(searchContainerView)
-        searchContainerView.addSubview(searchBar)
+        view.addSubview(searchBar)
         NSLayoutConstraint.activate([
-            searchContainerView.topAnchor.constraint(equalTo: view.topAnchor),
-            searchContainerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            searchContainerView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-
             searchBar.heightAnchor.constraint(equalToConstant: 50),
             searchBar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            searchBar.leadingAnchor.constraint(equalTo: searchContainerView.leadingAnchor, constant: 10),
-            searchBar.trailingAnchor.constraint(equalTo: searchContainerView.trailingAnchor, constant: -10),
-            searchBar.bottomAnchor.constraint(equalTo: searchContainerView.bottomAnchor, constant: -3)
+            searchBar.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 10),
+            searchBar.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -10)
         ])
     }
 
@@ -193,7 +204,7 @@ class DiscoverViewController: UIViewController {
         tableView.isHidden = true
         view.addSubviews(tableView, spinnerView)
         NSLayoutConstraint.activate([
-            tableView.topAnchor.constraint(equalTo: searchContainerView.bottomAnchor),
+            tableView.topAnchor.constraint(equalTo: searchBar.bottomAnchor),
             tableView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
             tableView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
             tableView.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor),
@@ -211,40 +222,44 @@ class DiscoverViewController: UIViewController {
             collectionView.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 15),
             collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+            collectionView.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor)
         ])
     }
 
-    @MainActor
     private func handleLoadingError(error: Error) {
         refreshControl?.endRefreshing()
-        if viewModel.hasLoadedData() {
-            showPopUp(issueText: error.localizedDescription)
-        } else {
-            showReloadButton(with: error)
+        let task = Task {
+            let hasLoadedData = await viewModel.hasLoadedData()
+            if hasLoadedData {
+                showPopUp(issueText: error.localizedDescription)
+            } else {
+                showReloadButton(with: error)
+            }
         }
+        tasks.append(task)
     }
 }
 
 extension DiscoverViewController {
 
     private func getMorePosts() {
-        factory.showLoadingIndicator()
-        Task {
+        let task = Task {
+            guard await viewModel.isPaginationAllowed() else { return }
+            factory.showLoadingIndicator()
             do {
-                let paginatedPosts = try await viewModel.getMorePostsToDiscover()
-                self.factory.updatePostsSection(with: paginatedPosts) {
-                    self.updateTableViewPosts()
-                    self.viewModel.hasFinishedPaginating()
-                    self.hideLoadingFooterIfNeeded()
+                if let paginatedPosts = try await viewModel.getMorePostsToDiscover() {
+                    self.factory.updatePostsSection(with: paginatedPosts) {
+                        self.updateTableViewPosts()
+                    }
                 }
             } catch {
                 self.factory.showPaginationRetryButton(error: error, delegate: self)
             }
+            hideLoadingFooterIfNeeded()
         }
+        tasks.append(task)
     }
 
-    @MainActor
     private func updateTableViewPosts() {
         let posts = viewModel.posts.value
         self.postsTableView.updatePostsArrayWith(posts: posts)
@@ -258,13 +273,16 @@ extension DiscoverViewController {
         }
     }
 
-    @MainActor
     private func hideLoadingFooterIfNeeded() {
-        if self.viewModel.hasHitTheEndOfPosts() {
-            self.factory.hideLoadingFooter()
-        } else {
-            self.factory.showLoadingIndicator()
+        Task {
+            let hasHitTheEndOfPosts = await viewModel.hasHitTheEndOfPosts()
+            if hasHitTheEndOfPosts {
+                self.factory.hideLoadingFooter()
+            } else {
+                self.factory.showLoadingIndicator()
+            }
         }
+
     }
 }
 
@@ -305,12 +323,11 @@ extension DiscoverViewController: PaginationIndicatorCellDelegate {
 extension DiscoverViewController: CollectionViewDataSourceDelegate {
 
     func scrollViewDidScroll(scrollView: UIScrollView) {
-        guard viewModel.isPaginationAllowed() else { return }
         let position = scrollView.contentOffset.y
         let contentHeight = scrollView.contentSize.height
         let scrollViewHeight = scrollView.frame.height
-
-        if position > ((contentHeight - scrollViewHeight) - 50) {
+        guard position > 0 else { return }
+        if position > ((contentHeight - scrollViewHeight) - 100) {
             self.getMorePosts()
         }
     }
@@ -330,9 +347,7 @@ extension DiscoverViewController: UITableViewDelegate, UITableViewDataSource {
         }
 
         let user = viewModel.foundUsers.value[indexPath.row]
-        cell.usernameLabel.text = user.username
-        cell.nameLabel.text = user.name
-        cell.profileImageView.image = user.getProfilePhoto()
+        cell.configure(with: user)
         return cell
     }
 
@@ -342,7 +357,12 @@ extension DiscoverViewController: UITableViewDelegate, UITableViewDataSource {
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let user = viewModel.foundUsers.value[indexPath.row]
-        let service = createUserProfileDefaultServiceFor(userID: user.userID)
+        let service = UserProfileService(userID: user.userID,
+                                         followService: FollowSystemService.shared,
+                                         userPostsService: UserPostsService.shared,
+                                         userService: UserDataService(),
+                                         likeSystemService: LikeSystemService.shared,
+                                         bookmarksService: BookmarksSystemService.shared)
         let userProfileViewController = UserProfileViewController(service: service, user: user, isTabBarItem: false)
         userProfileViewController.title = user.username
         self.navigationController?.pushViewController(userProfileViewController, animated: true)
@@ -354,23 +374,26 @@ extension DiscoverViewController: UISearchBarDelegate {
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
         spinnerView.startAnimating()
         timer?.invalidate()
-
-        timer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false, block: { [weak self, searchText] _ in
-            Task { @MainActor [weak self] in
-                if searchText.trimmingExtraWhitespace().count >= 3 {
-                    do {
-                        try await self?.viewModel.searchUser(for: searchText)
-                    } catch {
-                        self?.showPopUp(issueText: error.localizedDescription)
+        Task {
+            timer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false, block: { [weak self, searchText] _ in
+                Task { @MainActor [weak self] in
+                    if searchText.trimmingExtraWhitespace().count >= 3 {
+                        do {
+                            try await self?.viewModel.searchUser(for: searchText)
+                        } catch {
+                            print("searchBar searchUser error: ", error)
+                            self?.showPopUp(issueText: error.localizedDescription)
+                        }
+                        self?.spinnerView.stopAnimating()
+                    } else {
+                        self?.viewModel.foundUsers.value.removeAll()
+                        self?.tableView.reloadData()
+                        self?.spinnerView.stopAnimating()
                     }
-                    self?.spinnerView.stopAnimating()
-                } else {
-                    self?.viewModel.foundUsers.value.removeAll()
-                    self?.tableView.reloadData()
-                    self?.spinnerView.stopAnimating()
                 }
-            }
-        })
+            })
+        }
+//        tasks.append(task)
     }
 }
 

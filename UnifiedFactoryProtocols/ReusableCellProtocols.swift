@@ -20,12 +20,11 @@ extension UIView: SupplementaryView {
     public typealias ViewHolder = UITableView
 }
 
-extension UICollectionReusableView: SupplementaryView {
+extension UICollectionReusableView {
     public typealias ViewHolder = UICollectionView
 }
 
-
-public protocol ReusableCellHolder: AnyObject {
+@MainActor public protocol ReusableCellHolder: AnyObject {
     associatedtype CellType: ReusableCell
     associatedtype SupplementaryViewType: SupplementaryView
     func register(_ cellClass: AnyClass?, forCellWithReuseIdentifier identifier: String)
@@ -45,7 +44,6 @@ extension UITableView: ReusableCellHolder {
 
     public typealias SupplementaryViewType = UIView
 
-    
     public func register(_ cellClass: AnyClass?, forCellWithReuseIdentifier identifier: String) {
         register(cellClass, forCellReuseIdentifier: identifier)
     }
@@ -60,9 +58,8 @@ extension UITableView: ReusableCellHolder {
 }
 
 extension UICollectionView: ReusableCellHolder {
-    
-    public typealias SupplementaryViewType = UICollectionReusableView
 
+    public typealias SupplementaryViewType = UICollectionReusableView
 
     public func register(_ cellClass: AnyClass?, forCellWithIdentifier identifier: String) {
         register(cellClass, forCellWithReuseIdentifier: identifier)

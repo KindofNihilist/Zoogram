@@ -6,31 +6,31 @@
 //
 
 import Foundation
-import FirebaseDatabase
+@preconcurrency import FirebaseDatabase
 
 typealias BookmarksCount = Int
 
-protocol BookmarksSystemServiceProtocol {
+protocol BookmarksSystemServiceProtocol: Sendable {
     typealias LastRetrievedBookmarkKey = String
     typealias LastItemIndex = Int
     typealias ListOfBookmarks = [Bookmark]
     typealias CompletionBlockWithBookmarks = (Result<([Bookmark], LastRetrievedBookmarkKey), Error>) -> Void
 
-    func bookmarkPost(postID: String, authorID: String) async throws -> BookmarkState
-    func removeBookmark(postID: String) async throws -> BookmarkState
+    func bookmarkPost(postID: String, authorID: String) async throws
+    func removeBookmark(postID: String) async throws
     func checkIfBookmarked(postID: String) async throws -> BookmarkState
     func getBookmarksCount() async throws -> BookmarksCount
     func getBookmarks(numberOfBookmarksToGet: UInt) async throws -> PaginatedItems<Bookmark>
     func getMoreBookmarks(after bookmarkKey: String, numberOfBookmarksToGet: UInt) async throws -> PaginatedItems<Bookmark>
 }
 
-class BookmarksSystemService: BookmarksSystemServiceProtocol {
+final class BookmarksSystemService: BookmarksSystemServiceProtocol {
 
     static let shared = BookmarksSystemService()
 
     private let databaseRef = Database.database(url: "https://catogram-58487-default-rtdb.europe-west1.firebasedatabase.app").reference()
 
-    func bookmarkPost(postID: String, authorID: String) async throws -> BookmarkState {
+    func bookmarkPost(postID: String, authorID: String) async throws {
         let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
         let bookmarkDictionary = Bookmark(postID: postID, postAuthorID: authorID).createDictionary()
         let bookmarkUID = databaseRef.child("Bookmarks").childByAutoId().key
@@ -43,13 +43,12 @@ class BookmarksSystemService: BookmarksSystemServiceProtocol {
 
         do {
             try await databaseRef.updateChildValues(updates)
-            return .bookmarked
         } catch {
             throw ServiceError.couldntCompleteTheAction
         }
     }
 
-    func removeBookmark(postID: String) async throws -> BookmarkState {
+    func removeBookmark(postID: String) async throws {
         let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
         let bookmarksPath = "Bookmarks/\(currentUserID)"
         let reverseIndexBookmarksPath = "BookmarksReverseIndex/\(postID)/\(currentUserID)"
@@ -68,7 +67,6 @@ class BookmarksSystemService: BookmarksSystemServiceProtocol {
             updates[reverseIndexBookmarksPath] = NSNull()
 
             try await databaseRef.updateChildValues(updates)
-            return .notBookmarked
         } catch {
             throw ServiceError.couldntCompleteTheAction
         }

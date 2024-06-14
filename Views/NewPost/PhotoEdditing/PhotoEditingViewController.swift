@@ -30,7 +30,7 @@ class PhotoEditingViewController: UIViewController {
     var modifiedImage: CIImage
     var autoEnhancedImage: CIImage?
     var context: CIContext!
-    var currentFilter: FilterDelegate!
+    var currentFilter: ImageFilter!
     let colorSpace = CGColorSpaceCreateDeviceRGB()
 
     var edditingFiltersApplied = [FilterType: FilterValue]()
@@ -283,8 +283,6 @@ class PhotoEditingViewController: UIViewController {
         updateCurrentImage()
     }
 
-
-
     @objc private func navigateBack() {
         navigationController?.popViewController(animated: true)
     }
@@ -304,7 +302,7 @@ class PhotoEditingViewController: UIViewController {
 
     }
 
-    func getImageForEdditing(for selectedFilter: FilterDelegate?, shouldApplyImageFilter: Bool = true) -> CIImage? {
+    func getImageForEdditing(for selectedFilter: ImageFilter?, shouldApplyImageFilter: Bool = true) -> CIImage? {
         guard var inputImage = self.autoEnhancedImage ?? CIImage(image: originalImage) else { return nil }
 
         for filterType in edditingFiltersApplied {
@@ -316,14 +314,6 @@ class PhotoEditingViewController: UIViewController {
             filterToApply.applyFilter(sliderValue: filterType.value)
             inputImage = filterToApply.getOutput()!
         }
-
-        if shouldApplyImageFilter {
-            let imageFilter = getFilter(of: imageFilterApplied.filterType)
-            imageFilter.setInputImage(image: inputImage)
-            imageFilter.applyFilter(sliderValue: imageFilterApplied.value)
-            inputImage = imageFilter.getOutput()!
-            print("Applying filter")
-        }
         return inputImage
     }
 }
@@ -333,8 +323,7 @@ class PhotoEditingViewController: UIViewController {
 extension PhotoEditingViewController: PhotoFiltersViewDelegate {
 
     func userHasSelected(button: EdditingFilterButton, with filter: PhotoFilter) {
-        let shouldApplyImageFilter = imageFilterApplied.filterType != .normal
-        guard let imageForEdditing = getImageForEdditing(for: filter, shouldApplyImageFilter: false) else { return }
+        guard let imageForEdditing = getImageForEdditing(for: filter) else { return }
 
         filter.setInputImage(image: imageForEdditing)
         currentFilter = filter
@@ -357,12 +346,11 @@ extension PhotoEditingViewController: PhotoFiltersViewDelegate {
     }
 }
 
-
 // MARK: Edditing effects delegate
 
 extension PhotoEditingViewController: PhotoEffectsViewDelegate {
 
-    func userHasSelected(button: EdditingFilterButton, with filter: FilterDelegate) {
+    func userHasSelected(button: EdditingFilterButton, with filter: ImageFilter) {
         guard let imageForEdditing = getImageForEdditing(for: filter) else { return }
         self.selectedPhotoEffectButton = button
         filter.setInputImage(image: imageForEdditing)
@@ -405,7 +393,7 @@ extension PhotoEditingViewController: PhotoEffectSliderDelegate {
     }
 
     private func showSlider() {
-        var viewToHide = currentEdditingViewKind == .edditingFilters ? self.photoEffectsView : self.photoFiltersView
+        let viewToHide = currentEdditingViewKind == .edditingFilters ? self.photoEffectsView : self.photoFiltersView
         self.sliderView.isHidden = false
 
         UIView.animate(withDuration: 0.3) {
@@ -424,7 +412,7 @@ extension PhotoEditingViewController: PhotoEffectSliderDelegate {
     }
 
     private func hideSlider() {
-        var viewToShow = currentEdditingViewKind == .edditingFilters ? self.photoEffectsView : self.photoFiltersView
+        let viewToShow = currentEdditingViewKind == .edditingFilters ? self.photoEffectsView : self.photoFiltersView
         self.backButton.alpha = 1
         self.autoEnhanceButton.alpha = 1
         self.nextButton.alpha = 1
@@ -443,7 +431,7 @@ extension PhotoEditingViewController: PhotoEffectSliderDelegate {
         }
     }
 
-    private func сonfigureSlider(for filter: FilterDelegate) {
+    private func сonfigureSlider(for filter: ImageFilter) {
         let isInverted = filter.filterType == .warmth
         sliderView.configure(for: filter)
         sliderView.isInverted = isInverted
@@ -453,7 +441,7 @@ extension PhotoEditingViewController: PhotoEffectSliderDelegate {
 // MARK: MTKViewDelegate
 
 extension PhotoEditingViewController: MTKViewDelegate {
-    func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
+    nonisolated func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
 
     func createScaledImage(image: CIImage, originY: CGFloat, originX: CGFloat, scale: CGFloat) -> CIImage {
 #if targetEnvironment(simulator)
@@ -474,6 +462,9 @@ extension PhotoEditingViewController: MTKViewDelegate {
 #endif
     }
 
+    // MetalKit was not updated for concurrency yet, so it might throw warnings.
+    // Using nonisolated to silence the warning is not an option since there are MainActor isolated properties used inside
+    // and the MainActor.assumeIsolated is only available in iOS 17.0+
     func draw(in view: MTKView) {
         guard let currentDrawable = view.currentDrawable,
               let sourceTexture = self.sourceTexture,

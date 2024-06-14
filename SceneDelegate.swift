@@ -15,12 +15,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     private var tabBarController: TabBarController?
 
     private func logOut() {
-        Task {
-            do {
-                try AuthenticationService.shared.signOut()
-            } catch {
-                print(error)
-            }
+        do {
+            try AuthenticationService.shared.signOut()
+        } catch {
+            print(error)
         }
     }
 
@@ -35,15 +33,16 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         AuthenticationService.shared.listenToAuthenticationState { user in
             guard self.shouldListenToAuthenticationStateChanges else { return }
             guard let unwrappedUser = user else {
-                print("should show login view")
                 self.hideCurrentRootViewControllerIfNeeded {
                     self.showLoginView(for: windowScene)
                 }
                 return
             }
-            print("Logged in user id: ", unwrappedUser.uid)
-            print("should show tab bar")
-            self.tabBarController = TabBarController(showAppearAnimation: false)
+            Task {
+                await UserManager.shared.setUserID(uid: unwrappedUser.uid)
+            }
+            let zoogramUser = ZoogramUser(unwrappedUser.uid)
+            self.tabBarController = TabBarController(for: zoogramUser, showAppearAnimation: false)
             self.window?.windowScene = windowScene
             self.window?.rootViewController = self.tabBarController
             self.window?.makeKeyAndVisible()

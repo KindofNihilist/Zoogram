@@ -25,7 +25,6 @@ extension UIViewController {
         return heightDifference > 0
     }
 
-    @MainActor
     func hideUIElements(animate: Bool, completion: @escaping () -> Void = {}) {
         let duration = animate == true ? 0.5 : 0.0
         UIView.animate(withDuration: duration) {
@@ -36,7 +35,6 @@ extension UIViewController {
         }
     }
 
-    @MainActor
     func showUIElements(animate: Bool, completion: @escaping () -> Void = {}) {
         let duration = animate == true ? 0.5 : 0.0
         UIView.animate(withDuration: duration) {
@@ -46,21 +44,19 @@ extension UIViewController {
             completion()
         }
     }
-    
-    @MainActor
+
     func show(error: Error, title: String = "Error") {
         let alert = UIAlertController(title: title, message: error.localizedDescription, preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "Ok", style: .default))
         self.present(alert, animated: true)
     }
 
-    @MainActor
     func showProfile(of user: ZoogramUser) {
         let service = UserProfileService(
             userID: user.userID,
             followService: FollowSystemService.shared,
             userPostsService: UserPostsService.shared,
-            userService: UserDataService.shared,
+            userService: UserDataService(),
             likeSystemService: LikeSystemService.shared,
             bookmarksService: BookmarksSystemService.shared)
 
@@ -69,13 +65,11 @@ extension UIViewController {
         show(userProfileVC, sender: self)
     }
 
-    @MainActor
     func showMenuForPost(postViewModel: PostViewModel, onDelete: @escaping () -> Void) {
         let actionSheet = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
         actionSheet.view.backgroundColor = Colors.background
         actionSheet.view.layer.masksToBounds = true
         actionSheet.view.layer.cornerRadius = 15
-
 
         if postViewModel.isMadeByCurrentUser {
             let deleteAction = UIAlertAction(title: String(localized: "Delete"), style: .destructive) { _ in
@@ -90,12 +84,11 @@ extension UIViewController {
         present(actionSheet, animated: true)
     }
 
-    @MainActor
     func showCommentsFor(_ viewModel: PostViewModel) {
         let service = CommentsService(
             postID: viewModel.postID,
             postAuthorID: viewModel.author.userID,
-            userDataService: UserDataService.shared,
+            userDataService: UserDataService(),
             postsService: UserPostsService.shared,
             commentsService: CommentSystemService.shared,
             likesService: LikeSystemService.shared,
@@ -108,7 +101,6 @@ extension UIViewController {
         self.navigationController?.pushViewController(commentsViewController, animated: true)
     }
 
-    @MainActor
     func displayNotificationToUser(title: String, text: String, prefferedStyle: UIAlertController.Style, action: ((UIAlertAction) -> Void)?) {
         let alert = UIAlertController(title: title, message: text, preferredStyle: prefferedStyle)
         if let action = action {

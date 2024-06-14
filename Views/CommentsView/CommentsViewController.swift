@@ -123,11 +123,11 @@ class CommentsViewController: ViewControllerWithLoadingIndicator {
     private func showNoCommentsViewIfNeeded() {
         guard self.viewModel.comments.isEmpty && self.viewModel.shouldShowRelatedPost == false else { return }
         noCommentsView.alpha = 1
-        view.addSubview(noCommentsView)
+        tableView.addSubview(noCommentsView)
         NSLayoutConstraint.activate([
-            noCommentsView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            noCommentsView.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -60),
-            noCommentsView.widthAnchor.constraint(equalTo: view.widthAnchor, constant: -20)
+            noCommentsView.centerXAnchor.constraint(equalTo: tableView.centerXAnchor),
+            noCommentsView.centerYAnchor.constraint(equalTo: tableView.centerYAnchor),
+            noCommentsView.widthAnchor.constraint(equalTo: tableView.widthAnchor, constant: -20)
         ])
     }
 

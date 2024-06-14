@@ -12,8 +12,8 @@ struct EditingButton {
     let effectIcon: UIImage
 }
 
-protocol PhotoEffectsViewDelegate: AnyObject {
-    func userHasSelected(button: EdditingFilterButton, with filter: FilterDelegate)
+@MainActor protocol PhotoEffectsViewDelegate: AnyObject {
+    func userHasSelected(button: EdditingFilterButton, with filter: ImageFilter)
 }
 
 class PhotoEffectsView: UIView {

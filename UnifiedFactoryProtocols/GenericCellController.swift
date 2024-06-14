@@ -17,17 +17,17 @@ open class GenericCellController<T: ReusableCell>: CellController<T.CellHolder> 
     }
 
     open override func configureCell(_ cell: T.CellHolder.CellType, at indexPath: IndexPath? = nil) {
-        let cell = cell as! T
+        guard let cell = cell as? T else { fatalError() }
         configureCell(cell, at: indexPath)
     }
 
     public final override func willDisplayCell(_ cell: T.CellHolder.CellType) {
-        let cell = cell as! T
+        guard let cell = cell as? T else { fatalError() }
         willDisplayCell(cell)
     }
 
     public final override func didEndDisplayingCell(_ cell: T.CellHolder.CellType) {
-        let cell = cell as! T
+        guard let cell = cell as? T else { fatalError() }
         didEndDisplayingCell(cell)
     }
 

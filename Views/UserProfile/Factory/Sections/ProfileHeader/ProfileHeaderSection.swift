@@ -25,20 +25,20 @@ class ProfileHeaderController: GenericCellController<ProfileHeaderCell> {
 
 class ProfileHeaderSection: CollectionSectionController {
 
-    private var userProfileViewModel: UserProfileViewModel
+    private var bio: String?
 
-    init(userProfileViewModel: UserProfileViewModel, sectionHolder: UICollectionView, cellControllers: [CellController<UICollectionView>], sectionIndex: Int) {
-        self.userProfileViewModel = userProfileViewModel
+    init(bio: String?, sectionHolder: UICollectionView, cellControllers: [CellController<UICollectionView>], sectionIndex: Int) {
+        self.bio = bio
         super.init(sectionHolder: sectionHolder, cellControllers: cellControllers, sectionIndex: sectionIndex)
     }
-    
+
     override func itemSize() -> CGSize {
         guard let superview = sectionHolder.superview
         else {
             return CGSize.zero
         }
         let width = superview.frame.width
-        let headerHeight = calculateHeaderHeight(bio: userProfileViewModel.user.bio, frameWidth: width)
+        let headerHeight = calculateHeaderHeight(bio: self.bio, frameWidth: width)
         return CGSize(width: width, height: headerHeight)
     }
 
@@ -49,7 +49,7 @@ class ProfileHeaderSection: CollectionSectionController {
 
         if let bio = bio {
             let font = CustomFonts.regularFont(ofSize: 15)
-            var boundingBox = bio.boundingRect(with: constraintRect, options: .usesLineFragmentOrigin, attributes: [.font: font], context: nil)
+            let boundingBox = bio.boundingRect(with: constraintRect, options: .usesLineFragmentOrigin, attributes: [.font: font], context: nil)
 
             if boundingBox.height > 0 {
                 let headerHeight = boundingBox.height + biolessHeaderHeight

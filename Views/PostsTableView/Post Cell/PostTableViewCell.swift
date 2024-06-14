@@ -9,20 +9,22 @@ import UIKit
 import SDWebImage
 
 @MainActor protocol PostTableViewCellProtocol: AnyObject {
+    typealias LikesTitle = String
     func menuButtonTapped(cell: PostTableViewCell)
     func didTapPostAuthor(cell: PostTableViewCell)
-    func didTapLikeButton(cell: PostTableViewCell, completion: @escaping (LikeState) -> Void)
+    func didTapLikeButton(cell: PostTableViewCell) async throws
     func didTapCommentButton(cell: PostTableViewCell)
-    func didTapBookmarkButton(cell: PostTableViewCell, completion: @escaping (BookmarkState) -> Void)
+    func didTapBookmarkButton(cell: PostTableViewCell) async throws
 }
 
 class PostTableViewCell: UITableViewCell {
 
     static let identifier = "PostTableViewCell"
 
+    private var viewModel: PostViewModel!
+
     weak var delegate: PostTableViewCellProtocol?
 
-    var post: PostViewModel?
     var likeHapticFeedbackGenerator = UINotificationFeedbackGenerator()
 
     private var postImageViewHeightConstraint: NSLayoutConstraint!
@@ -272,13 +274,14 @@ class PostTableViewCell: UITableViewCell {
 
     // MARK: Configure Post
     func configure(with viewModel: PostViewModel) {
-        configureViews(viewModel: viewModel)
+        self.viewModel = viewModel
+        configureViews()
     }
 
-    private func configureViews(viewModel: PostViewModel) {
+    private func configureViews() {
         if viewModel.isNewlyCreated { self.contentView.alpha = 0 }
-        let profilePhoto = viewModel.author.getProfilePhoto()
-        configureHeader(profilePhoto: profilePhoto!,
+        let profilePhoto = viewModel.author.getProfilePhoto() ?? UIImage.profilePicturePlaceholder
+        configureHeader(profilePhoto: profilePhoto,
                         username: viewModel.author.username,
                         isCurrentUserPost: viewModel.isMadeByCurrentUser)
         configureImageView(for: viewModel.postImage)
@@ -329,11 +332,11 @@ class PostTableViewCell: UITableViewCell {
         setLikesTitle(title: likesTitle)
     }
 
-    func setLikesTitle(title: String) {
+    private func setLikesTitle(title: String) {
         likesLabel.text = title
     }
 
-    func setCommentsTitle(title: String?) {
+    private func setCommentsTitle(title: String?) {
         guard let title = title else {
             viewCommentsButton.isHidden = true
             return
@@ -350,22 +353,37 @@ class PostTableViewCell: UITableViewCell {
         }
     }
 
+    private func switchLikeButtonState() {
+        viewModel.switchLikeState()
+        likeButton.setLikeButtonState(likeState: viewModel.likeState, isUserInitiated: true)
+        setLikesTitle(title: viewModel.likesCountTitle)
+    }
+
+    private func switchBookmarkButtonState() {
+        viewModel.switchBookmarkState()
+        bookmarkButton.setBookmarkButtonState(state: viewModel.bookmarkState, animated: true)
+    }
+
     // MARK: Actions Setup
     @objc func menuButtonTapped() {
         delegate?.menuButtonTapped(cell: self)
     }
 
     @objc func likeButtonTapped(isTriggeredByDoubleTap: Bool = false) {
+        let likeState = viewModel.likeState
 
-        if isTriggeredByDoubleTap && self.likeButton.buttonState == .liked {
+        if isTriggeredByDoubleTap && likeState == .liked {
             return
         } else {
-            delegate?.didTapLikeButton(cell: self) { [weak self] likeState in
-                print("inside like button completion")
-                self?.likeButton.setLikeButtonState(likeState: likeState, isUserInitiated: true)
-
-                if likeState == .liked || isTriggeredByDoubleTap {
-                    self?.likeHapticFeedbackGenerator.notificationOccurred(.success)
+            switchLikeButtonState()
+            if likeState == .notLiked || isTriggeredByDoubleTap {
+                self.likeHapticFeedbackGenerator.notificationOccurred(.success)
+            }
+            Task {
+                do {
+                    try await delegate?.didTapLikeButton(cell: self)
+                } catch {
+                    switchLikeButtonState()
                 }
             }
         }
@@ -376,8 +394,13 @@ class PostTableViewCell: UITableViewCell {
     }
 
     @objc func bookmarkButtonTapped() {
-        delegate?.didTapBookmarkButton(cell: self) { [weak self] bookmarkState in
-            self?.bookmarkButton.setBookmarkButtonState(state: bookmarkState, animated: true)
+        switchBookmarkButtonState()
+        Task {
+            do {
+                try await delegate?.didTapBookmarkButton(cell: self)
+            } catch {
+                switchBookmarkButtonState()
+            }
         }
     }
 

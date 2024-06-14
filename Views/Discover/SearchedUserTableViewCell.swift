@@ -70,9 +70,15 @@ class SearchedUserTableViewCell: UITableViewCell {
             nameLabel.leadingAnchor.constraint(equalTo: profileImageView.trailingAnchor, constant: 15),
             nameLabel.trailingAnchor.constraint(equalTo: usernameLabel.trailingAnchor),
             nameLabel.heightAnchor.constraint(equalToConstant: 15),
-            nameLabel.topAnchor.constraint(equalTo: profileImageView.centerYAnchor),
+            nameLabel.topAnchor.constraint(equalTo: profileImageView.centerYAnchor)
         ])
 
         profileImageView.layer.cornerRadius = profileImageViewSize / 2
+    }
+
+    func configure(with user: ZoogramUser) {
+        usernameLabel.text = user.username
+        nameLabel.text = user.name
+        profileImageView.image = user.getProfilePhoto() ?? UIImage.profilePicturePlaceholder
     }
 }

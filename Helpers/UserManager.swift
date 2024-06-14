@@ -7,9 +7,7 @@
 
 import Foundation
 
-class UserManager {
-
-    private var userDefaults = UserDefaults.standard
+actor UserManager {
 
     private var currentUser: ZoogramUser?
 
@@ -19,7 +17,7 @@ class UserManager {
         if let currentUser = currentUser {
             return currentUser
         } else {
-            fatalError("Current user model is nil")
+            return ZoogramUser(getUserID(), isCurrentUser: true)
         }
     }
 
@@ -27,20 +25,19 @@ class UserManager {
         currentUser = userModel
     }
 
-    func setDefaultsForNewlyLoggedInUser(_ user: ZoogramUser) {
+    func setDefaultsForUser(_ user: ZoogramUser) {
         setUserID(uid: user.userID)
         setUsername(username: user.username)
         updateCurrentUserModel(user)
     }
 
     // MARK: UserID
-
     func setUserID(uid: UserID?) {
-        userDefaults.set(uid, forKey: UserManagerKeys.userID)
+        UserDefaults.standard.set(uid, forKey: UserManagerKeys.userID)
     }
 
-    func getUserID() -> UserID {
-        if let userID = userDefaults.value(forKey: UserManagerKeys.userID) as? String {
+    nonisolated func getUserID() -> UserID {
+        if let userID = UserDefaults.standard.value(forKey: UserManagerKeys.userID) as? String {
             return userID
         } else {
             fatalError("UserID value is nil")
@@ -48,13 +45,12 @@ class UserManager {
     }
 
     // MARK: Username
-
     func setUsername(username: String?) {
-        userDefaults.set(username, forKey: UserManagerKeys.username)
+        UserDefaults.standard.set(username, forKey: UserManagerKeys.username)
     }
 
-    func getUsername() -> String {
-        if let username = userDefaults.value(forKey: UserManagerKeys.username) as? String {
+    nonisolated func getUsername() -> String {
+        if let username = UserDefaults.standard.value(forKey: UserManagerKeys.username) as? String {
             return username
         } else {
             fatalError("Username isn't set")

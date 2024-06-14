@@ -6,15 +6,15 @@
 //
 
 import Foundation
-import Firebase
+@preconcurrency import Firebase
 
-protocol DiscoverPostsServiceProtocol {
+protocol DiscoverPostsServiceProtocol: Sendable {
     func getDiscoverPostsCount() async throws -> PostCount
     func getDiscoverPosts(quantity: UInt) async throws -> PaginatedItems<UserPost>
     func getMoreDiscoverPosts(quantity: UInt, after lastRetrievedPostKey: String) async throws -> PaginatedItems<UserPost>
 }
 
-class DiscoverPostsService: DiscoverPostsServiceProtocol {
+final class DiscoverPostsService: DiscoverPostsServiceProtocol {
 
     static let shared = DiscoverPostsService()
 
@@ -31,7 +31,7 @@ class DiscoverPostsService: DiscoverPostsServiceProtocol {
         }
     }
 
-    func getDiscoverPosts(quantity: UInt) async throws -> PaginatedItems<UserPost>  {
+    func getDiscoverPosts(quantity: UInt) async throws -> PaginatedItems<UserPost> {
         var retrievedPosts = [UserPost]()
         var lastRetrievedPostKey: String = ""
         let query = databaseRef.child("DiscoverPosts/").queryOrderedByKey().queryLimited(toLast: quantity)
@@ -49,8 +49,8 @@ class DiscoverPostsService: DiscoverPostsServiceProtocol {
 
                 do {
                     let jsonData = try JSONSerialization.data(withJSONObject: postDict as Any)
-                    let post = try JSONDecoder().decode(UserPost.self, from: jsonData)
-                    post.author = try await UserDataService.shared.getUser(for: post.userID)
+                    var post = try JSONDecoder().decode(UserPost.self, from: jsonData)
+                    post.author = try await UserDataService().getUser(for: post.userID)
                     retrievedPosts.append(post)
                 } catch {
                     throw error
@@ -81,8 +81,8 @@ class DiscoverPostsService: DiscoverPostsServiceProtocol {
 
                 do {
                     let jsonData = try JSONSerialization.data(withJSONObject: postDict as Any)
-                    let post = try JSONDecoder().decode(UserPost.self, from: jsonData)
-                    post.author = try await UserDataService.shared.getUser(for: post.userID)
+                    var post = try JSONDecoder().decode(UserPost.self, from: jsonData)
+                    post.author = try await UserDataService().getUser(for: post.userID)
                     retrievedPosts.append(post)
                 } catch {
                     throw error
@@ -94,4 +94,3 @@ class DiscoverPostsService: DiscoverPostsServiceProtocol {
         }
     }
 }
-

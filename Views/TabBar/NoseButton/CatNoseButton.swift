@@ -14,7 +14,6 @@ protocol CatNoseDelegate: AnyObject {
 }
 
 class CatNoseButton: UIButton {
-
     var currentNoseShape: CAShapeLayer!
     var catNose: CatNoseShape!
     var catSniffingNose: CatSniffingNose!
@@ -26,7 +25,7 @@ class CatNoseButton: UIButton {
     var generator = UIImpactFeedbackGenerator(style: .light)
 
     lazy var supportsHaptics: Bool = {
-        let appDelegate = UIApplication.shared.delegate as! AppDelegate
+        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { fatalError() }
         return appDelegate.supportsHaptics
     }()
 
@@ -36,7 +35,7 @@ class CatNoseButton: UIButton {
         setupLayers()
         createHapticEngine()
     }
-    
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
@@ -63,7 +62,6 @@ class CatNoseButton: UIButton {
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         super.touchesBegan(touches, with: event)
-
         playHapticsFile(named: "CatPurr")
         animateNoseShapeChange(with: catSniffingNose)
         show(gradient: leftNoseCanal)
@@ -81,12 +79,17 @@ class CatNoseButton: UIButton {
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
-        leftNoseCanal.removeFromSuperlayer()
-        rightNoseCanal.removeFromSuperlayer()
-        currentNoseShape.removeFromSuperlayer()
-        middleFold.removeFromSuperlayer()
-        setupNose()
-        setupLayers()
+        guard traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection) else { return }
+        updateLayersAppearence()
+        setNeedsLayout()
+    }
+
+    private func updateLayersAppearence() {
+        catNose.fillColor = Colors.activeCatNoseColorScheme.noseColor.cgColor
+        catSniffingNose.fillColor = Colors.activeCatNoseColorScheme.noseColor.cgColor
+        leftNoseCanal.colors = Colors.activeCatNoseColorScheme.nostrilGradient
+        rightNoseCanal.colors = Colors.activeCatNoseColorScheme.nostrilGradient
+        middleFold.colors = Colors.activeCatNoseColorScheme.bridgeGradient
     }
 
     private func setupNose() {
@@ -109,25 +112,20 @@ class CatNoseButton: UIButton {
 
     private func createHapticEngine() {
         do {
-
             let audioSession = AVAudioSession.sharedInstance()
             try audioSession.setCategory(.ambient, mode: .default)
             engine = try CHHapticEngine(audioSession: audioSession)
-
         } catch let error {
             print("Engine Creation Error: \(error)")
         }
 
         guard let engine = engine else {
-            print("Failed to create engine!")
             return
         }
 
         engine.resetHandler = {
             do {
-
                 try self.engine?.start()
-
             } catch {
                 print("Failed to restart the engine: \(error)")
             }
@@ -138,11 +136,9 @@ class CatNoseButton: UIButton {
         if !supportsHaptics {
             return
         }
-
         guard let path = Bundle.main.path(forResource: filename, ofType: "ahap") else {
             return
         }
-
         do {
             try engine?.start()
             try engine?.playPattern(from: URL(fileURLWithPath: path))
@@ -199,13 +195,10 @@ class CatNoseButton: UIButton {
         CATransaction.commit()
     }
 
-
     static private func createMiddleFoldGradient(for frame: CGRect) -> CAGradientLayer {
         let gradient = CAGradientLayer()
         gradient.frame = frame
-        let gradientStartColor = Colors.activeCatNoseColorScheme.bridgeGradient.firstColor.cgColor
-        let gradientEndColor = Colors.activeCatNoseColorScheme.bridgeGradient.secondColor.cgColor
-        gradient.colors = [gradientStartColor, gradientEndColor]
+        gradient.colors = Colors.activeCatNoseColorScheme.bridgeGradient
         gradient.startPoint = CGPoint(x: 0, y: 0.9)
         gradient.endPoint = CGPoint(x: 0, y: 0)
         gradient.mask = NoseMiddleFoldShape(in: frame)
@@ -215,9 +208,7 @@ class CatNoseButton: UIButton {
     static private func createNoseLeftCanalGradient(for frame: CGRect) -> CAGradientLayer {
         let gradient = CAGradientLayer()
         gradient.frame = frame
-        let gradientStartColor = Colors.activeCatNoseColorScheme.nostrilGradient.firstColor.cgColor
-        let gradientEndColor = Colors.activeCatNoseColorScheme.nostrilGradient.secondColor.cgColor
-        gradient.colors = [gradientStartColor, gradientEndColor]
+        gradient.colors = Colors.activeCatNoseColorScheme.nostrilGradient
         let mask = LeftNoseCanal(in: frame)
         gradient.mask = mask
         gradient.startPoint = CGPoint(x: 0.4, y: 0.60)
@@ -228,9 +219,7 @@ class CatNoseButton: UIButton {
     static private func createNoseRightCanalGradient(for frame: CGRect) -> CAGradientLayer {
         let gradient = CAGradientLayer()
         gradient.frame = frame
-        let gradientStartColor = Colors.activeCatNoseColorScheme.nostrilGradient.firstColor.cgColor
-        let gradientEndColor = Colors.activeCatNoseColorScheme.nostrilGradient.secondColor.cgColor
-        gradient.colors = [gradientStartColor, gradientEndColor]
+        gradient.colors = Colors.activeCatNoseColorScheme.nostrilGradient
         let mask = RightNoseCanal(in: frame)
         gradient.mask = mask
         gradient.startPoint = CGPoint(x: 0.6, y: 0.60)

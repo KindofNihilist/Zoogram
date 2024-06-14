@@ -7,7 +7,7 @@
 
 import UIKit
 
-fileprivate enum RegistrationCards: CaseIterable {
+private enum RegistrationCards: CaseIterable {
     case emailView
     case usernameView
     case passwordView
@@ -20,6 +20,8 @@ class RegistrationViewController: UIViewController {
     private let viewModel: RegistrationViewModel
     private var activeViewType: RegistrationCards = .emailView
     private var actionToRunBeforeNavigationToNextCard: (() -> Void)?
+
+    private var task: Task<Void, Error>?
 
     internal lazy var imagePicker = UIImagePickerController()
     private var hapticGenerator = UINotificationFeedbackGenerator()
@@ -126,11 +128,11 @@ class RegistrationViewController: UIViewController {
         self.viewModel = RegistrationViewModel(service: service)
         super.init(nibName: nil, bundle: nil)
     }
-    
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-    
+
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = Colors.naturalSecondaryBackground
@@ -158,6 +160,11 @@ class RegistrationViewController: UIViewController {
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         self.emailView.resignResponder()
+    }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        task?.cancel()
     }
 
     private func setupConstraints() {
@@ -201,7 +208,7 @@ class RegistrationViewController: UIViewController {
             emailView.showErrorNotification(error: error)
             return
         }
-        Task {
+        task = Task {
             do {
                 let isEmailAvailable = try await viewModel.checkIfEmailIsAvailable(email: email)
 
@@ -222,7 +229,7 @@ class RegistrationViewController: UIViewController {
     private func saveUsername(completion: @escaping () -> Void) {
         let username = usernameView.getTextFieldData()
 
-        Task {
+        task = Task {
             do {
                 try viewModel.checkIfUsernameIsValid(username: username)
                 let isUsernameAvailable = try await viewModel.checkIfUsernameIsAvailable(username: username)
@@ -293,7 +300,7 @@ class RegistrationViewController: UIViewController {
     }
 
     private func finishRegistration(completion: @escaping (ZoogramUser) -> Void) {
-        Task {
+        task = Task {
             do {
                 let registeredUser = try await viewModel.registerNewUser()
                 completion(registeredUser)
@@ -317,7 +324,6 @@ class RegistrationViewController: UIViewController {
         }
     }
 
-    @MainActor
     private func showMainScreen(for user: ZoogramUser) {
         UIView.animate(withDuration: 1.3) {
             self.generalProfileInfoCardView.transform = CGAffineTransform(translationX: 0, y: -(self.view.frame.height - self.generalProfileInfoCardView.bounds.height))
@@ -325,7 +331,7 @@ class RegistrationViewController: UIViewController {
             self.view.alpha = 0
             self.view.layoutIfNeeded()
         } completion: { _ in
-            self.view.window?.rootViewController = TabBarController(showAppearAnimation: true)
+            self.view.window?.rootViewController = TabBarController(for: user, showAppearAnimation: true)
             self.view.window?.makeKeyAndVisible()
         }
     }
@@ -392,6 +398,10 @@ extension RegistrationViewController: ProfilePictureViewDelegate {
             self.generalProfileInfoCardView.updateProfileHeaderPicture(with: selectedImage)
             self.viewModel.profilePicture = selectedImage
         }
+    }
+
+    func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+        picker.dismiss(animated: true, completion: nil)
     }
 }
 

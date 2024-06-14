@@ -14,7 +14,7 @@ class FollowedListViewController: FollowersListViewController {
     }
 
     override func configureMessageView(isUserProfile: Bool) {
-        var localizedTitle = String(localized: "Followed")
+        let localizedTitle = String(localized: "Followed")
         var localizedMessage: String
 
         if isUserProfile {

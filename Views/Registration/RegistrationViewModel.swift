@@ -8,6 +8,7 @@
 import Foundation
 import UIKit
 
+@MainActor
 class RegistrationViewModel {
 
     private let service: RegistrationServiceProtocol
@@ -25,7 +26,7 @@ class RegistrationViewModel {
         self.service = service
     }
 
-    private func createZoogramUserModel() -> NewUser? {
+    private func createZoogramUserModel() -> ZoogramUser? {
         guard let email = self.email,
               let username = self.username,
               let name = self.name,
@@ -34,7 +35,8 @@ class RegistrationViewModel {
         else {
             return nil
         }
-        return NewUser(
+
+        return ZoogramUser(
             userID: "",
             profilePhotoURL: nil,
             email: email,
@@ -48,14 +50,14 @@ class RegistrationViewModel {
     }
 
     func registerNewUser() async throws -> ZoogramUser {
-        guard let userModel = createZoogramUserModel(),
+        guard var userModel = createZoogramUserModel(),
               let password = self.password
         else {
             throw RegistrationError.dataMissing
         }
         userModel.setProfilePhoto(self.profilePicture)
         let registeredUser = try await service.registerNewUser(for: userModel, password: password)
-        UserManager.shared.setDefaultsForNewlyLoggedInUser(registeredUser)
+        await UserManager.shared.setDefaultsForUser(registeredUser)
         return registeredUser
     }
 

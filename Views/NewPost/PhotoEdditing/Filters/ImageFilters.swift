@@ -37,7 +37,6 @@ class NoirPhotoFilter: PhotoFilter {
     private let vignette = effects.vignetteFilter
     private let warmth = effects.warmthFilter
 
-
     override func applyFilter() {
         guard let inputImage = self.inputImage else {
             return

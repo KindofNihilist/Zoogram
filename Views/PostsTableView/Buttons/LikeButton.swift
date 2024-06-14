@@ -7,7 +7,6 @@
 
 import UIKit
 
-
 class LikeButton: UIButton {
 
     var buttonState: LikeState = .notLiked

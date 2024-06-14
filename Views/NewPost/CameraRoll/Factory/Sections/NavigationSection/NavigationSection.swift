@@ -14,10 +14,11 @@ class NavigationSection: CollectionSectionController {
     var header: NavigationHeaderView?
 
     override func header(at indexPath: IndexPath) -> UICollectionReusableView {
-        let header = sectionHolder.dequeueReusableView(
+        guard let header = sectionHolder.dequeueReusableView(
             withIdentifier: NavigationHeaderView.identifier,
             ofKind: UICollectionView.elementKindSectionHeader,
-            for: indexPath) as! NavigationHeaderView
+            for: indexPath) as? NavigationHeaderView
+        else { fatalError("Wrong view passed") }
         header.delegate = delegate
         self.header = header
         return header

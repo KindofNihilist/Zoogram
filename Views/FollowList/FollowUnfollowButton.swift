@@ -17,7 +17,7 @@ class FollowUnfollowButton: HapticButton {
 
     init(followStatus: FollowStatus) {
         self.followStatus = followStatus
-        super.init(frame: CGRectZero)
+        super.init(frame: CGRect.zero)
         self.titleLabel?.font = CustomFonts.boldFont(ofSize: 15)
         self.titleLabel?.adjustsFontSizeToFitWidth = true
         self.titleLabel?.minimumScaleFactor = 0.5

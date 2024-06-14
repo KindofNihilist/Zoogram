@@ -7,13 +7,13 @@
 
 import UIKit.UITableViewCell
 
-protocol TableViewTextViewDelegate: AnyObject {
+@MainActor protocol TableViewTextViewDelegate: AnyObject {
     func didUpdateTextView()
 }
 
 class FormTextViewCell: FormEdditingViewCell {
 
-    weak var textViewDelegate : TableViewTextViewDelegate?
+    weak var textViewDelegate: TableViewTextViewDelegate?
 
     private var placeholderText: String?
 

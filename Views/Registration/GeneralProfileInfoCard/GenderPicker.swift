@@ -34,11 +34,11 @@ class GenderPicker: UILabel {
         genderPickerView.delegate = self
         genderPickerView.dataSource = self
     }
-    
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-    
+
     @objc private func didTapToSelectGender() {
         print("Did tap to select gender")
         dummyGenderPickerTextField.becomeFirstResponder()
@@ -61,8 +61,6 @@ extension GenderPicker: UIPickerViewDelegate, UIPickerViewDataSource {
         label.text = genders[row].localizedString()
         label.font = CustomFonts.regularFont(ofSize: 20)
         label.isUserInteractionEnabled = true
-//        let tapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(didTapGenderLabel))
-//        label.addGestureRecognizer(tapGestureRecognizer)
         return label
     }
 
@@ -75,4 +73,3 @@ extension GenderPicker: UIPickerViewDelegate, UIPickerViewDataSource {
         pickerView.resignFirstResponder()
     }
 }
-

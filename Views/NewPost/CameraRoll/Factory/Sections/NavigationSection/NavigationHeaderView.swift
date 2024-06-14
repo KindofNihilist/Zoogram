@@ -7,7 +7,7 @@
 
 import UIKit.UICollectionView
 
-protocol NavigationHeaderActionsDelegate: AnyObject {
+@MainActor protocol NavigationHeaderActionsDelegate: AnyObject {
     func didTapBackButton()
     func didTapNextButton()
 }
@@ -63,7 +63,7 @@ class NavigationHeaderView: UICollectionReusableView {
         self.navigationNextButton.setTitle(String(localized: "Next"), for: .normal)
         setupViews()
     }
-    
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }

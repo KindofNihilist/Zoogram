@@ -20,21 +20,20 @@ typealias ScrollViewPreviousOffset = CGFloat
 
 class PostsTableView: UITableView {
 
-    private var service: any PostsNetworking
+    private let viewModel: PostsTableViewViewModel
+
+    var tasks = [Task<Void, Never>?]()
 
     weak var postsTableDelegate: PostsTableViewProtocol?
-
-    var posts = [PostViewModel]()
-
     var didScrollAction: ((ScrollViewOffset, ScrollViewPreviousOffset) -> Void)?
     var didEndScrollingAction: (() -> Void)?
+
     private var previousScrollOffset: CGFloat = 0
-    var isPaginationAllowed: Bool = true
     private var noPostsNotificationView: PlaceholderView?
     private var feedRefreshControl: UIRefreshControl?
 
     init(service: any PostsNetworking, posts: [PostViewModel] = [PostViewModel](), style: UITableView.Style = .plain) {
-        self.service = service
+        self.viewModel = PostsTableViewViewModel(service: service, posts: posts)
         super.init(frame: CGRect.zero, style: style)
         register(PostTableViewCell.self, forCellReuseIdentifier: PostTableViewCell.identifier)
         register(NewPostPlaceholderTableViewCell.self, forCellReuseIdentifier: NewPostPlaceholderTableViewCell.identifier)
@@ -53,95 +52,89 @@ class PostsTableView: UITableView {
         fatalError("init(coder:) has not been implemented")
     }
 
+    func getRetrievedPosts() -> [PostViewModel] {
+        return viewModel.posts
+    }
+
     @objc func getPosts() {
-        Task {
+        let task = Task {
             do {
-                let receivedPosts = try await service.getItems()
-                if let receivedPostsUnwrapped = receivedPosts {
-                    self.posts = receivedPostsUnwrapped.compactMap({ provider in
-                        return provider.getPostViewModel()
-                    })
-                    self.removeNoPostsNotificationIfDisplayed()
-                    if self.service.hasHitTheEndOfPosts {
-                        self.removePaginationFooterIfNeeded()
-                    } else {
-                        self.setupLoadingIndicatorFooter()
-                    }
-                    self.reloadData()
-                } else {
+                try await viewModel.getPosts()
+                if viewModel.posts.isEmpty {
                     self.showNoPostsNotificationIfNeeded()
+                } else {
+                    self.reloadData()
+                    self.removeNoPostsNotificationIfDisplayed()
+                    if await self.viewModel.hasHitTheEndOfPosts() {
+                        self.removePaginationFooter()
+                    } else {
+                        self.showPaginationFooter()
+                    }
                 }
             } catch {
                 self.postsTableDelegate?.showLoadingError(error)
             }
             self.feedRefreshControl?.endRefreshing()
         }
+        tasks.append(task)
     }
 
-    @objc func getMorePosts() {
-        self.showFooterLoadingView()
-        Task {
+    @objc private func getMorePosts() {
+        let task = Task {
+            guard await viewModel.isPaginationAllowed() else { return }
             do {
-                let paginatedPosts = try await service.getMoreItems()
-                if let paginatedPostsUnwrapped = paginatedPosts {
-                    let postViewModels = paginatedPostsUnwrapped.compactMap({ provider in
-                        return provider.getPostViewModel()
-                    })
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                        let postsCountBeforeUpdate = self.posts.count
-                        self.posts.append(contentsOf: postViewModels)
-                        let indexPaths = (postsCountBeforeUpdate ..< self.posts.count).map {
-                            IndexPath(row: $0, section: 0)
-                        }
-                        self.insertRows(at: indexPaths, with: .fade)
-                        self.service.isAlreadyPaginating = false
+                if let paginatedPosts = try await viewModel.getMorePosts() {
+                    let postsCountBeforeUpdate = self.viewModel.posts.count
+                    self.viewModel.posts.append(contentsOf: paginatedPosts)
+                    let postsCountAfterUpdate = self.viewModel.posts.count
+                    let indexPathsOfPaginatedPosts = (postsCountBeforeUpdate ..< postsCountAfterUpdate).map {
+                        IndexPath(row: $0, section: 0)
                     }
+                    self.insertRows(at: indexPathsOfPaginatedPosts, with: .fade)
                 }
             } catch {
                 self.showPaginationErrorView(for: error)
             }
-            self.removePaginationFooterIfNeeded()
+            self.setupLoadingIndicatorFooter()
         }
+        tasks.append(task)
     }
 
-    func setUserPostsViewModels(postsViewModels: [PostViewModel]) {
-        self.posts = postsViewModels
+    func setPostsViewModels(postsViewModels: [PostViewModel]) {
+        self.viewModel.posts = postsViewModels
     }
 
-    func insertBlankCell() {
-        let blankViewModel = PostViewModel.createBlankViewModel()
-        self.posts.insert(blankViewModel, at: 0)
+    func insertPlaceholderCell() {
+        let blankViewModel = PostViewModel.createPlaceholderViewModel()
+        self.viewModel.posts.insert(blankViewModel, at: 0)
         let indexPath = IndexPath(row: 0, section: 0)
         self.insertRows(at: [indexPath], with: .top)
     }
 
-    @MainActor
-    func removeBlankCell() {
-        guard posts[0].shouldShowBlankCell == true else { return }
-        self.posts.remove(at: 0)
+    func removePlaceholderCell() {
+        guard viewModel.posts[0].shouldDisplayAsPlaceholder == true else { return }
+        self.viewModel.posts.remove(at: 0)
         let indexPath = IndexPath(row: 0, section: 0)
         self.deleteRows(at: [indexPath], with: .automatic)
     }
 
     func replaceBlankCellWithNewlyCreatedPost(postViewModel: PostViewModel) {
-        self.posts[0] = postViewModel
+        self.viewModel.posts[0] = postViewModel
         let indexPath = [IndexPath(row: 0, section: 0)]
         self.reloadRows(at: indexPath, with: .none)
     }
 
-    @MainActor
     func deletePost(at indexPath: IndexPath, completion: @escaping (VoidResult) -> Void) {
-        let postModel = posts[indexPath.row]
-        Task {
+        let task = Task {
             do {
-                try await service.deletePost(postModel: postModel)
-                self.posts.remove(at: indexPath.row)
+                try await viewModel.deletePost(at: indexPath)
                 self.deleteRows(at: [indexPath], with: .fade)
                 completion(.success)
             } catch {
                 completion(.failure(error))
             }
         }
+        tasks.append(task)
     }
 
     func makeNewlyCreatedPostVisible(at indexPath: IndexPath, completion: @escaping () -> Void) {
@@ -149,7 +142,7 @@ class PostsTableView: UITableView {
             return
         }
         cell.makePostVisible {
-            self.posts[indexPath.row].isNewlyCreated = false
+            self.viewModel.posts[indexPath.row].changeIsNewlyCreatedStatus(to: false)
             completion()
         }
     }
@@ -161,17 +154,20 @@ class PostsTableView: UITableView {
     }
 
     func setupLoadingIndicatorFooter() {
-        guard service.hasHitTheEndOfPosts != true && self.isPaginationAllowed else {
-            self.tableFooterView = nil
-            return
+        let task = Task {
+            let hasHitTheEndOfPosts = await viewModel.hasHitTheEndOfPosts()
+            print("hasHitEndOfPosts: \(hasHitTheEndOfPosts)")
+            if hasHitTheEndOfPosts == false {
+                self.showPaginationFooter()
+            } else {
+                self.removePaginationFooter()
+            }
         }
-        showFooterLoadingView()
+        tasks.append(task)
     }
 
-    private func showFooterLoadingView() {
-        guard posts.isEmpty != true else {
-            return
-        }
+    private func showPaginationFooter() {
+        guard viewModel.posts.isEmpty != true else { return }
         let footerView = UIView(frame: CGRect(x: 0, y: 0, width: self.frame.width, height: 200))
         let spinner = UIActivityIndicatorView(style: .medium)
         footerView.addSubview(spinner)
@@ -180,10 +176,8 @@ class PostsTableView: UITableView {
         self.tableFooterView = footerView
     }
 
-    private func removePaginationFooterIfNeeded() {
-        if self.isPaginationAllowed == false || service.hasHitTheEndOfPosts {
-            self.tableFooterView = nil
-        }
+    private func removePaginationFooter() {
+        self.tableFooterView = nil
     }
 
     private func showPaginationErrorView(for error: Error) {
@@ -197,7 +191,7 @@ class PostsTableView: UITableView {
     }
 
     func showNoPostsNotificationIfNeeded() {
-        guard self.noPostsNotificationView ==  nil && self.posts.isEmpty else { return }
+        guard self.noPostsNotificationView == nil && self.viewModel.posts.isEmpty else { return }
         let notificationText = String(localized: "New posts of people you follow will be displayed here")
         noPostsNotificationView = PlaceholderView(imageName: "camera",
                                                   text: notificationText)
@@ -217,29 +211,16 @@ class PostsTableView: UITableView {
             noPostsNotificationView = nil
         }
     }
-
-    private func paginateMorePosts(contentOffset: CGFloat) {
-        guard service.hasHitTheEndOfPosts != true && self.isPaginationAllowed else {
-            return
-        }
-
-        let contentHeight = self.contentSize.height
-        let tableViewHeight = self.frame.size.height
-
-        if contentOffset > (contentHeight - tableViewHeight - 100) {
-            self.getMorePosts()
-        }
-    }
 }
 
 extension PostsTableView: UITableViewDelegate, UITableViewDataSource {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return posts.count
+        return viewModel.posts.count
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let postViewModel = posts[indexPath.row]
-        if postViewModel.shouldShowBlankCell {
+        let postViewModel = viewModel.posts[indexPath.row]
+        if postViewModel.shouldDisplayAsPlaceholder {
             let cell: NewPostPlaceholderTableViewCell = tableView.dequeue(withIdentifier: NewPostPlaceholderTableViewCell.identifier, for: indexPath)
             return cell
         } else {
@@ -259,9 +240,15 @@ extension PostsTableView: UITableViewDelegate, UITableViewDataSource {
     }
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        didScrollAction?(scrollView.contentOffset.y, previousScrollOffset)
-        previousScrollOffset = scrollView.contentOffset.y
-        paginateMorePosts(contentOffset: scrollView.contentOffset.y)
+        let contentYOffset = scrollView.contentOffset.y
+        didScrollAction?(contentYOffset, previousScrollOffset)
+        previousScrollOffset = contentYOffset
+        guard contentYOffset > 0 else { return }
+        let contentHeight = self.contentSize.height
+        let tableViewHeight = self.frame.size.height
+        if contentYOffset > (contentHeight - tableViewHeight - 100) {
+            self.getMorePosts()
+        }
     }
 
     func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
@@ -274,7 +261,7 @@ extension PostsTableView: PostTableViewCellProtocol {
         guard let indexPath = self.indexPath(for: cell) else {
             return
         }
-        let postViewModel = self.posts[indexPath.row]
+        let postViewModel = self.viewModel.posts[indexPath.row]
         postsTableDelegate?.didTapMenuButton(postModel: postViewModel, indexPath: indexPath)
     }
 
@@ -282,62 +269,46 @@ extension PostsTableView: PostTableViewCellProtocol {
         guard let indexPath = self.indexPath(for: cell) else {
             return
         }
-        let user = posts[indexPath.row].author
-        postsTableDelegate?.didSelectUser(user: user)
+        let postAuthor = viewModel.posts[indexPath.row].author
+        postsTableDelegate?.didSelectUser(user: postAuthor)
     }
 
-    func didTapLikeButton(cell: PostTableViewCell, completion: @escaping (LikeState) -> Void) {
+    func didTapLikeButton(cell: PostTableViewCell) async throws {
         guard let indexPath = self.indexPath(for: cell) else { return }
-        let postViewModel = self.posts[indexPath.row]
-        Task { @MainActor in
+        let task = Task {
             do {
-                let newLikeState = try await service.likePost(
-                    postID: postViewModel.postID,
-                    likeState: postViewModel.likeState,
-                    postAuthorID: postViewModel.author.userID)
-                postViewModel.likeState = newLikeState
-                cell.setLikesTitle(title: postViewModel.likesCountTitle)
-                completion(newLikeState)
+                try await viewModel.likePost(at: indexPath)
             } catch {
-                if let viewController = superclass as? UIViewController {
-                    viewController.showPopUp(issueText: error.localizedDescription)
-                }
+                print("Error while liking a post")
             }
         }
+        tasks.append(task)
     }
 
     func didTapCommentButton(cell: PostTableViewCell) {
         guard let indexPath = self.indexPath(for: cell) else {
             return
         }
-        let postViewModel = self.posts[indexPath.row]
+        let postViewModel = self.viewModel.posts[indexPath.row]
         postsTableDelegate?.didTapCommentButton(viewModel: postViewModel)
     }
 
-    func didTapBookmarkButton(cell: PostTableViewCell, completion: @escaping (BookmarkState) -> Void) {
+    func didTapBookmarkButton(cell: PostTableViewCell) async throws {
         guard let indexPath = self.indexPath(for: cell) else { return }
-        let postViewModel = self.posts[indexPath.row]
-
-        Task { @MainActor in
+        let task = Task {
             do {
-                let newBookmarkState = try await service.bookmarkPost(
-                    postID: postViewModel.postID,
-                    authorID: postViewModel.author.userID,
-                    bookmarkState: postViewModel.bookmarkState)
-                self.posts[indexPath.row].bookmarkState = newBookmarkState
-                completion(newBookmarkState)
+                try await viewModel.bookmarkPost(at: indexPath)
             } catch {
-                if let viewController = superclass as? UIViewController {
-                    viewController.showPopUp(issueText: error.localizedDescription)
-                }
+                print("Error while bookmarking a post")
             }
         }
+        tasks.append(task)
     }
 }
 
 extension PostsTableView: LoadingErrorViewDelegate {
     func didTapReloadButton() {
-        showFooterLoadingView()
+        showPaginationFooter()
         getMorePosts()
     }
 }

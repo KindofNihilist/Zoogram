@@ -42,7 +42,7 @@ class GeneralProfileInfoCard: UIView {
         self.addSubviews(generalProfileInfoCardView, ageAndGenderView)
         setupConstraints()
     }
-    
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
@@ -118,9 +118,9 @@ class GeneralProfileInfoCard: UIView {
 
 extension GeneralProfileInfoCard: TextFieldResponder {
     func becomeResponder() {
-//        generalProfileInfoCardView.becomeResponder()
+        generalProfileInfoCardView.becomeResponder()
     }
-    
+
     func resignResponder() {
         generalProfileInfoCardView.resignResponder()
     }

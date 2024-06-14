@@ -9,14 +9,15 @@ import FirebaseAuth
 import UIKit
 
 enum ScrollDirection {
-    case up
-    case down
+    case upwards
+    case downwards
     case none
 }
 
 class HomeViewController: UIViewController {
 
     let service: any HomeFeedServiceProtocol
+    private var task: Task<Void, Error>?
 
     let tableView: PostsTableView
 
@@ -79,9 +80,23 @@ class HomeViewController: UIViewController {
     }
 
     override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
         if self.isBeingPresented || self.isMovingToParent {
             tableView.refreshControl?.beginRefreshingManually()
         }
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        self.navigationController?.setNavigationBarHidden(false, animated: true)
+    }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        tableView.tasks.forEach { task in
+            task?.cancel()
+        }
+        task?.cancel()
     }
 
     private func setupConstraints() {
@@ -94,25 +109,28 @@ class HomeViewController: UIViewController {
 
             tableView.topAnchor.constraint(equalTo: headerLogoView.bottomAnchor),
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            tableView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
         ])
     }
 
     func makeNewPost(with postModel: UserPost, for user: ZoogramUser, completion: @escaping () -> Void) {
+        var postModelToPost = postModel
         self.showMakingNewPostNotificationViewFor(username: user.username, with: postModel.image)
-        Task {
+        task = Task {
             do {
-                try await service.makeANewPost(post: postModel) { progress in
-                    self.updateProgressBar(progress: progress)
+                try await service.makeANewPost(post: postModelToPost) { progress in
+                    Task { @MainActor in
+                        self.updateProgressBar(progress: progress)
+                    }
                 }
-                postModel.author = user
-                self.animateInsertionOfCreatedPost(post: postModel)
+                postModelToPost.author = user
+                self.animateInsertionOfCreatedPost(post: postModelToPost)
                 completion()
             } catch {
                 self.notificationView?.removeFromSuperview()
                 self.tableView.isUserInteractionEnabled = true
-                self.tableView.removeBlankCell()
+                self.tableView.removePlaceholderCell()
                 self.show(error: error, title: "")
             }
         }
@@ -127,7 +145,7 @@ class HomeViewController: UIViewController {
         notificationView?.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(notificationView!)
         notificationViewTopAnchor = notificationView!.topAnchor.constraint(equalTo: tableView.topAnchor)
-        tableView.insertBlankCell()
+        tableView.insertPlaceholderCell()
         tableView.isUserInteractionEnabled = false
         NSLayoutConstraint.activate([
             notificationViewTopAnchor,
@@ -137,7 +155,6 @@ class HomeViewController: UIViewController {
         ])
     }
 
-    @MainActor
     private func updateProgressBar(progress: Progress?) {
         guard let notificationView = self.notificationView as? NewPostProgressView else {
             return
@@ -145,7 +162,6 @@ class HomeViewController: UIViewController {
         notificationView.setProgressToProgressBar(progress: progress)
     }
 
-    @MainActor
     private func animateInsertionOfCreatedPost(post: UserPost) {
         guard let notificationView = self.notificationView as? NewPostProgressView else {
             return
@@ -184,13 +200,13 @@ class HomeViewController: UIViewController {
                 let alphaPercentage = self.convertHeaderOffsetToAlphaPercentage(offset: headerLogoTopOffset)
                 let logoAlpha = max(0.0, alphaPercentage)
                 self.headerLogoView.alpha = logoAlpha
-                self.latestScrollDirection = .down
+                self.latestScrollDirection = .downwards
             } else if isScrollingUp {
                 headerLogoTopOffset = min(0, self.headerLogoTopConstraint.constant + abs(scrollDifference))
                 let alphaPercentage = self.convertHeaderOffsetToAlphaPercentage(offset: headerLogoTopOffset)
                 let logoAlpha = min(1.0, alphaPercentage)
                 self.headerLogoView.alpha = logoAlpha
-                self.latestScrollDirection = .up
+                self.latestScrollDirection = .upwards
             }
 
             if headerLogoTopOffset != self.headerLogoTopConstraint.constant {
@@ -205,10 +221,10 @@ class HomeViewController: UIViewController {
             var alpha: CGFloat = self.headerLogoView.alpha
             var offset: CGFloat = self.headerLogoTopConstraint.constant
 
-            if self.latestScrollDirection == .down && currentLogoOffset > -self.headerHeight {
+            if self.latestScrollDirection == .downwards && currentLogoOffset > -self.headerHeight {
                 alpha = 0
                 offset = -self.headerHeight
-            } else if self.latestScrollDirection == .up && currentLogoOffset < 0 {
+            } else if self.latestScrollDirection == .upwards && currentLogoOffset < 0 {
                 alpha = 1
                 offset = 0
             }
@@ -248,14 +264,19 @@ class HomeViewController: UIViewController {
     }
 
     func shouldRefreshFeedIfNeeded() {
-        let hasntRetrievedPosts = service.numberOfRetrievedItems == 0
-        let numberOfReceivedItemsIsLessThanRequired = service.numberOfRetrievedItems < service.numberOfItemsToGet
-        let hasntRetrievedAllPosts = service.numberOfRetrievedItems < service.numberOfAllItems
-        let retrievedLessPostsThanRequired = numberOfReceivedItemsIsLessThanRequired && hasntRetrievedAllPosts
+        task = Task {
+            let numberOfRetrievedItems = await service.paginationManager.getNumberOfRetrievedItems()
+            let numberOfAllItems = await service.paginationManager.getNumberOfAllItems()
+            let numberOfItemsToPaginate = service.paginationManager.numberOfItemsToGetPerPagination
+            let hasntRetrievedPosts = numberOfRetrievedItems == 0
+            let numberOfReceivedItemsIsLessThanRequired = numberOfRetrievedItems < numberOfItemsToPaginate
+            let hasntRetrievedAllPosts = numberOfRetrievedItems < numberOfAllItems
+            let retrievedLessPostsThanRequired = numberOfReceivedItemsIsLessThanRequired && hasntRetrievedAllPosts
 
-        if hasntRetrievedPosts || retrievedLessPostsThanRequired {
-            self.tableView.refreshControl?.beginRefreshingManually()
-            self.hideReloadButton()
+            if hasntRetrievedPosts || retrievedLessPostsThanRequired {
+                self.tableView.refreshControl?.beginRefreshingManually()
+                self.hideReloadButton()
+            }
         }
     }
 
@@ -284,13 +305,16 @@ class HomeViewController: UIViewController {
 extension HomeViewController: PostsTableViewProtocol {
 
     func showLoadingError(_ error: Error) {
-        if service.numberOfRetrievedItems == 0 {
-            showReloadButton(with: error)
-        } else {
-            showPopUp(issueText: error.localizedDescription)
+        task = Task {
+            let numberOfRetrievedItems = await service.paginationManager.getNumberOfRetrievedItems()
+            if numberOfRetrievedItems == 0 {
+                showReloadButton(with: error)
+            } else {
+                showPopUp(issueText: error.localizedDescription)
+            }
         }
     }
-    
+
     func didTapCommentButton(viewModel: PostViewModel) {
         showCommentsFor(viewModel)
     }

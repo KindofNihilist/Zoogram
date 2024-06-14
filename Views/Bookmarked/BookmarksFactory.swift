@@ -29,7 +29,7 @@ import UIKit.UICollectionView
             sections.append(noPostsSection)
             return
         }
-        
+
         let postsCellControllers = createPostCellControllers(for: bookmarks)
         postsSection = PostsSection(sectionHolder: collectionView, cellControllers: postsCellControllers, sectionIndex: 0)
         sections.append(postsSection)
@@ -52,16 +52,14 @@ import UIKit.UICollectionView
         let postsCountBeforeUpdate = postsSection.numberOfCells()
         let cellControllers = createPostCellControllers(for: bookmarks)
         postsSection?.appendCellControllers(controllers: cellControllers)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            let postsCountAfterUpdate = self.postsSection.numberOfCells()
-            let indexPaths = (postsCountBeforeUpdate ..< postsCountAfterUpdate).map {
-                IndexPath(row: $0, section: 0)
-            }
-            self.collectionView.performBatchUpdates {
-                self.collectionView.insertItems(at: indexPaths)
-            } completion: { _ in
-                completion()
-            }
+        let postsCountAfterUpdate = self.postsSection.numberOfCells()
+        let indexPaths = (postsCountBeforeUpdate ..< postsCountAfterUpdate).map {
+            IndexPath(row: $0, section: 0)
+        }
+        self.collectionView.performBatchUpdates {
+            self.collectionView.insertItems(at: indexPaths)
+        } completion: { _ in
+            completion()
         }
     }
 

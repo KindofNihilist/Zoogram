@@ -347,7 +347,6 @@ class PhotoPreviewCropView: UIView {
             lastImageOffset.y = imageConstraints.centerYConstraint.constant
         }
 
-
         let trans = pan.translation(in: self)
         let centerX = lastImageOffset.x + trans.x
         let centerY = lastImageOffset.y + trans.y

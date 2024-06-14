@@ -33,7 +33,7 @@ import UIKit.UICollectionView
     }
 
     func buildSections(photos: [PHAsset]) {
-        
+
         navigationSection = NavigationSection(sectionHolder: collectionView, cellControllers: [], sectionIndex: 0)
         navigationSection.delegate = navigationDelegate
         sections.append(navigationSection)

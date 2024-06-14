@@ -12,10 +12,13 @@ class CameraRollSection: CollectionSectionController {
     weak var delegate: CameraRollHeaderDelegate?
 
     override func header(at indexPath: IndexPath) -> UICollectionReusableView {
-        let header = sectionHolder.dequeueReusableView(
+        guard let header = sectionHolder.dequeueReusableView(
             withIdentifier: CameraRollHeaderView.identifier,
             ofKind: UICollectionView.elementKindSectionHeader,
-            for: indexPath) as! CameraRollHeaderView
+            for: indexPath) as? CameraRollHeaderView
+        else {
+            fatalError()
+        }
         header.delegate = delegate
         return header
     }

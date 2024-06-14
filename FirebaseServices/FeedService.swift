@@ -6,15 +6,15 @@
 //
 
 import Foundation
-import FirebaseDatabase
+@preconcurrency import FirebaseDatabase
 
-protocol FeedServiceProtocol {
+protocol FeedServiceProtocol: Sendable {
     func getFeedPostsCount() async throws -> PostCount
     func getPostsForTimeline(quantity: UInt) async throws -> PaginatedItems<UserPost>
     func getMorePostsForTimeline(quantity: UInt, after lastSeenPostKey: String) async throws -> PaginatedItems<UserPost>
 }
 
-class FeedService: FeedServiceProtocol {
+final class FeedService: FeedServiceProtocol {
 
     static let shared = FeedService()
 
@@ -38,28 +38,39 @@ class FeedService: FeedServiceProtocol {
         let query = databaseRef.child("Timelines/\(currentUserID)").queryOrderedByKey().queryLimited(toLast: quantity)
 
         do {
-            let data = try await query.getData()
+            let posts = try await withThrowingTaskGroup(of: (Int, UserPost).self, returning: (LastRetrievedPostKey, [UserPost]).self) { group in
+                let data = try await query.getData()
 
-            var retrievedPosts = [UserPost]()
-            var lastReceivedPostKey = ""
+                var retrievedPosts = [UserPost?](repeating: nil, count: Int(data.childrenCount))
+                var lastReceivedPostKey = ""
 
-            for snapshotChild in data.children.reversed() {
-                guard let postSnapshot = snapshotChild as? DataSnapshot,
-                      let postDictionary = postSnapshot.value as? [String: Any]
-                else {
-                    throw ServiceError.snapshotCastingError
+                for (index, snapshotChild) in data.children.reversed().enumerated() {
+                    guard let postSnapshot = snapshotChild as? DataSnapshot,
+                          let postDictionary = postSnapshot.value as? [String: Sendable]
+                    else {
+                        throw ServiceError.snapshotCastingError
+                    }
+                    lastReceivedPostKey = postSnapshot.key
+
+                    group.addTask {
+                        do {
+                            let jsonData = try JSONSerialization.data(withJSONObject: postDictionary as Any)
+                            var userPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
+                            userPost.author = try await UserDataService().getUser(for: userPost.userID)
+                            return (index, userPost)
+                        } catch {
+                            throw error
+                        }
+                    }
                 }
-                lastReceivedPostKey = postSnapshot.key
-                do {
-                    let jsonData = try JSONSerialization.data(withJSONObject: postDictionary as Any)
-                    let userPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
-                    userPost.author = try await UserDataService.shared.getUser(for: userPost.userID)
-                    retrievedPosts.append(userPost)
-                } catch {
-                    throw error
+
+                for try await (index, post) in group {
+                    retrievedPosts[index] = post
                 }
+                let compactMappedPosts = retrievedPosts.compactMap { $0 }
+                return (lastReceivedPostKey, compactMappedPosts)
             }
-            return PaginatedItems(items: retrievedPosts, lastRetrievedItemKey: lastReceivedPostKey)
+            return PaginatedItems(items: posts.1, lastRetrievedItemKey: posts.0)
         } catch {
             throw ServiceError.couldntLoadPosts
         }
@@ -86,8 +97,8 @@ class FeedService: FeedServiceProtocol {
 
                 do {
                     let jsonData = try JSONSerialization.data(withJSONObject: postDictionary as Any)
-                    let userPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
-                    userPost.author = try await UserDataService.shared.getUser(for: userPost.userID)
+                    var userPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
+                    userPost.author = try await UserDataService().getUser(for: userPost.userID)
                     retrievedPosts.append(userPost)
                 } catch {
                     throw error

@@ -16,7 +16,7 @@ enum BookmarkState {
     case bookmarked, notBookmarked
 }
 
-public class UserPost: Codable {
+public struct UserPost: Sendable, Codable {
 
     var userID: String
     var postID: String
@@ -24,7 +24,7 @@ public class UserPost: Codable {
     var caption: String?
     var postedDate: Date
 
-    // Used locally
+    // Used locally, are not uploaded to the database as part of UserPost model, retrieved separetely.
     var author: ZoogramUser!
     var likesCount: Int = 0
     var commentsCount: Int = 0
@@ -49,7 +49,7 @@ public class UserPost: Codable {
         self.isNewlyCreated = isNewlyCreated
     }
 
-    required public init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let caption = try container.decodeIfPresent(String.self, forKey: .caption)
         self.userID = try container.decode(String.self, forKey: .userID)
@@ -57,6 +57,46 @@ public class UserPost: Codable {
         self.photoURL = try container.decode(String.self, forKey: .photoURL)
         self.caption = caption?.trimmingCharacters(in: NSCharacterSet.whitespacesAndNewlines)
         self.postedDate = try container.decode(Date.self, forKey: .postedDate)
+    }
+
+    enum CodingKeys: CodingKey {
+        case userID
+        case postID
+        case photoURL
+        case caption
+        case postedDate
+    }
+
+    mutating func switchLikeState() {
+        if likeState == .liked {
+            likeState = .notLiked
+            likesCount -= 1
+        } else if likeState == .notLiked {
+            likeState = .liked
+            likesCount += 1
+        }
+    }
+
+    mutating func switchBookmarkState() {
+        if bookmarkState == .bookmarked {
+            bookmarkState = .notBookmarked
+        } else if bookmarkState == .notBookmarked {
+            bookmarkState = .bookmarked
+        }
+    }
+
+    mutating func changeIsNewlyCreatedStatus(to value: Bool) {
+        isNewlyCreated = value
+    }
+
+    func createDictionary() -> [String: Any]? {
+        guard let dictionary = self.dictionary else { return nil }
+        return dictionary
+    }
+
+    func isMadeByCurrentUser() -> Bool {
+        let currentUserID = UserManager.shared.getUserID()
+        return userID == currentUserID
     }
 
     static func createNewPostModel() -> UserPost {
@@ -71,24 +111,6 @@ public class UserPost: Codable {
                         postedDate: Date(),
                         isNewlyCreated: true)
     }
-
-    func createDictionary() -> [String: Any]? {
-        guard let dictionary = self.dictionary else { return nil }
-        return dictionary
-    }
-
-    func isMadeByCurrentUser() -> Bool {
-        let currentUserID = UserManager.shared.getUserID()
-        return userID == currentUserID
-    }
-
-    enum CodingKeys: CodingKey {
-        case userID
-        case postID
-        case photoURL
-        case caption
-        case postedDate
-    }
 }
 
 extension UserPost: PostViewModelProvider {
@@ -96,5 +118,3 @@ extension UserPost: PostViewModelProvider {
         return PostViewModel(post: self)
     }
 }
-
-

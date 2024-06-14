@@ -7,12 +7,9 @@
 
 import UIKit
 
-struct Gradient {
-    let firstColor: UIColor
-    let secondColor: UIColor
-}
+typealias Gradient = [CGColor]
 
-protocol CatNoseColorScheme {
+protocol CatNoseColorScheme: Sendable {
     var noseColor: UIColor { get }
     var bridgeGradient: Gradient { get }
     var nostrilGradient: Gradient { get }
@@ -72,7 +69,7 @@ struct GrayCatNose: CatNoseColorScheme {
         }
     }
 
-    var noseColor: UIColor = {
+    var noseColor: UIColor {
         UIColor.init { traitCollection in
             switch traitCollection.userInterfaceStyle {
             case .dark:
@@ -83,19 +80,20 @@ struct GrayCatNose: CatNoseColorScheme {
                 return UIColor.blue
             }
         }
-    }()
+    }
 
-    var bridgeGradient: Gradient = {
-        return Gradient(firstColor: noseBridgeGradientFirstColor, secondColor: noseBridgeGradientSecondColor)
-    }()
+    var bridgeGradient: Gradient {
+        return [GrayCatNose.noseBridgeGradientFirstColor.cgColor, GrayCatNose.noseBridgeGradientSecondColor.cgColor]
+    }
 
-    var nostrilGradient: Gradient = {
-        return Gradient(firstColor: nostrilGradientFirstColor, secondColor: nostrilGradientSecondColor)
-    }()
+    var nostrilGradient: Gradient {
+        return [GrayCatNose.nostrilGradientFirstColor.cgColor, GrayCatNose.nostrilGradientSecondColor.cgColor]
+    }
 }
 
 struct Colors {
 
+    // Following property is used in case there will be more color themes in the future
     static let activeCatNoseColorScheme: CatNoseColorScheme = grayCatNose
 
     static let grayCatNose = GrayCatNose()
@@ -284,16 +282,16 @@ struct Colors {
 
     static let coolBlue: UIColor = {
         return UIColor.systemBlue
-        UIColor.init { traitCollection in
-            switch traitCollection.userInterfaceStyle {
-            case .dark:
-                return UIColor(red: 0.13, green: 0.15, blue: 0.16, alpha: 1.00)
-            case .light:
-                return UIColor(red: 0.96, green: 0.96, blue: 0.95, alpha: 1.00)
-            default:
-                return UIColor.systemBlue
-            }
-        }
+//        UIColor.init { traitCollection in
+//            switch traitCollection.userInterfaceStyle {
+//            case .dark:
+//                return UIColor(red: 0.13, green: 0.15, blue: 0.16, alpha: 1.00)
+//            case .light:
+//                return UIColor(red: 0.96, green: 0.96, blue: 0.95, alpha: 1.00)
+//            default:
+//                return UIColor.systemBlue
+//            }
+//        }
     }()
 
     static let unseenBlue: UIColor = {

@@ -9,7 +9,6 @@ import Foundation
 
 protocol UserProfileServiceProtocol: PostsNetworking<UserPost> {
     var userID: String { get }
-    var dispatchGroup: DispatchGroup { get set }
 
     var followService: FollowSystemProtocol { get }
     var userPostsService: UserPostsServiceProtocol { get }
@@ -24,26 +23,17 @@ protocol UserProfileServiceProtocol: PostsNetworking<UserPost> {
     func unfollowUser() async throws -> FollowStatus
 }
 
-typealias HasHitTheEnd = Bool
+final class UserProfileService: UserProfileServiceProtocol {
 
-class UserProfileService: ImageService, UserProfileServiceProtocol {
+    internal let paginationManager = PaginationManager(numberOfItemsToGetPerPagination: 12)
 
-    var numberOfRetrievedItems: UInt = 0
-    var numberOfAllItems: UInt = 0
-    var numberOfItemsToGet: UInt = 12
-    var lastReceivedItemKey: String = ""
-    var isAlreadyPaginating: Bool = false
-    var hasHitTheEndOfPosts: HasHitTheEnd = false
-
-    var userID: String
+    let userID: String
 
     let followService: FollowSystemProtocol
     let userPostsService: UserPostsServiceProtocol
     let userDataService: UserDataServiceProtocol
     let likeSystemService: LikeSystemServiceProtocol
     let bookmarksService: BookmarksSystemServiceProtocol
-
-    var dispatchGroup = DispatchGroup()
 
     init(userID: String,
          followService: FollowSystemProtocol,
@@ -57,7 +47,6 @@ class UserProfileService: ImageService, UserProfileServiceProtocol {
         self.userDataService = userService
         self.likeSystemService = likeSystemService
         self.bookmarksService = bookmarksService
-        self.dispatchGroup = DispatchGroup()
     }
 
     func getFollowersCount() async throws -> Int {
@@ -72,11 +61,11 @@ class UserProfileService: ImageService, UserProfileServiceProtocol {
         let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
 
         if userID == currentUserID {
-            return UserManager.shared.getCurrentUser()
+            return await UserManager.shared.getCurrentUser()
         } else {
-            let user = try await userDataService.getUser(for: userID)
+            var user = try await userDataService.getUser(for: userID)
             if let profilePhotoURL = user.profilePhotoURL {
-                let profilePicture = try await getImage(for: profilePhotoURL)
+                let profilePicture = try await ImageService.shared.getImage(for: profilePhotoURL)
                 user.setProfilePhoto(profilePicture)
             }
             return user
@@ -84,53 +73,65 @@ class UserProfileService: ImageService, UserProfileServiceProtocol {
     }
 
     func getNumberOfItems() async throws -> Int {
-        return try await userPostsService.getPostCount(for: userID)
+        let numberOfAllItems = try await userPostsService.getPostCount(for: userID)
+        await paginationManager.setNumberOfAllItems(numberOfAllItems)
+        return numberOfAllItems
     }
 
     func getItems() async throws -> [UserPost]? {
-        let paginatedPosts = try await userPostsService.getPosts(quantity: numberOfItemsToGet, for: userID)
+        let isPaginating = await paginationManager.isPaginating()
+        guard isPaginating == false else { return nil }
+        await paginationManager.startPaginating()
+        let numberOfItemsToGet = paginationManager.numberOfItemsToGetPerPagination
+        async let numberOfAllItems = getNumberOfItems()
+        async let retrievedPosts = userPostsService.getPosts(quantity: numberOfItemsToGet, for: userID)
 
-        guard paginatedPosts.items.isEmpty != true else {
-            self.hasHitTheEndOfPosts = true
+        guard try await retrievedPosts.items.isEmpty != true else {
+            await paginationManager.setHasHitEndOfItemsStatus(to: true)
+            await paginationManager.finishPaginating()
             return nil
         }
 
-        let postsWithAdditionalData = try await getAdditionalPostDataFor(postsOfSingleUser: paginatedPosts.items)
-        self.lastReceivedItemKey = paginatedPosts.lastRetrievedItemKey
-        self.hasHitTheEndOfPosts = false
-        self.numberOfRetrievedItems = UInt(paginatedPosts.items.count)
-        if self.numberOfRetrievedItems == self.numberOfAllItems {
-            self.hasHitTheEndOfPosts = true
+        let postsWithAdditionalData = try await getAdditionalPostDataFor(postsOfSingleUser: retrievedPosts.items)
+        let lastRetrievedItemKey = try await retrievedPosts.lastRetrievedItemKey
+        await paginationManager.setLastReceivedItemKey(lastRetrievedItemKey)
+        await paginationManager.setHasHitEndOfItemsStatus(to: false)
+        await paginationManager.updateNumberOfRetrievedItems(value: postsWithAdditionalData.count)
+
+        let numberOfRetrievedItems = await paginationManager.getNumberOfRetrievedItems()
+        if try await numberOfRetrievedItems == numberOfAllItems {
+            await paginationManager.setHasHitEndOfItemsStatus(to: true)
         }
+        await paginationManager.finishPaginating()
         return postsWithAdditionalData
     }
 
     func getMoreItems() async throws -> [UserPost]? {
-        guard isAlreadyPaginating == false, lastReceivedItemKey != "" else {
+        let isPaginating = await paginationManager.isPaginating()
+        let lastReceivedItemKey = await paginationManager.getLastReceivedItemKey()
+
+        guard isPaginating == false, lastReceivedItemKey != "" else { return nil }
+        await paginationManager.startPaginating()
+
+        let numberOfItemsToGet = paginationManager.numberOfItemsToGetPerPagination
+        let paginatedPosts = try await userPostsService.getMorePosts(quantity: numberOfItemsToGet, after: lastReceivedItemKey, for: userID)
+
+        guard paginatedPosts.items.isEmpty != true, paginatedPosts.lastRetrievedItemKey != lastReceivedItemKey else {
+            await paginationManager.finishPaginating()
+            await paginationManager.setHasHitEndOfItemsStatus(to: true)
             return nil
         }
-        isAlreadyPaginating = true
 
-        do {
-            let paginatedPosts = try await userPostsService.getMorePosts(quantity: numberOfItemsToGet, after: lastReceivedItemKey, for: userID)
-
-            guard paginatedPosts.items.isEmpty != true, paginatedPosts.lastRetrievedItemKey != self.lastReceivedItemKey else {
-                self.hasHitTheEndOfPosts = true
-                self.isAlreadyPaginating = false
-                return nil
-            }
-
-            let postsWithAdditionalData = try await getAdditionalPostDataFor(postsOfSingleUser: paginatedPosts.items)
-            self.numberOfRetrievedItems += UInt(paginatedPosts.items.count)
-            self.lastReceivedItemKey = paginatedPosts.lastRetrievedItemKey
-            if self.numberOfRetrievedItems == self.numberOfAllItems {
-                self.hasHitTheEndOfPosts = true
-            }
-            return postsWithAdditionalData
-        } catch {
-            self.isAlreadyPaginating = false
-            throw error
+        let postsWithAdditionalData = try await getAdditionalPostDataFor(postsOfSingleUser: paginatedPosts.items)
+        await paginationManager.setLastReceivedItemKey(paginatedPosts.lastRetrievedItemKey)
+        await paginationManager.updateNumberOfRetrievedItems(value: paginatedPosts.items.count)
+        let numberOfAllItems = await paginationManager.getNumberOfAllItems()
+        let numberOfRetrievedItems = await paginationManager.getNumberOfRetrievedItems()
+        if numberOfRetrievedItems == numberOfAllItems {
+            await paginationManager.setHasHitEndOfItemsStatus(to: true)
         }
+        await paginationManager.finishPaginating()
+        return postsWithAdditionalData
     }
 
     func followUser() async throws -> FollowStatus {
@@ -141,17 +142,15 @@ class UserProfileService: ImageService, UserProfileServiceProtocol {
         return try await followService.unfollowUser(uid: userID)
     }
 
-    func likePost(postID: String, likeState: LikeState, postAuthorID: String) async throws -> LikeState {
+    func likePost(postID: String, likeState: LikeState, postAuthorID: String) async throws {
         switch likeState {
         case .liked:
             try await likeSystemService.removeLikeFromPost(postID: postID)
             try await ActivitySystemService.shared.removeLikeEventForPost(postID: postID, postAuthorID: postAuthorID)
-            return .notLiked
         case .notLiked:
             try await likeSystemService.likePost(postID: postID)
             let activityEvent = ActivityEvent.createActivityEventFor(likedPostID: postID)
             try await ActivitySystemService.shared.addEventToUserActivity(event: activityEvent, userID: postAuthorID)
-            return .liked
         }
     }
 
@@ -159,23 +158,13 @@ class UserProfileService: ImageService, UserProfileServiceProtocol {
         try await userPostsService.deletePost(postID: postModel.postID, postImageURL: postModel.postImageURL)
     }
 
-    func bookmarkPost(postID: String, authorID: String, bookmarkState: BookmarkState) async throws -> BookmarkState {
+    func bookmarkPost(postID: String, authorID: String, bookmarkState: BookmarkState) async throws {
         switch bookmarkState {
         case .bookmarked:
-            return try await bookmarksService.removeBookmark(postID: postID)
+            try await bookmarksService.removeBookmark(postID: postID)
         case .notBookmarked:
-            return try await bookmarksService.bookmarkPost(postID: postID, authorID: authorID)
+            try await bookmarksService.bookmarkPost(postID: postID, authorID: authorID)
         }
 
     }
 }
-
-func createUserProfileDefaultServiceFor(userID: String) -> UserProfileService {
-    UserProfileService(userID: userID,
-                       followService: FollowSystemService.shared,
-                       userPostsService: UserPostsService.shared,
-                       userService: UserDataService.shared,
-                       likeSystemService: LikeSystemService.shared,
-                       bookmarksService: BookmarksSystemService.shared)
-}
-

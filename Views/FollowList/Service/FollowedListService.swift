@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import SDWebImage
 
 protocol FollowListServiceProtocol: Sendable {
     var followSystemService: FollowSystemProtocol { get }
@@ -66,4 +65,3 @@ final class FollowedListService: FollowListServiceProtocol {
         try await followSystemService.undoForcefullRemoval(ofUser: uid)
     }
 }
-

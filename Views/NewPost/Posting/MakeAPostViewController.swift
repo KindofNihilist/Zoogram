@@ -7,7 +7,7 @@
 
 import UIKit
 
-protocol NewPostProtocol: AnyObject {
+@MainActor protocol NewPostProtocol: AnyObject {
     func makeANewPost(post: UserPost)
 }
 
@@ -80,7 +80,7 @@ class MakeAPostViewController: UIViewController {
         setupEdditingInteruptionGestures()
         captionTextView.delegate = self
     }
-    
+
     override var prefersStatusBarHidden: Bool {
         return true
     }

@@ -8,17 +8,6 @@
 import UIKit
 import SDWebImage
 
-//func getImageForURL(_ url: URL, completion: @escaping (UIImage?) -> Void) {
-//    SDWebImageManager.shared.loadImage(with: url, progress: .none) { retrievedImage, _, _, _, _, _ in
-//        completion(retrievedImage)
-//    }
-//}
-
-//func currentUserID() -> String {
-//    AuthenticationService.shared.getCurrentUserUID()
-//}
-
-
 func sendNotificationToUpdateUserFeed() {
     NotificationCenter.default.post(name: NSNotification.Name("UpdateUserFeed"), object: nil)
 }

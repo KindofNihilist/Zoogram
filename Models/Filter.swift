@@ -7,9 +7,7 @@
 
 import UIKit
 
-
 enum FilterType {
-    // EdittingFilters
     case exposure
     case brightness
     case contrast
@@ -19,7 +17,6 @@ enum FilterType {
     case highlihts
     case shadows
     case vignette
-    // ImageFilters
     case normal
     case noir
     case vivid
@@ -30,7 +27,7 @@ enum FilterType {
     case coldMonkey
 }
 
-protocol FilterDelegate {
+protocol ImageFilter {
     var filterType: FilterType { get set }
     var minimumValue: Float { get set }
     var maximumValue: Float { get set }
@@ -44,8 +41,7 @@ protocol FilterDelegate {
     func setInputImage(image: CIImage)
 }
 
-class Filter: FilterDelegate {
-
+class Filter: ImageFilter {
     let filter: CIFilter
     let filterKey: String
     var filterType: FilterType
@@ -57,7 +53,7 @@ class Filter: FilterDelegate {
     var maximumValue: Float
     var latestValue: Float
 
-    init(filterType: FilterType, filterName: String, displayName: String, filterIcon: UIImage ,filterKey: String, filterDefaultValue: Float, minimumValue: Float, maximumValue: Float) {
+    init(filterType: FilterType, filterName: String, displayName: String, filterIcon: UIImage, filterKey: String, filterDefaultValue: Float, minimumValue: Float, maximumValue: Float) {
         self.filterType = filterType
         self.defaultValue = filterDefaultValue
         self.filter = CIFilter(name: filterName)!
@@ -77,7 +73,7 @@ class Filter: FilterDelegate {
     }
 
     func applyFilter(sliderValue: Float) {
-        var filterValue = getFilterValue(for: sliderValue)
+        let filterValue = getFilterValue(for: sliderValue)
         filter.setValue(filterValue, forKey: filterKey)
     }
 
@@ -89,7 +85,7 @@ class Filter: FilterDelegate {
     }
 
     func revertChanges() {
-        var filterDefaultValue = getFilterValue(for: self.defaultValue)
+        let filterDefaultValue = getFilterValue(for: self.defaultValue)
         filter.setValue(filterDefaultValue, forKey: filterKey)
     }
 
@@ -115,7 +111,7 @@ class Filter: FilterDelegate {
 
 }
 
-class PhotoFilter: FilterDelegate {
+class PhotoFilter: ImageFilter {
 
     static let effects = EditingFilters()
 
@@ -195,7 +191,7 @@ class PhotoFilter: FilterDelegate {
     }
 }
 
-func getFilter(of type: FilterType) -> FilterDelegate {
+func getFilter(of type: FilterType) -> ImageFilter {
     switch type {
     case .exposure:
         return EditingFilters().exposureFilter

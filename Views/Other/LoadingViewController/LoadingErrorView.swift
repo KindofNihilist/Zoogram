@@ -39,13 +39,13 @@ class LoadingErrorView: UIView {
         return button
     }()
 
-    init(frame: CGRect = CGRectZero, reloadButtonSize: CGSize = CGSize(width: 30, height: 30)) {
+    init(frame: CGRect = CGRect.zero, reloadButtonSize: CGSize = CGSize(width: 30, height: 30)) {
         self.reloadButtonSize = reloadButtonSize
         super.init(frame: frame)
         self.addSubviews(descriptionLabel, reloadButton)
         self.setupConstraints()
     }
-    
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }

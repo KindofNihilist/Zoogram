@@ -1,72 +1,6 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    " and" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "uk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : " та"
-          }
-        }
-      }
-    },
-    " be at least 4 characters long" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "uk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : " мати не менше 4 символів"
-          }
-        }
-      }
-    },
-    " be at least 8 characters long" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "uk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : " мати не менше 8 символів"
-          }
-        }
-      }
-    },
-    " have no whitespaces" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "uk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : " відсутні пробіли"
-          }
-        }
-      }
-    },
-    " include at least one digit" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "uk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : " включати щонайменше одну цифру"
-          }
-        }
-      }
-    },
-    " include at least one letter" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "uk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : " включати щонайменше одну літеру"
-          }
-        }
-      }
-    },
     "%@. \nPlease try again later." : {
       "localizations" : {
         "uk" : {
@@ -236,10 +170,24 @@
       }
     },
     "Authorization Error" : {
-
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Помилка авторизації"
+          }
+        }
+      }
     },
     "Be the first to leave a comment" : {
-
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Залиште коментар першими"
+          }
+        }
+      }
     },
     "Bio" : {
       "localizations" : {
@@ -432,7 +380,14 @@
       }
     },
     "Couldn't load comments" : {
-
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не вдалось завантажити коментарі"
+          }
+        }
+      }
     },
     "Couldn't load data" : {
       "localizations" : {
@@ -445,7 +400,14 @@
       }
     },
     "Couldn't load post" : {
-
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не вдалось завантажити пост"
+          }
+        }
+      }
     },
     "Couldn't load posts" : {
       "localizations" : {
@@ -538,7 +500,14 @@
       }
     },
     "Data required for registration is missing, try again." : {
-
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Необхідні для реєстрації данні відсутні, спробуйте знову."
+          }
+        }
+      }
     },
     "Date of birth" : {
       "localizations" : {
@@ -561,7 +530,14 @@
       }
     },
     "Discover" : {
-
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Відкриття нового"
+          }
+        }
+      }
     },
     "Done" : {
       "localizations" : {
@@ -679,17 +655,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Введіть ваш емейл"
-          }
-        }
-      }
-    },
-    "Error" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "uk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Помилка"
           }
         }
       }
@@ -831,7 +796,14 @@
       }
     },
     "Invalid URL" : {
-
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Невірна URL адреса"
+          }
+        }
+      }
     },
     "liked your post. " : {
       "localizations" : {
@@ -879,17 +851,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Імʼя"
-          }
-        }
-      }
-    },
-    "Name can't be empty" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "uk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Імʼя не може бути порожнім"
           }
         }
       }
@@ -1184,28 +1145,45 @@
         }
       }
     },
-    "The password should" : {
-      "extractionState" : "stale",
+    "The password should be at least 8 characters long" : {
       "localizations" : {
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Пароль повинен"
+            "value" : "Пароль повинен бути довжиною щонайменше 8 символів"
           }
         }
       }
     },
-    "The password should be at least 8 characters long" : {
-
-    },
     "The password should have no whitespaces" : {
-
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пароль не повинен мати пробіли"
+          }
+        }
+      }
     },
     "The password should include at least one digit" : {
-
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пароль повинен мати щонайменше одну цифру"
+          }
+        }
+      }
     },
     "The password should include at least one letter" : {
-
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пароль повинен мати щонайменше одну літеру"
+          }
+        }
+      }
     },
     "The user has been disabled" : {
       "localizations" : {
@@ -1218,27 +1196,45 @@
       }
     },
     "The username is already taken" : {
-
-    },
-    "The username should" : {
       "extractionState" : "stale",
       "localizations" : {
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Юзернейм повинен"
+            "value" : "Імʼя користувача вже зайнято"
           }
         }
       }
     },
     "The username should be at least 4 characters long" : {
-
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Юзернейм повинен бути щонайменше 4 символи довжиною"
+          }
+        }
+      }
     },
     "The username should have no whitespaces" : {
-
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Юзернейм не повинен мати пробіли"
+          }
+        }
+      }
     },
     "The username should include at least one letter" : {
-
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Юзернейм повинен мати щонайменше одну літеру"
+          }
+        }
+      }
     },
     "There was a network error, please try again later" : {
       "localizations" : {
@@ -1453,7 +1449,14 @@
       }
     },
     "You must enter a name" : {
-
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ви повинні ввести імʼя"
+          }
+        }
+      }
     },
     "You must enter a username" : {
       "localizations" : {

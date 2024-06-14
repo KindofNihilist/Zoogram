@@ -7,6 +7,7 @@
 
 import Foundation
 
+@MainActor
 class BookmarksViewModel {
 
     private var service: any BookmarkedPostsServiceProtocol
@@ -17,8 +18,10 @@ class BookmarksViewModel {
         self.service = service
     }
 
-    func isPaginationAllowed() -> Bool {
-        return service.hasHitTheEndOfPosts == false && service.isAlreadyPaginating == false
+    func isPaginationAllowed() async -> Bool {
+        let isPaginating = await service.paginationManager.isPaginating()
+        let hasHitTheEndOfPosts = await service.checkIfHasHitEndOfItems()
+        return hasHitTheEndOfPosts == false && isPaginating == false
     }
 
     func getBookmarks() async throws -> [Bookmark]? {
@@ -33,19 +36,18 @@ class BookmarksViewModel {
         let paginatedBookmarks = try await service.getMoreItems()
         if let paginatedBookmarks = paginatedBookmarks {
             self.bookmarks.append(contentsOf: paginatedBookmarks)
+            return paginatedBookmarks
+        } else {
+            return nil
         }
-        return paginatedBookmarks
     }
 
-    func hasHitTheEndOfBookmarks() -> Bool {
-        return service.hasHitTheEndOfPosts
+    func hasHitTheEndOfBookmarks() async -> Bool {
+        return await service.checkIfHasHitEndOfItems()
     }
 
-    func hasFinishedPagination() {
-        service.isAlreadyPaginating = false
-    }
-
-    func checkIfHasLoadedData() -> Bool {
-        service.numberOfRetrievedItems > 0
+    func checkIfHasLoadedData() async -> Bool {
+        let numberOfRetrievedItems = await service.paginationManager.getNumberOfRetrievedItems()
+        return numberOfRetrievedItems > 0
     }
 }

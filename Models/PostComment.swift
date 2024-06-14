@@ -7,7 +7,7 @@
 
 import Foundation
 
-class PostComment: Codable {
+struct PostComment: Sendable, Codable {
     let commentID: String
     let authorID: String
     let commentText: String
@@ -26,7 +26,7 @@ class PostComment: Codable {
         self.dateTitle = datePosted.timeAgoDisplay()
     }
 
-    required init(from decoder: Decoder) throws {
+    init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let commentText = try container.decode(String.self, forKey: .commentText)
         self.commentID = try container.decode(String.self, forKey: .commentID)

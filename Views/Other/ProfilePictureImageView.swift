@@ -13,7 +13,7 @@ class ProfilePictureImageView: UIImageView {
         super.init(frame: CGRect.zero)
         self.clipsToBounds = true
         self.image = UIImage(systemName: "person.crop.circle.fill")
-        self.contentMode = .scaleAspectFit
+        self.contentMode = .scaleAspectFill
         self.tintColor = Colors.profilePicturePlaceholder
     }
 

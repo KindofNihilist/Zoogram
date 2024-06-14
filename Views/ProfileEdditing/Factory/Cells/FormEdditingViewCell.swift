@@ -7,14 +7,14 @@
 
 import UIKit
 
-protocol ProfileEdditingCellDelegate: AnyObject {
+@MainActor protocol ProfileEdditingCellDelegate: AnyObject {
     func didUpdateModel(_ model: EditProfileFormModel)
 }
 
 class FormEdditingViewCell: UITableViewCell {
-    
+
     var model: EditProfileFormModel?
-    
+
     weak var delegate: ProfileEdditingCellDelegate?
 
     var isDividerHidden: Bool = false {
@@ -34,7 +34,7 @@ class FormEdditingViewCell: UITableViewCell {
         label.minimumScaleFactor = 0.7
         return label
     }()
-    
+
     var rightView: UIView = {
         let view = UIView()
         view.translatesAutoresizingMaskIntoConstraints = false
@@ -49,7 +49,7 @@ class FormEdditingViewCell: UITableViewCell {
         divider.translatesAutoresizingMaskIntoConstraints = false
         return divider
     }()
-    
+
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         selectionStyle = .none
@@ -58,11 +58,11 @@ class FormEdditingViewCell: UITableViewCell {
         clipsToBounds = true
         backgroundColor = Colors.detailGray
     }
-    
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-    
+
     func configure(with model: EditProfileFormModel) {
         self.model = model
         formLabel.text = model.label

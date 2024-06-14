@@ -4,13 +4,13 @@
 //
 //  Created by Artem Dolbiev on 17.01.2022.
 //
-//import FirebaseAuth
 import UIKit
 import SwiftUI
 
 class LoginViewController: UIViewController {
 
     private let viewModel: LoginViewModel
+    private var task: Task<Void, Error>?
     var shouldShowOnAppearAnimation: Bool = false
     var hasFinishedLogginIn = Observable(false)
 
@@ -101,7 +101,6 @@ class LoginViewController: UIViewController {
         self.navigationController?.isNavigationBarHidden = true
         setNavigationBarAppearence()
         setupConstraints()
-        setupErrorHandler()
         setupEdditingInteruptionGestures()
         setupKeyboardEventsObservers()
     }
@@ -121,8 +120,9 @@ class LoginViewController: UIViewController {
         }
     }
 
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        task?.cancel()
     }
 
     private func setupKeyboardEventsObservers() {
@@ -190,10 +190,9 @@ class LoginViewController: UIViewController {
             createAccountButton.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor),
             createAccountButton.heightAnchor.constraint(equalTo: loginButton.heightAnchor),
             createAccountButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            createAccountButton.bottomAnchor.constraint(lessThanOrEqualTo: view.keyboardLayoutGuide.topAnchor, constant: -15),
+            createAccountButton.bottomAnchor.constraint(lessThanOrEqualTo: view.keyboardLayoutGuide.topAnchor, constant: -15)
         ])
     }
-    
 
     private func onAppearAnimation() {
         self.logoImage.transform = CGAffineTransform(translationX: 0, y: -(self.view.frame.height - self.logoImage.frame.height))
@@ -210,8 +209,7 @@ class LoginViewController: UIViewController {
         }
     }
 
-    @MainActor
-    private func showMainScreen() {
+    private func showMainScreen(for user: ZoogramUser) {
         UIView.animate(withDuration: 1.0) {
             self.logoImage.transform = CGAffineTransform(translationX: 0, y: -(self.view.frame.height - self.logoImage.frame.height))
             self.loginButton.transform = CGAffineTransform(translationX: 0, y: 300)
@@ -220,7 +218,7 @@ class LoginViewController: UIViewController {
             self.view.alpha = 0
         } completion: { _ in
             self.hasFinishedLogginIn.value = true
-            self.view.window?.rootViewController = TabBarController(showAppearAnimation: true)
+            self.view.window?.rootViewController = TabBarController(for: user, showAppearAnimation: true)
         }
     }
 
@@ -230,9 +228,14 @@ class LoginViewController: UIViewController {
         else {
             return
         }
-        Task {
-            await viewModel.loginUser(with: usernameEmail, password: password)
-            self.showMainScreen()
+        task = Task {
+            do {
+                try await viewModel.loginUser(with: usernameEmail, password: password)
+                let loggedInUser = await UserManager.shared.getCurrentUser()
+                self.showMainScreen(for: loggedInUser)
+            } catch {
+                self.showPopUp(issueText: error.localizedDescription)
+            }
         }
     }
 
@@ -247,19 +250,14 @@ class LoginViewController: UIViewController {
         guard let email = usernameEmailField.text else {
             return
         }
-        Task {
-            await viewModel.resetPassword(for: email)
-            let notificationText = String(localized: "Please check your email for password reset link and follow the instructions")
-            self.displayNotificationToUser(title: "", text: notificationText, prefferedStyle: .alert, action: nil)
-        }
-    }
-}
-
-extension LoginViewController {
-
-    func setupErrorHandler() {
-        viewModel.errorHandler = { errorDescription in
-            self.showPopUp(issueText: errorDescription)
+        task = Task {
+            do {
+                try await viewModel.resetPassword(for: email)
+                let notificationText = String(localized: "Please check your email for password reset link and follow the instructions")
+                self.displayNotificationToUser(title: "", text: notificationText, prefferedStyle: .alert, action: nil)
+            } catch {
+                self.showPopUp(issueText: error.localizedDescription)
+            }
         }
     }
 }

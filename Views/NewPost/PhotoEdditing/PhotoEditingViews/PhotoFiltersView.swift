@@ -7,7 +7,7 @@
 
 import UIKit
 
-protocol PhotoFiltersViewDelegate: AnyObject {
+@MainActor protocol PhotoFiltersViewDelegate: AnyObject {
     func userHasSelected(button: EdditingFilterButton, with filter: PhotoFilter)
 }
 

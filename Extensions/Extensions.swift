@@ -30,26 +30,11 @@ extension UIFont {
     }
 }
 
-
-
 extension UIStackView {
     func addArrangedSubviews(_ views: UIView...) {
         for view in views {
             addArrangedSubview(view)
         }
-    }
-}
-
-extension String {
-    func safeDatabaseKey() -> String {
-        return self.replacingOccurrences(of: ".", with: "-")
-    }
-
-    func lineWithSpacing(_ spacing: CGFloat) -> NSAttributedString {
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.lineSpacing = spacing
-        let attributedString = NSAttributedString(string: self, attributes: [NSAttributedString.Key.paragraphStyle: paragraphStyle])
-        return attributedString
     }
 }
 
@@ -78,3 +63,7 @@ extension UITableView {
     }
 }
 
+#if compiler(<6.0) || !hasFeature(InferSendableFromCaptures)
+#warning("Workaround trading a bunch of Strict Concurrency related warnings. To be removed when Swift 6.0 is available.")
+extension KeyPath: @unchecked Sendable {}
+#endif

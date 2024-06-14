@@ -6,7 +6,7 @@
 //
 import FirebaseAuth
 
-protocol AuthenticationProtocol {
+protocol AuthenticationProtocol: Sendable {
     func createNewUser(email: String, password: String, username: String) async throws -> UserID
     func signInUsing(email: String, password: String) async throws -> ZoogramUser
     func listenToAuthenticationState(completion: @escaping (User?) -> Void)
@@ -16,15 +16,9 @@ protocol AuthenticationProtocol {
     func signOut() throws
 }
 
-class AuthenticationService: AuthenticationProtocol {
+final class AuthenticationService: AuthenticationProtocol {
 
     static let shared = AuthenticationService()
-
-    func startObservingCurrentUser(with uid: UserID, completion: @escaping (Result<ZoogramUser, Error>) -> Void) {
-        UserDataService.shared.observeCurrentUser(with: uid) { result in
-            completion(result)
-        }
-    }
 
     func createNewUser(email: String, password: String, username: String) async throws -> UserID {
         do {
@@ -42,7 +36,7 @@ class AuthenticationService: AuthenticationProtocol {
         do {
             let authResult = try await Auth.auth().signIn(withEmail: email, password: password)
             try await Auth.auth().currentUser?.reload()
-            let currentUser = try await UserDataService.shared.getUser(for: authResult.user.uid)
+            let currentUser = try await UserDataService().getUser(for: authResult.user.uid)
             if authResult.user.displayName == nil {
                 let changeRequest = authResult.user.createProfileChangeRequest()
                 changeRequest.displayName = currentUser.username
@@ -98,7 +92,7 @@ class AuthenticationService: AuthenticationProtocol {
     }
 
     func handleError(error: Error) -> Error {
-        guard let error = error as? NSError else { return error }
+        let error = error as NSError
         let errorCode = AuthErrorCode.Code(rawValue: error.code)
 
         switch errorCode {

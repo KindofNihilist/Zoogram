@@ -19,22 +19,21 @@ struct EditProfileFormModel {
     let formKind: ProfileFormKind
 }
 
+@MainActor
 class ProfileEdditingViewModel {
 
     private let service: UserDataValidationServiceProtocol
 
-    var name: String
-    var username: String
-    var bio: String?
-    var email: String
-    var gender: String
-    var currentProfilePicture: UIImage
-    var newProfilePicture: UIImage?
+    private var user: ZoogramUser!
 
     var hasChangedProfilePic: Bool = false
     var generalInfoModels = [EditProfileFormModel]()
     var privateInfoModels = [EditProfileFormModel]()
-    var changedValues = [String: Any]()
+    var changedValues = [String: Sendable]()
+    var newProfilePicture: UIImage?
+    var currentProfilePicture: UIImage {
+        return user.getProfilePhoto() ?? UIImage.profilePicturePlaceholder
+    }
 
     let nameLocalizedTitle = String(localized: "Name")
     let namePlaceholder = String(localized: "Enter name")
@@ -47,16 +46,13 @@ class ProfileEdditingViewModel {
     let genderLocalizedTitle = String(localized: "Gender")
     let genderPlaceholder = String(localized: "Choose gender")
 
-    init(userViewModel: UserProfileViewModel, service: UserDataValidationServiceProtocol) {
+    init(service: UserDataValidationServiceProtocol) {
         self.service = service
-        self.name = userViewModel.user.name
-        self.username = userViewModel.user.username
-        self.bio = userViewModel.user.bio
-        self.email = userViewModel.user.email
-        self.gender = userViewModel.user.gender
-        self.currentProfilePicture = userViewModel.user.getProfilePhoto()!
     }
 
+     func getCurrentUserModel() async {
+        user = await UserManager.shared.getCurrentUser()
+    }
 
     func checkIfUsernameIsValid(username: String) throws {
         try service.checkIfUsernameIsValid(username: username)
@@ -69,12 +65,12 @@ class ProfileEdditingViewModel {
     func configureModels() {
         generalInfoModels.removeAll()
         privateInfoModels.removeAll()
-        generalInfoModels = [EditProfileFormModel(label: nameLocalizedTitle, placeholder: namePlaceholder, value: name, formKind: .name),
-                             EditProfileFormModel(label: usernameLocalizedTitle, placeholder: usernamePlaceholder, value: username, formKind: .username),
-                             EditProfileFormModel(label: bioLocalizedTitle, placeholder: bioPlaceholder, value: bio, formKind: .bio)]
+        generalInfoModels = [EditProfileFormModel(label: nameLocalizedTitle, placeholder: namePlaceholder, value: user.name, formKind: .name),
+                             EditProfileFormModel(label: usernameLocalizedTitle, placeholder: usernamePlaceholder, value: user.username, formKind: .username),
+                             EditProfileFormModel(label: bioLocalizedTitle, placeholder: bioPlaceholder, value: user.bio, formKind: .bio)]
 
-        privateInfoModels = [EditProfileFormModel(label: emailLocalizedTitle, placeholder: emailPlaceholder, value: email, formKind: .email),
-                             EditProfileFormModel(label: genderLocalizedTitle, placeholder: genderPlaceholder, value: gender, formKind: .gender)]
+        privateInfoModels = [EditProfileFormModel(label: emailLocalizedTitle, placeholder: emailPlaceholder, value: user.email, formKind: .email),
+                             EditProfileFormModel(label: genderLocalizedTitle, placeholder: genderPlaceholder, value: user.gender, formKind: .gender)]
     }
 
     func hasEdditedUserProfile(data: EditProfileFormModel) {
@@ -112,10 +108,8 @@ class ProfileEdditingViewModel {
 
     func saveChanges() async throws {
         if let newProfilePicture = newProfilePicture {
-            try await UserDataService.shared.updateUserProfilePicture(newProfilePic: newProfilePicture)
+            try await UserDataService().updateUserProfilePicture(newProfilePic: newProfilePicture)
         }
-        try await UserDataService.shared.updateUserProfile(with: self.changedValues)
-        
-        print("Changed values", changedValues)
+        try await UserDataService().updateUserProfile(with: self.changedValues)
     }
 }

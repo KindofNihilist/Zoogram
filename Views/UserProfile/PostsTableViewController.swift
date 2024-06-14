@@ -33,10 +33,9 @@ class PostsTableViewController: UIViewController {
         self.tableView = PostsTableView(service: service)
         self.tableView.allowsSelection = false
         self.tableView.separatorStyle = .none
-        self.tableView.isPaginationAllowed = true
         super.init(nibName: nil, bundle: nil)
         view = tableView
-        tableView.setUserPostsViewModels(postsViewModels: posts)
+        tableView.setPostsViewModels(postsViewModels: posts)
         tableView.reloadData()
         tableView.postsTableDelegate = self
     }
@@ -52,24 +51,33 @@ class PostsTableViewController: UIViewController {
     }
 
     override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
         tableView.setupLoadingIndicatorFooter()
         navigationController?.setNavigationBarHidden(false, animated: true)
     }
 
     override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
         guard isMovingFromParent else {
             return
         }
         updateParentPosts()
     }
 
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        tableView.tasks.forEach { task in
+            task?.cancel()
+        }
+    }
+
     func updateTableViewFrame(to frame: CGRect) {
         self.tableView.frame = frame
     }
 
-    @MainActor
     func updatePostsArrayWith(posts: [PostViewModel]) {
-        self.tableView.setUserPostsViewModels(postsViewModels: posts)
+        print("updating tableView posts with \(posts.count) posts")
+        self.tableView.setPostsViewModels(postsViewModels: posts)
         self.tableView.reloadData()
     }
 
@@ -81,13 +89,11 @@ class PostsTableViewController: UIViewController {
     }
 
     private func updateParentPosts() {
-        print("updating collectionView")
-        let relevantPosts = tableView.posts
+        let relevantPosts = tableView.getRetrievedPosts()
         delegate?.updateCollectionView(with: relevantPosts)
     }
 
     private func showReloadButton(with error: Error) {
-        guard service.numberOfRetrievedItems == 0 else { return }
         view.addSubview(loadingErrorView)
         loadingErrorView.alpha = 1
         NSLayoutConstraint.activate([
@@ -112,10 +118,13 @@ class PostsTableViewController: UIViewController {
 extension PostsTableViewController: PostsTableViewProtocol {
 
     func showLoadingError(_ error: Error) {
-        if service.numberOfRetrievedItems == 0 {
-            showReloadButton(with: error)
-        } else {
-            showPopUp(issueText: error.localizedDescription)
+        Task {
+            let numberOfAllItems = await service.paginationManager.getNumberOfAllItems()
+            if numberOfAllItems == 0 {
+                showReloadButton(with: error)
+            } else {
+                showPopUp(issueText: error.localizedDescription)
+            }
         }
     }
 
@@ -128,7 +137,7 @@ extension PostsTableViewController: PostsTableViewProtocol {
             userID: user.userID,
             followService: FollowSystemService.shared,
             userPostsService: UserPostsService.shared,
-            userService: UserDataService.shared,
+            userService: UserDataService(),
             likeSystemService: LikeSystemService.shared,
             bookmarksService: BookmarksSystemService.shared)
         let userProfileVC = UserProfileViewController(service: service, user: user, isTabBarItem: false)

@@ -37,7 +37,9 @@ class PlaceholderView: UIView {
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.lineSpacing = 8
         paragraphStyle.alignment = .center
-        attributedString.addAttribute(NSAttributedString.Key.paragraphStyle, value: paragraphStyle, range: NSMakeRange(0, attributedString.length))
+        attributedString.addAttribute(NSAttributedString.Key.paragraphStyle,
+                                      value: paragraphStyle,
+                                      range: NSRange(location: 0, length: attributedString.length))
 
         self.label.attributedText = attributedString
     }

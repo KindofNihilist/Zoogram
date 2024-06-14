@@ -7,6 +7,7 @@
 
 import UIKit
 
+@MainActor
 class NewPostViewModel {
 
     var post: UserPost
@@ -17,7 +18,7 @@ class NewPostViewModel {
     }
 
     func prepareForPosting(completion: @escaping (UserPost) -> Void) {
-        guard let image = post.image else { return }
+        guard post.image != nil else { return }
         post.caption = post.caption?.trimmingCharacters(in: NSCharacterSet.whitespacesAndNewlines)
         completion(self.post)
     }

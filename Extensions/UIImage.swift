@@ -9,6 +9,8 @@ import UIKit.UIImage
 
 extension UIImage {
 
+    static let profilePicturePlaceholder = UIImage(systemName: "person.crop.circle.fill")!
+
     func croppedInRect(rect: CGRect) -> UIImage {
         func rad(_ degree: Double) -> CGFloat {
             return CGFloat(degree / 180.0 * .pi)

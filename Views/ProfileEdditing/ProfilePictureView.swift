@@ -7,8 +7,7 @@
 
 import UIKit
 
-@MainActor
-protocol ProfilePictureViewDelegate: AnyObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+@MainActor protocol ProfilePictureViewDelegate: UIImagePickerControllerDelegate, UINavigationControllerDelegate {
     var imagePicker: UIImagePickerController { get set }
     func didTapChangeProfilePic()
     func presentCameraView()
@@ -43,7 +42,7 @@ class ProfilePictureView: UIView {
         self.addSubviews(imageView, changeProfilePicButton)
         setupSubviews(for: frame)
     }
-    
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
@@ -119,8 +118,14 @@ extension ProfilePictureViewDelegate where Self: UIViewController {
         actionSheet.addAction(UIAlertAction(title: alertCancelTitle, style: .cancel, handler: nil))
         present(actionSheet, animated: true)
     }
+}
 
-    func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
-        picker.dismiss(animated: true, completion: nil)
+extension UIImagePickerController {
+    open override var prefersStatusBarHidden: Bool {
+        return true
+    }
+
+    open override var childForStatusBarHidden: UIViewController? {
+        return nil
     }
 }

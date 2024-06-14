@@ -19,7 +19,7 @@ class CameraRollViewController: UIViewController {
             self.selectPhotoAsPreview(at: 0)
         }
     }
-    
+
     private var selectedPhoto: UIImage? {
         didSet {
             if let photo = selectedPhoto {

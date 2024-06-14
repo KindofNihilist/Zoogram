@@ -7,7 +7,7 @@
 
 import UIKit.UITableView
 
-protocol TableViewDataSourceDelegate: AnyObject {
+@MainActor protocol TableViewDataSourceDelegate: AnyObject {
     func didSelectCell(at indexPath: IndexPath)
     func didCommit(editingStyle: UITableViewCell.EditingStyle, at indexPath: IndexPath)
     func scrollViewDidEndScrollingAnimation()

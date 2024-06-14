@@ -95,14 +95,13 @@ final class ProfileHeaderCell: UICollectionViewCell {
     }
 
     func configureWith(viewModel: UserProfileViewModel) {
-        let user = viewModel.user
-        profilePhotoImageView.image = user.getProfilePhoto()
-        nameLabel.text = user.name
-        setupBio(bio: user.bio)
+        profilePhotoImageView.image = viewModel.profileImage
+        nameLabel.text = viewModel.name
+        setupBio(bio: viewModel.bio)
         postsButton.configureWith(labelText: String(localized: "Posts"), number: viewModel.postsCount)
         followersButton.configureWith(labelText: String(localized: "Followers"), number: viewModel.followersCount)
         followingButton.configureWith(labelText: String(localized: "Following"), number: viewModel.followedUsersCount)
-        setupActionButton(isUserProfile: viewModel.isCurrentUserProfile, followStatus: user.followStatus)
+        setupActionButton(isUserProfile: viewModel.isCurrentUserProfile, followStatus: viewModel.followStatus)
         addSubviews(profilePhotoImageView, upperButtonsRow, nameLabel, bioLabel, actionButton)
         upperButtonsRow.addArrangedSubviews(postsButton, followersButton, followingButton)
         setupConstraints()
@@ -167,7 +166,7 @@ final class ProfileHeaderCell: UICollectionViewCell {
             bioLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 5),
             bioLabel.leadingAnchor.constraint(equalTo: nameLabel.leadingAnchor),
             bioLabel.trailingAnchor.constraint(equalTo: upperButtonsRow.trailingAnchor),
-            
+
             actionButton.topAnchor.constraint(equalTo: bioLabel.bottomAnchor, constant: 20),
             actionButton.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: 15),
             actionButton.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -15),
