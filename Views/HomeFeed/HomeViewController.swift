@@ -141,7 +141,7 @@ class HomeViewController: UIViewController {
     }
 
     private func showMakingNewPostNotificationViewFor(username: String, with postImage: UIImage?) {
-        notificationView = NewPostProgressView(photo: postImage, username: username)
+        notificationView = PostPublicationProgressView(photo: postImage, username: username)
         notificationView?.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(notificationView!)
         notificationViewTopAnchor = notificationView!.topAnchor.constraint(equalTo: tableView.topAnchor)
@@ -156,14 +156,14 @@ class HomeViewController: UIViewController {
     }
 
     private func updateProgressBar(progress: Progress?) {
-        guard let notificationView = self.notificationView as? NewPostProgressView else {
+        guard let notificationView = self.notificationView as? PostPublicationProgressView else {
             return
         }
         notificationView.setProgressToProgressBar(progress: progress)
     }
 
     private func animateInsertionOfCreatedPost(post: UserPost) {
-        guard let notificationView = self.notificationView as? NewPostProgressView else {
+        guard let notificationView = self.notificationView as? PostPublicationProgressView else {
             return
         }
         let postViewModel = PostViewModel(post: post)
@@ -180,8 +180,9 @@ class HomeViewController: UIViewController {
 
     private func setupTableViewDidScrollAction() {
         tableView.didScrollAction = { offset, previousOffset in
-            guard self.tableView.contentSize.height > self.tableView.frame.height
-            else {
+            let tableViewContentSizeDifference = self.tableView.contentSize.height - self.tableView.frame.height
+
+            guard tableViewContentSizeDifference >= self.headerHeight else {
                 if self.headerLogoTopConstraint.constant != 0 {
                     self.latestScrollDirection = .none
                     self.animateHeader(offset: 0, alpha: 1)

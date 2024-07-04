@@ -7,7 +7,7 @@
 
 import Foundation
 
-protocol UserDataValidationServiceProtocol: AnyObject {
+protocol UserDataValidationServiceProtocol: Sendable {
     func checkIfEmailIsAvailable(email: String) async throws -> Bool
     func checkIfEmailIsValid(email: String) -> Bool
     func checkIfUsernameIsAvailable(username: String) async throws -> Bool
@@ -16,7 +16,15 @@ protocol UserDataValidationServiceProtocol: AnyObject {
     func checkIfNameIsValid(name: String) throws
 }
 
-class UserDataValidationService: UserDataValidationServiceProtocol {
+final class UserDataValidationService: UserDataValidationServiceProtocol {
+
+    let authenticationService: AuthenticationServiceProtocol
+    let userDataService: UserDataServiceProtocol
+
+    init(authenticationService: AuthenticationServiceProtocol, userDataService: UserDataServiceProtocol) {
+        self.authenticationService = authenticationService
+        self.userDataService = userDataService
+    }
 
     func checkIfNameIsValid(name: String) throws {
         let nameWithoutWhiteSpaces = name.trimmingExtraWhitespace()
@@ -34,11 +42,11 @@ class UserDataValidationService: UserDataValidationServiceProtocol {
     }
 
     func checkIfEmailIsAvailable(email: String) async throws -> Bool {
-        return try await AuthenticationService.shared.checkIfEmailIsAvailable(email: email)
+        return try await authenticationService.checkIfEmailIsAvailable(email: email)
     }
 
     func checkIfUsernameIsAvailable(username: String) async throws -> Bool {
-        return try await UserDataService().checkIfUsernameIsAvailable(username: username)
+        return try await userDataService.checkIfUsernameIsAvailable(username: username)
     }
 
     func checkIfUsernameIsValid(username: String) throws {

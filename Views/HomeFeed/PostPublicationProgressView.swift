@@ -7,7 +7,7 @@
 
 import UIKit
 
-class NewPostProgressView: UIView {
+class PostPublicationProgressView: UIView {
 
     var imageViewTopAnchor: NSLayoutConstraint!
     var imageViewHeightConstraint: NSLayoutConstraint!

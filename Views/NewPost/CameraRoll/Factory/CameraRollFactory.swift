@@ -15,8 +15,6 @@ import UIKit.UICollectionView
 
     weak var headerDelegate: CameraRollHeaderDelegate?
 
-    weak var navigationDelegate: NavigationHeaderActionsDelegate?
-
     private var action: ((IndexPath) -> Void)
 
     var sections = [CollectionSectionController]()
@@ -35,7 +33,7 @@ import UIKit.UICollectionView
     func buildSections(photos: [PHAsset]) {
 
         navigationSection = NavigationSection(sectionHolder: collectionView, cellControllers: [], sectionIndex: 0)
-        navigationSection.delegate = navigationDelegate
+
         sections.append(navigationSection)
 
         previewSection = PreviewSection(sectionHolder: collectionView, cellControllers: [], sectionIndex: 1)
@@ -80,5 +78,13 @@ import UIKit.UICollectionView
 
     func showNavigationNextButton() {
         navigationSection.header?.showNextButton()
+    }
+
+    func setNavigationSectionLeftButtonAction(_ action: @escaping () -> Void) {
+        navigationSection.leftButtonAction = action
+    }
+
+    func setNavigationSectionRightButtonAction(_ action: @escaping () -> Void) {
+        navigationSection.rightButtonAction = action
     }
 }

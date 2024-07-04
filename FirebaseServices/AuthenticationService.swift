@@ -6,7 +6,7 @@
 //
 import FirebaseAuth
 
-protocol AuthenticationProtocol: Sendable {
+protocol AuthenticationServiceProtocol: Sendable {
     func createNewUser(email: String, password: String, username: String) async throws -> UserID
     func signInUsing(email: String, password: String) async throws -> ZoogramUser
     func listenToAuthenticationState(completion: @escaping (User?) -> Void)
@@ -16,7 +16,7 @@ protocol AuthenticationProtocol: Sendable {
     func signOut() throws
 }
 
-final class AuthenticationService: AuthenticationProtocol {
+final class AuthenticationService: AuthenticationServiceProtocol {
 
     static let shared = AuthenticationService()
 

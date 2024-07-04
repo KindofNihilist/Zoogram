@@ -12,13 +12,13 @@ struct EditingButton {
     let effectIcon: UIImage
 }
 
-@MainActor protocol PhotoEffectsViewDelegate: AnyObject {
+@MainActor protocol EddittingFiltersDelegate: AnyObject {
     func userHasSelected(button: EdditingFilterButton, with filter: ImageFilter)
 }
 
-class PhotoEffectsView: UIView {
+class EdditingFiltersView: UIView {
 
-    weak var delegate: PhotoEffectsViewDelegate?
+    weak var delegate: EddittingFiltersDelegate?
 
     var edditingFilters = EditingFilters()
 

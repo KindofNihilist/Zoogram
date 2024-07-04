@@ -8,6 +8,14 @@
 import Foundation
 import UIKit
 
+@MainActor public protocol ReusableCellHolder: AnyObject {
+    associatedtype CellType: ReusableCell
+    associatedtype SupplementaryViewType: SupplementaryView
+    func register(_ cellClass: AnyClass?, forCellWithReuseIdentifier identifier: String)
+    func dequeueReusableCell(withCellIdentifier identifier: String, for indexPath: IndexPath) -> CellType
+    func cell(at indexPath: IndexPath) -> CellType?
+}
+
 public protocol ReusableCell: AnyObject {
     associatedtype CellHolder: ReusableCellHolder
 }
@@ -22,14 +30,6 @@ extension UIView: SupplementaryView {
 
 extension UICollectionReusableView {
     public typealias ViewHolder = UICollectionView
-}
-
-@MainActor public protocol ReusableCellHolder: AnyObject {
-    associatedtype CellType: ReusableCell
-    associatedtype SupplementaryViewType: SupplementaryView
-    func register(_ cellClass: AnyClass?, forCellWithReuseIdentifier identifier: String)
-    func dequeueReusableCell(withCellIdentifier identifier: String, for indexPath: IndexPath) -> CellType
-    func cell(at indexPath: IndexPath) -> CellType?
 }
 
 extension UITableViewCell: ReusableCell {

@@ -8,7 +8,7 @@
 import Foundation
 @preconcurrency import FirebaseDatabase
 
-protocol CommentSystemServiceProtocol: Sendable{
+protocol CommentSystemServiceProtocol: Sendable {
     typealias CommentsCount = Int
 
     func createCommentUID() -> String
@@ -31,10 +31,12 @@ final class CommentSystemService: CommentSystemServiceProtocol {
     }
 
     func postComment(for postID: String, comment: PostComment) async throws {
+        print("postComment triggered")
         let databaseKey = "PostComments/\(postID)/\(comment.commentID)"
         let commentDictionary = comment.dictionary
         do {
-            try await databaseRef.child(databaseKey).setValue(commentDictionary)
+            let task = try await databaseRef.child(databaseKey).setValue(commentDictionary)
+            print("did post comment")
         } catch {
             print("postComment error: ", error.localizedDescription)
             throw ServiceError.couldntPostAComment
@@ -60,7 +62,7 @@ final class CommentSystemService: CommentSystemServiceProtocol {
         do {
             let data = try await query.getData()
 
-            for (index, snapshotChild) in data.children.enumerated() {
+            for snapshotChild in data.children {
                 guard let commentSnapshot = snapshotChild as? DataSnapshot,
                       let commentDictionary = commentSnapshot.value as? [String: Any]
                 else {
@@ -69,7 +71,6 @@ final class CommentSystemService: CommentSystemServiceProtocol {
                 let jsonData = try JSONSerialization.data(withJSONObject: commentDictionary as Any)
                 let decodedComment = try JSONDecoder().decode(PostComment.self, from: jsonData)
                 comments.append(decodedComment)
-                comments[index].author = try await UserDataService().getUser(for: decodedComment.authorID)
             }
             return comments
         } catch {
@@ -86,5 +87,9 @@ final class CommentSystemService: CommentSystemServiceProtocol {
         } catch {
             throw ServiceError.couldntLoadData
         }
+    }
+
+    func cancelWriteTasks() async throws {
+        
     }
 }

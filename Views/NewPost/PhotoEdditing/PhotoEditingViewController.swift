@@ -31,7 +31,7 @@ class PhotoEditingViewController: UIViewController {
     var autoEnhancedImage: CIImage?
     var context: CIContext!
     var currentFilter: ImageFilter!
-    let colorSpace = CGColorSpaceCreateDeviceRGB()
+    let colorSpace: CGColorSpace = CGColorSpaceCreateDeviceRGB()
 
     var edditingFiltersApplied = [FilterType: FilterValue]()
     var imageFilterApplied = (filterType: FilterType.normal, value: 0.0 as Float)
@@ -53,8 +53,8 @@ class PhotoEditingViewController: UIViewController {
         return metalView
     }()
 
-    private let photoEffectsView: PhotoEffectsView = {
-        let scrollView = PhotoEffectsView()
+    private let photoEffectsView: EdditingFiltersView = {
+        let scrollView = EdditingFiltersView()
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         return scrollView
     }()
@@ -266,8 +266,7 @@ class PhotoEditingViewController: UIViewController {
     }
 
     @objc private func autoEnhanceImage() {
-        guard var imageToEnhance = CIImage(image: self.originalImage), self.autoEnhancedImage == nil
-        else {
+        guard var imageToEnhance = CIImage(image: self.originalImage), self.autoEnhancedImage == nil else {
             self.autoEnhancedImage = nil
             updateCurrentImage()
             return
@@ -314,6 +313,14 @@ class PhotoEditingViewController: UIViewController {
             filterToApply.applyFilter(sliderValue: filterType.value)
             inputImage = filterToApply.getOutput()!
         }
+
+        if shouldApplyImageFilter {
+                    let imageFilter = getFilter(of: imageFilterApplied.filterType)
+                    imageFilter.setInputImage(image: inputImage)
+                    imageFilter.applyFilter(sliderValue: imageFilterApplied.value)
+                    inputImage = imageFilter.getOutput()!
+                    print("Applying filter")
+                }
         return inputImage
     }
 }
@@ -323,11 +330,11 @@ class PhotoEditingViewController: UIViewController {
 extension PhotoEditingViewController: PhotoFiltersViewDelegate {
 
     func userHasSelected(button: EdditingFilterButton, with filter: PhotoFilter) {
-        guard let imageForEdditing = getImageForEdditing(for: filter) else { return }
+        guard let imageForEdditing = getImageForEdditing(for: filter, shouldApplyImageFilter: false) else { return }
 
-        filter.setInputImage(image: imageForEdditing)
         currentFilter = filter
-        currentFilter.applyFilter(sliderValue: currentFilter.latestValue)
+        filter.setInputImage(image: imageForEdditing)
+        filter.applyFilter(sliderValue: currentFilter.latestValue)
 
         if button.hasBeenAlreadySelected {
             guard filter.filterType != .normal else { return }
@@ -348,13 +355,14 @@ extension PhotoEditingViewController: PhotoFiltersViewDelegate {
 
 // MARK: Edditing effects delegate
 
-extension PhotoEditingViewController: PhotoEffectsViewDelegate {
+extension PhotoEditingViewController: EddittingFiltersDelegate {
 
     func userHasSelected(button: EdditingFilterButton, with filter: ImageFilter) {
         guard let imageForEdditing = getImageForEdditing(for: filter) else { return }
         self.selectedPhotoEffectButton = button
-        filter.setInputImage(image: imageForEdditing)
         currentFilter = filter
+        filter.setInputImage(image: imageForEdditing)
+        filter.applyFilter(sliderValue: filter.latestValue)
         сonfigureSlider(for: filter)
         showSlider()
     }
@@ -387,9 +395,7 @@ extension PhotoEditingViewController: PhotoEffectSliderDelegate {
         modifiedImage = outputImage
         currentFilter.latestValue = filterValue
         hideSlider()
-//        print("FINAL Slider value: \(currentFilter.latestValue) for \(currentFilter.displayName)")
         print("APPLIED FILTERS LIST: \(edditingFiltersApplied)")
-//        currentFilter.defaultValue = self.filterValue
     }
 
     private func showSlider() {

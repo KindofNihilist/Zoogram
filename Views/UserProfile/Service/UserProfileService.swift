@@ -19,8 +19,8 @@ protocol UserProfileServiceProtocol: PostsNetworking<UserPost> {
     func getFollowersCount() async throws -> Int
     func getFollowingCount() async throws -> Int
     func getUserData() async throws -> ZoogramUser
-    func followUser() async throws -> FollowStatus
-    func unfollowUser() async throws -> FollowStatus
+    func followUser() async throws
+    func unfollowUser() async throws
 }
 
 final class UserProfileService: UserProfileServiceProtocol {
@@ -79,78 +79,90 @@ final class UserProfileService: UserProfileServiceProtocol {
     }
 
     func getItems() async throws -> [UserPost]? {
-        let isPaginating = await paginationManager.isPaginating()
-        guard isPaginating == false else { return nil }
-        await paginationManager.startPaginating()
-        let numberOfItemsToGet = paginationManager.numberOfItemsToGetPerPagination
-        async let numberOfAllItems = getNumberOfItems()
-        async let retrievedPosts = userPostsService.getPosts(quantity: numberOfItemsToGet, for: userID)
+        do {
+            let isPaginating = await paginationManager.isPaginating()
+            guard isPaginating == false else { return nil }
+            await paginationManager.startPaginating()
+            let numberOfItemsToGet = paginationManager.numberOfItemsToGetPerPagination
+            async let numberOfAllItems = getNumberOfItems()
+            async let retrievedPosts = userPostsService.getPosts(quantity: numberOfItemsToGet, for: userID)
 
-        guard try await retrievedPosts.items.isEmpty != true else {
-            await paginationManager.setHasHitEndOfItemsStatus(to: true)
+            guard try await retrievedPosts.items.isEmpty != true else {
+                await paginationManager.setHasHitEndOfItemsStatus(to: true)
+                await paginationManager.finishPaginating()
+                return nil
+            }
+
+            let postsWithAdditionalData = try await getAdditionalPostDataFor(postsOfSingleUser: retrievedPosts.items)
+            let lastRetrievedItemKey = try await retrievedPosts.lastRetrievedItemKey
+            await paginationManager.setLastReceivedItemKey(lastRetrievedItemKey)
+            await paginationManager.setHasHitEndOfItemsStatus(to: false)
+            await paginationManager.updateNumberOfRetrievedItems(value: postsWithAdditionalData.count)
+
+            let numberOfRetrievedItems = await paginationManager.getNumberOfRetrievedItems()
+            if try await numberOfRetrievedItems == numberOfAllItems {
+                await paginationManager.setHasHitEndOfItemsStatus(to: true)
+            }
             await paginationManager.finishPaginating()
-            return nil
+            return postsWithAdditionalData
+        } catch {
+            await paginationManager.finishPaginating()
+            throw error
         }
-
-        let postsWithAdditionalData = try await getAdditionalPostDataFor(postsOfSingleUser: retrievedPosts.items)
-        let lastRetrievedItemKey = try await retrievedPosts.lastRetrievedItemKey
-        await paginationManager.setLastReceivedItemKey(lastRetrievedItemKey)
-        await paginationManager.setHasHitEndOfItemsStatus(to: false)
-        await paginationManager.updateNumberOfRetrievedItems(value: postsWithAdditionalData.count)
-
-        let numberOfRetrievedItems = await paginationManager.getNumberOfRetrievedItems()
-        if try await numberOfRetrievedItems == numberOfAllItems {
-            await paginationManager.setHasHitEndOfItemsStatus(to: true)
-        }
-        await paginationManager.finishPaginating()
-        return postsWithAdditionalData
     }
 
     func getMoreItems() async throws -> [UserPost]? {
-        let isPaginating = await paginationManager.isPaginating()
-        let lastReceivedItemKey = await paginationManager.getLastReceivedItemKey()
+        do {
+            let isPaginating = await paginationManager.isPaginating()
+            let lastReceivedItemKey = await paginationManager.getLastReceivedItemKey()
 
-        guard isPaginating == false, lastReceivedItemKey != "" else { return nil }
-        await paginationManager.startPaginating()
+            guard isPaginating == false, lastReceivedItemKey != "" else { return nil }
+            await paginationManager.startPaginating()
 
-        let numberOfItemsToGet = paginationManager.numberOfItemsToGetPerPagination
-        let paginatedPosts = try await userPostsService.getMorePosts(quantity: numberOfItemsToGet, after: lastReceivedItemKey, for: userID)
+            let numberOfItemsToGet = paginationManager.numberOfItemsToGetPerPagination
+            let paginatedPosts = try await userPostsService.getMorePosts(quantity: numberOfItemsToGet, after: lastReceivedItemKey, for: userID)
 
-        guard paginatedPosts.items.isEmpty != true, paginatedPosts.lastRetrievedItemKey != lastReceivedItemKey else {
+            guard paginatedPosts.items.isEmpty != true, paginatedPosts.lastRetrievedItemKey != lastReceivedItemKey else {
+                await paginationManager.finishPaginating()
+                await paginationManager.setHasHitEndOfItemsStatus(to: true)
+                return nil
+            }
+
+            let postsWithAdditionalData = try await getAdditionalPostDataFor(postsOfSingleUser: paginatedPosts.items)
+            await paginationManager.setLastReceivedItemKey(paginatedPosts.lastRetrievedItemKey)
+            await paginationManager.updateNumberOfRetrievedItems(value: paginatedPosts.items.count)
+            let numberOfAllItems = await paginationManager.getNumberOfAllItems()
+            let numberOfRetrievedItems = await paginationManager.getNumberOfRetrievedItems()
+            if numberOfRetrievedItems == numberOfAllItems {
+                await paginationManager.setHasHitEndOfItemsStatus(to: true)
+            }
             await paginationManager.finishPaginating()
-            await paginationManager.setHasHitEndOfItemsStatus(to: true)
-            return nil
+            return postsWithAdditionalData
+        } catch {
+            await paginationManager.finishPaginating()
+            throw error
         }
-
-        let postsWithAdditionalData = try await getAdditionalPostDataFor(postsOfSingleUser: paginatedPosts.items)
-        await paginationManager.setLastReceivedItemKey(paginatedPosts.lastRetrievedItemKey)
-        await paginationManager.updateNumberOfRetrievedItems(value: paginatedPosts.items.count)
-        let numberOfAllItems = await paginationManager.getNumberOfAllItems()
-        let numberOfRetrievedItems = await paginationManager.getNumberOfRetrievedItems()
-        if numberOfRetrievedItems == numberOfAllItems {
-            await paginationManager.setHasHitEndOfItemsStatus(to: true)
-        }
-        await paginationManager.finishPaginating()
-        return postsWithAdditionalData
     }
 
-    func followUser() async throws -> FollowStatus {
-        return try await followService.followUser(uid: userID)
+    func followUser() async throws {
+        try await followService.followUser(uid: userID)
     }
 
-    func unfollowUser() async throws -> FollowStatus {
-        return try await followService.unfollowUser(uid: userID)
+    func unfollowUser() async throws {
+        try await followService.unfollowUser(uid: userID)
     }
 
     func likePost(postID: String, likeState: LikeState, postAuthorID: String) async throws {
         switch likeState {
         case .liked:
-            try await likeSystemService.removeLikeFromPost(postID: postID)
-            try await ActivitySystemService.shared.removeLikeEventForPost(postID: postID, postAuthorID: postAuthorID)
+            async let likeRemovalTask: Void = likeSystemService.removeLikeFromPost(postID: postID)
+            async let activityRemovalTask: Void = ActivitySystemService.shared.removeLikeEventForPost(postID: postID, postAuthorID: postAuthorID)
+            _ = try await [likeRemovalTask, activityRemovalTask]
         case .notLiked:
-            try await likeSystemService.likePost(postID: postID)
             let activityEvent = ActivityEvent.createActivityEventFor(likedPostID: postID)
-            try await ActivitySystemService.shared.addEventToUserActivity(event: activityEvent, userID: postAuthorID)
+            async let likeTask: Void = likeSystemService.likePost(postID: postID)
+            async let activityEventTask: Void = ActivitySystemService.shared.addEventToUserActivity(event: activityEvent, userID: postAuthorID)
+            _ = try await [likeTask, activityEventTask]
         }
     }
 

@@ -7,6 +7,7 @@
 
 import UIKit.UIImage
 
+@MainActor
 class EditingFilters {
 
     lazy var allFilters = [self.exposureFilter,
@@ -85,9 +86,9 @@ class EditingFilters {
         displayName: String(localized: "Highlights"),
         filterIcon: UIImage(systemName: "circle.fill")!,
         filterKey: "inputHighlightAmount",
-        filterDefaultValue: 0.5,
-        minimumValue: 0.2,
-        maximumValue: 0.8)
+        filterDefaultValue: 1.0,
+        minimumValue: 0.0,
+        maximumValue: 2.0)
 
     lazy var shadowsFilter = Filter(
         filterType: .shadows,

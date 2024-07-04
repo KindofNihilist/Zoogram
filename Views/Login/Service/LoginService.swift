@@ -7,12 +7,12 @@
 
 import Foundation
 
-protocol LoginServiceProtocol {
+protocol LoginServiceProtocol: Sendable {
     func loginUser(with email: String, password: String) async throws -> ZoogramUser
     func resetPassword(for email: String) async throws
 }
 
-class LoginService: LoginServiceProtocol {
+final class LoginService: LoginServiceProtocol {
 
     func loginUser(with email: String, password: String) async throws -> ZoogramUser {
         let loggedInUser = try await AuthenticationService.shared.signInUsing(email: email, password: password)

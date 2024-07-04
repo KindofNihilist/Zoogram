@@ -8,10 +8,10 @@
 import UIKit
 
 @MainActor protocol FollowListCellDelegate: AnyObject {
-    func removeButtonTapped(userID: String, removeCompletion: @escaping (FollowStatus) -> Void)
-    func undoButtonTapped(userID: String, undoCompletion: @escaping (FollowStatus) -> Void)
-    func followButtonTapped(userID: String, followCompletion: @escaping (FollowStatus) -> Void)
-    func unfollowButtonTapped(userID: String, unfollowCompletion: @escaping (FollowStatus) -> Void)
+    func removeButtonTapped(userID: String)
+    func undoButtonTapped(userID: String)
+    func followButtonTapped(userID: String)
+    func unfollowButtonTapped(userID: String)
 }
 
 class FollowerTableViewCell: UITableViewCell {
@@ -165,35 +165,28 @@ class FollowerTableViewCell: UITableViewCell {
     @objc func removeButtonTapped() {
         switch isFollowingMe {
         case .following:
-            delegate?.removeButtonTapped(userID: userID) { status in
-                self.switchRemoveButton(followStatus: status)
-                self.isFollowingMe = .notFollowing
-            }
+            delegate?.removeButtonTapped(userID: userID)
+            self.switchRemoveButton(followStatus: .notFollowing)
+            self.isFollowingMe = .notFollowing
         case .notFollowing:
-            delegate?.undoButtonTapped(userID: userID) { status in
-                self.switchRemoveButton(followStatus: status)
-                self.isFollowingMe = .following
-            }
+            delegate?.undoButtonTapped(userID: userID)
+            self.switchRemoveButton(followStatus: .following)
+            self.isFollowingMe = .following
         }
-
     }
 
     @objc func didTapFollowUnfollowButton() {
-
         switch followStatus {
-
         case .notFollowing:
-            delegate?.followButtonTapped(userID: self.userID) { status in
-                self.followStatus = status
-                self.switchFollowUnfollowButton(followStatus: status)
-            }
+            delegate?.followButtonTapped(userID: self.userID)
+            self.followStatus = .following
+            self.switchFollowUnfollowButton(followStatus: .following)
         case .following:
-            delegate?.unfollowButtonTapped(userID: self.userID) { status in
-                self.followStatus = status
-                self.switchFollowUnfollowButton(followStatus: status)
-            }
+            delegate?.unfollowButtonTapped(userID: self.userID)
+            self.followStatus = .notFollowing
+            self.switchFollowUnfollowButton(followStatus: .notFollowing)
         default:
-            print("Follow status isn't set")
+            return
         }
     }
 }

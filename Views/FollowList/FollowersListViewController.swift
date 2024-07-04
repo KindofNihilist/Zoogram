@@ -87,9 +87,9 @@ class FollowersListViewController: ViewControllerWithLoadingIndicator {
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
-//        tasks.forEach { task in
-//            task?.cancel()
-//        }
+        tasks.forEach { task in
+            task?.cancel()
+        }
     }
 
     private func getData() {
@@ -188,11 +188,10 @@ class FollowersListViewController: ViewControllerWithLoadingIndicator {
 }
 
 extension FollowersListViewController: FollowListCellDelegate {
-    func removeButtonTapped(userID: String, removeCompletion: @escaping (FollowStatus) -> Void) {
+    func removeButtonTapped(userID: String) {
         let task = Task {
             do {
                 try await viewModel.removeUserFollowingMe(uid: userID)
-                removeCompletion(.notFollowing)
             } catch {
                 self.showPopUp(issueText: error.localizedDescription)
             }
@@ -200,11 +199,10 @@ extension FollowersListViewController: FollowListCellDelegate {
         tasks.append(task)
     }
 
-    func undoButtonTapped(userID: String, undoCompletion: @escaping (FollowStatus) -> Void) {
+    func undoButtonTapped(userID: String) {
         let task = Task {
             do {
                 try await viewModel.undoUserRemoval(uid: userID)
-                undoCompletion(.following)
             } catch {
                 self.showPopUp(issueText: error.localizedDescription)
             }
@@ -212,11 +210,10 @@ extension FollowersListViewController: FollowListCellDelegate {
         tasks.append(task)
     }
 
-    func followButtonTapped(userID: String, followCompletion: @escaping (FollowStatus) -> Void) {
+    func followButtonTapped(userID: String) {
         let task = Task {
             do {
-                let newFollowStatus = try await viewModel.followUser(uid: userID)
-                followCompletion(newFollowStatus)
+                try await viewModel.followUser(uid: userID)
             } catch {
                 self.showPopUp(issueText: error.localizedDescription)
             }
@@ -224,11 +221,10 @@ extension FollowersListViewController: FollowListCellDelegate {
         tasks.append(task)
     }
 
-    func unfollowButtonTapped(userID: String, unfollowCompletion: @escaping (FollowStatus) -> Void) {
+    func unfollowButtonTapped(userID: String) {
         let task = Task {
             do {
-                let newFollowStatus = try await viewModel.unfollowUser(uid: userID)
-                unfollowCompletion(newFollowStatus)
+                try await viewModel.unfollowUser(uid: userID)
             } catch {
                 self.showPopUp(issueText: error.localizedDescription)
             }

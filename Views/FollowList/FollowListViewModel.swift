@@ -26,14 +26,12 @@ class FollowListViewModel {
         return userList
     }
 
-    func followUser(uid: String) async throws -> FollowStatus {
-        let followStatus = try await service.followUser(uid: uid)
-        return followStatus
+    func followUser(uid: String) async throws {
+        try await service.followUser(uid: uid)
     }
 
-    func unfollowUser(uid: String) async throws -> FollowStatus {
-        let followStatus = try await service.unfollowUser(uid: uid)
-        return followStatus
+    func unfollowUser(uid: String) async throws {
+        try await service.unfollowUser(uid: uid)
     }
 
     func removeUserFollowingMe(uid: String) async throws {

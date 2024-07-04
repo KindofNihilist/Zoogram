@@ -16,6 +16,7 @@ struct PostComment: Sendable, Codable {
     var author: ZoogramUser!
     var canBeEdited: Bool = false
     var shouldBeMarkedUnseen: Bool = false
+    var hasBeenPosted: Bool = true
 
     init(commentID: String, authorID: String, commentText: String, datePosted: Date, author: ZoogramUser? = nil) {
         self.commentID = commentID
@@ -34,5 +35,12 @@ struct PostComment: Sendable, Codable {
         self.commentText = commentText.trimmingCharacters(in: NSCharacterSet.whitespacesAndNewlines)
         self.datePosted = try container.decode(Date.self, forKey: .datePosted)
         self.dateTitle = datePosted.timeAgoDisplay()
+    }
+
+    enum CodingKeys: CodingKey {
+        case commentID
+        case authorID
+        case commentText
+        case datePosted
     }
 }

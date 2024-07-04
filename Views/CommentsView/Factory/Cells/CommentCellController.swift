@@ -9,7 +9,7 @@ import UIKit.UITableView
 
 class CommentCellController: GenericCellController<CommentTableViewCell> {
 
-     let comment: PostComment
+     var comment: PostComment
 
     private let delegate: CommentCellProtocol
 
@@ -39,5 +39,19 @@ class CommentCellController: GenericCellController<CommentTableViewCell> {
 
     func isCellEditable() -> Bool {
         return self.allowsEditing
+    }
+
+    func markAsSeen() {
+        self.comment.shouldBeMarkedUnseen = false
+        cell()?.markAsSeen()
+    }
+
+    func focus() {
+        cell()?.focus()
+    }
+
+    func markAsPublished() {
+        self.comment.hasBeenPosted = true
+        cell()?.markAsPublished()
     }
 }

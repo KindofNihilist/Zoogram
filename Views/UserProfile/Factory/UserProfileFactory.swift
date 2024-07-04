@@ -123,4 +123,8 @@ import UIKit.UICollectionView
         return PostsSection(sectionHolder: collectionView, cellControllers: cellControllers, sectionIndex: 1)
     }
 
+    func getPostsSectionIndex() -> SectionIndex? {
+        return postsSection?.sectionIndex
+    }
+
 }

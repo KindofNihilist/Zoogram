@@ -12,9 +12,15 @@ protocol RegistrationServiceProtocol: UserDataValidationServiceProtocol {
     func uploadUserInfo(for userModel: ZoogramUser) async throws -> ZoogramUser
 }
 
-class RegistrationService: RegistrationServiceProtocol {
+final class RegistrationService: RegistrationServiceProtocol {
 
-    private let userDataValidationService = UserDataValidationService()
+    let userDataValidationService: UserDataValidationServiceProtocol
+
+    init(authenticationService: AuthenticationServiceProtocol, userDataService: UserDataServiceProtocol) {
+        self.userDataValidationService = UserDataValidationService(
+            authenticationService: authenticationService,
+            userDataService: userDataService)
+    }
 
     func checkIfNameIsValid(name: String) throws {
         try userDataValidationService.checkIfNameIsValid(name: name)

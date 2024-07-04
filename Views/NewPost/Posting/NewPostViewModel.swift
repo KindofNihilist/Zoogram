@@ -19,7 +19,9 @@ class NewPostViewModel {
 
     func prepareForPosting(completion: @escaping (UserPost) -> Void) {
         guard post.image != nil else { return }
-        post.caption = post.caption?.trimmingCharacters(in: NSCharacterSet.whitespacesAndNewlines)
+        if let caption = post.caption {
+            post.caption = caption.trimmingCharacters(in: NSCharacterSet.whitespacesAndNewlines)
+        }
         completion(self.post)
     }
 }

@@ -47,9 +47,7 @@ class PostCommentedEventTableViewCell: UITableViewCell {
         selectionStyle = .none
         setupViewsAndConstraints()
         let userProfileImageGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(didSelectUser))
-        let userProfileGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(didSelectUser))
         profileImageView.addGestureRecognizer(userProfileImageGestureRecognizer)
-        activityMessageLabel.addGestureRecognizer(userProfileGestureRecognizer)
     }
 
     required init?(coder: NSCoder) {
@@ -57,22 +55,35 @@ class PostCommentedEventTableViewCell: UITableViewCell {
     }
 
     func configure(with event: ActivityEvent) {
-        guard let comment = event.text else {
-            return
-        }
         self.event = event
         self.postPhotoImageView.image = event.post?.image
+        let attributedString = createAttributedString(for: event)
+        profileImageView.image = event.user?.getProfilePhoto() ?? UIImage.profilePicturePlaceholder
+        activityMessageLabel.attributedText = attributedString
+        if event.seen == false {
+            self.contentView.backgroundColor = Colors.unseenBlue
+        } else {
+            self.contentView.backgroundColor = Colors.background
+        }
+    }
 
+    private func createAttributedString(for event: ActivityEvent) -> NSAttributedString {
+        guard let comment = event.text else {
+            return NSAttributedString()
+        }
         let attributedUsername = NSAttributedString(
             string: "\(event.user!.username) ",
-            attributes: [.font: CustomFonts.boldFont(ofSize: 14), .foregroundColor: Colors.label])
+            attributes: [.font: CustomFonts.boldFont(ofSize: 14),
+                         .foregroundColor: Colors.label])
         let localizedMessage = String(localized: "commented: \n\(comment) ")
         let attributedEventMessage = NSAttributedString(
             string: localizedMessage,
-            attributes: [.font: CustomFonts.regularFont(ofSize: 14), .foregroundColor: Colors.label])
+            attributes: [.font: CustomFonts.regularFont(ofSize: 14),
+                         .foregroundColor: Colors.label])
         let attributedTimeStamp = NSAttributedString(
-            string: event.date.timeAgoDisplay(),
-            attributes: [.font: CustomFonts.regularFont(ofSize: 14), .foregroundColor: UIColor.secondaryLabel])
+            string: event.timestamp.timeAgoDisplay(),
+            attributes: [.font: CustomFonts.regularFont(ofSize: 14),
+                         .foregroundColor: UIColor.secondaryLabel])
 
         let wholeMessage = NSMutableAttributedString()
         wholeMessage.append(attributedUsername)
@@ -86,16 +97,7 @@ class PostCommentedEventTableViewCell: UITableViewCell {
         wholeMessage.addAttribute(.paragraphStyle,
                                   value: paragraphStyle,
                                   range: NSRange(location: 0, length: wholeMessage.length))
-
-        profileImageView.image = event.user?.getProfilePhoto() ?? UIImage.profilePicturePlaceholder
-
-        activityMessageLabel.attributedText = wholeMessage
-
-        if event.seen == false {
-            self.contentView.backgroundColor = Colors.unseenBlue
-        } else {
-            self.contentView.backgroundColor = Colors.background
-        }
+        return wholeMessage
     }
 
     private func setupViewsAndConstraints() {
@@ -123,7 +125,6 @@ class PostCommentedEventTableViewCell: UITableViewCell {
     }
 
     @objc func didSelectUser() {
-        print("did select user")
         guard let user = event?.user else {
             return
         }

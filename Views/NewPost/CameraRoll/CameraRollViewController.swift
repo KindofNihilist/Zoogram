@@ -51,7 +51,6 @@ class CameraRollViewController: UIViewController {
         super.viewDidLoad()
         setupViews()
         setupFactory()
-        setupDataSource()
         view.backgroundColor = .black
     }
 
@@ -148,11 +147,18 @@ class CameraRollViewController: UIViewController {
 
     // MARK: Factory Setup
     private func setupFactory() {
-        self.factory = CameraRollFactory(for: cameraRollCollectionView, action: { indexPath in
-            self.selectPhotoAsPreview(at: indexPath.row)
+        self.factory = CameraRollFactory(for: cameraRollCollectionView, action: { [weak self] indexPath in
+            self?.selectPhotoAsPreview(at: indexPath.row)
         })
         self.factory.headerDelegate = self
-        self.factory.navigationDelegate = self
+        self.setupDataSource()
+        self.factory.setNavigationSectionLeftButtonAction { [weak self] in
+            self?.dismiss(animated: true)
+        }
+
+        self.factory.setNavigationSectionRightButtonAction { [weak self] in
+            self?.navigateToEdditor()
+        }
     }
 
     private func setupDataSource() {
@@ -176,6 +182,20 @@ class CameraRollViewController: UIViewController {
             offsetY -= cameraRollCollectionView.safeAreaInsets.top
         }
         cameraRollCollectionView.setContentOffset(CGPoint(x: 0, y: offsetY), animated: animated)
+    }
+
+    private func navigateToEdditor() {
+        self.factory.showNavigationLoadingIndicator()
+        self.factory.getPreviewImage { photo in
+            ImageCompressor.compress(image: photo) { compressedImage in
+                DispatchQueue.main.async {
+                    let editingVC = PhotoEditingViewController(photo: compressedImage)
+                    editingVC.delegate = self.delegate
+                    self.factory.showNavigationNextButton()
+                    self.navigationController?.pushViewController(editingVC, animated: true)
+                }
+            }
+        }
     }
 
     // MARK: Action methods
@@ -206,25 +226,5 @@ extension CameraRollViewController: CameraRollHeaderDelegate {
 
     func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
         picker.dismiss(animated: true)
-    }
-}
-
-extension CameraRollViewController: NavigationHeaderActionsDelegate {
-    func didTapBackButton() {
-        self.dismiss(animated: true)
-    }
-
-    func didTapNextButton() {
-        self.factory.showNavigationLoadingIndicator()
-        self.factory.getPreviewImage { photo in
-            ImageCompressor.compress(image: photo) { compressedImage in
-                DispatchQueue.main.async {
-                    let editingVC = PhotoEditingViewController(photo: compressedImage)
-                    editingVC.delegate = self.delegate
-                    self.factory.showNavigationNextButton()
-                    self.navigationController?.pushViewController(editingVC, animated: true)
-                }
-            }
-        }
     }
 }

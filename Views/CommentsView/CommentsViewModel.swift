@@ -14,16 +14,14 @@ class CommentsViewModel {
     private let service: CommentsServiceProtocol
 
     private var currentUser: ZoogramUser!
-    var hasInitialzied = Observable(false)
     var shouldShowRelatedPost: Bool
-    var shouldShowNewlyCreatedComment: Bool = false
     var hasAlreadyFocusedOnComment: Bool = true
-    var isAlreadyScrolling: Bool = false
     var commentSectionIndex: Int = 0
     var indexPathOfCommentToToFocusOn: IndexPath?
     var postViewModel: PostViewModel
     var postCaption: PostComment?
     var comments = [PostComment]()
+    var hasPendingComments: Bool = false
     private var commentIDToFocusOn: String?
     private var relatedPost: UserPost?
 
@@ -64,8 +62,6 @@ class CommentsViewModel {
             mappedComment.canBeEdited = self.checkIfCommentCanBeEdited(comment: mappedComment)
             return mappedComment
         })
-
-        self.hasInitialzied.value = true
     }
 
     func checkIfCommentCanBeEdited(comment: PostComment) -> Bool {
@@ -107,12 +103,25 @@ class CommentsViewModel {
         return self.postViewModel
     }
 
-    func insertNewlyCreatedComment(comment: PostComment) {
+    func insertNewComment(comment: PostComment) {
         var commentToInsert = comment
-        commentToInsert.shouldBeMarkedUnseen = true
         self.comments.insert(commentToInsert, at: 0)
-        self.shouldShowNewlyCreatedComment = true
         self.indexPathOfCommentToToFocusOn = IndexPath(row: 0, section: commentSectionIndex)
+    }
+
+    func getIndexPathOfComment(_ comment: PostComment) -> IndexPath {
+        let commentID = comment.commentID
+        var commentIndex: Int?
+        _ = comments.enumerated().map { (index, comment) in
+            if comment.commentID == commentID {
+                commentIndex = index
+            }
+        }
+        if let commentIndex = commentIndex {
+            return IndexPath(row: commentIndex, section: commentSectionIndex)
+        } else {
+            fatalError()
+        }
     }
 
     func getComments() -> [PostComment] {
@@ -127,24 +136,25 @@ class CommentsViewModel {
         return comments.first
     }
 
-    private func createPostComment(text: String) throws -> PostComment {
+    func createPostComment(text: String) throws -> PostComment {
         let commentUID = CommentSystemService.shared.createCommentUID()
         let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
         let formattedText = text.trimmingCharacters(in: NSCharacterSet.whitespacesAndNewlines)
-        let postComent = PostComment(commentID: commentUID,
+        var postComment = PostComment(commentID: commentUID,
                                      authorID: currentUserID,
                                      commentText: formattedText,
-                                     datePosted: Date())
-        return postComent
+                                     datePosted: Date(),
+                                     author: currentUser)
+        postComment.canBeEdited = true
+        postComment.shouldBeMarkedUnseen = true
+        postComment.hasBeenPosted = false
+        return postComment
     }
 
-    func postComment(commentText: String) async throws -> PostComment {
-        let newComment = try createPostComment(text: commentText)
-
-        var postedComment = try await service.postComment(comment: newComment)
-        postedComment.author = currentUser
-        postedComment.canBeEdited = true
-        return postedComment
+    func postComment(comment: PostComment) async throws {
+        hasPendingComments = true
+        try await service.postComment(comment: comment)
+        hasPendingComments = false
     }
 
     func deleteComment(at indexPath: IndexPath) async throws {

@@ -60,6 +60,12 @@ class BookmarksViewController: UIViewController {
         view.backgroundColor = Colors.background
         postsTableViewController.updateTableViewFrame(to: self.view.frame)
         postsTableViewController.delegate = self
+        postsTableViewController.title = self.title
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: animated)
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -154,10 +160,15 @@ class BookmarksViewController: UIViewController {
     }
 
     private func postSelectAction(at indexPath: IndexPath) {
-        guard viewModel.bookmarks.isEmpty != true else {
-            return
-        }
+        guard viewModel.bookmarks.isEmpty != true else { return }
         self.postsTableViewController.focusTableViewOnPostWith(index: indexPath)
+        if #available(iOS 18.0, *) {
+            self.postsTableViewController.preferredTransition = .zoom { context in
+                let postsTableView = context.zoomedViewController as! PostsTableViewController
+                let lastSeenPostIndexPath = postsTableView.getLastVisibleCellIndexPath() ?? indexPath
+                return self.collectionView.cell(at: lastSeenPostIndexPath)
+            }
+        }
         self.navigationController?.pushViewController(self.postsTableViewController, animated: true)
     }
 
@@ -222,6 +233,11 @@ extension BookmarksViewController: PostsTableViewDelegate {
         self.viewModel.bookmarks = bookmarks
         self.factory.refreshPostsSection(with: bookmarks)
         self.hideLoadingFooterIfNeeded()
+    }
+
+    func lastVisibleItem(at indexPath: IndexPath?) {
+        guard let indexPath = indexPath else { return }
+        self.collectionView.scrollToItem(at: indexPath, at: .centeredHorizontally, animated: false)
     }
 }
 

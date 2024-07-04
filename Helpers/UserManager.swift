@@ -29,6 +29,7 @@ actor UserManager {
         setUserID(uid: user.userID)
         setUsername(username: user.username)
         updateCurrentUserModel(user)
+        UserDefaults().set(true, forKey: UserDefaultsKeys.shouldShowPendingNotification.rawValue)
     }
 
     // MARK: UserID

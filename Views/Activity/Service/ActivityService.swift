@@ -16,8 +16,8 @@ protocol ActivityServiceProtocol: Sendable {
 
     func observeActivityEvents() -> AsyncThrowingStream<[ActivityEvent], Error>
     func updateActivityEventsSeenStatus(events: Set<ActivityEvent>) async throws
-    func followSubscriberBack(uid: String) async throws -> FollowStatus
-    func unfollowSubscriber(uid: String) async throws -> FollowStatus
+    func followSubscriberBack(uid: String) async throws
+    func unfollowSubscriber(uid: String) async throws
     func getAdditionalDataFor(events: [ActivityEvent]) async throws -> [ActivityEvent]
 }
 
@@ -49,18 +49,18 @@ final class ActivityService: ActivityServiceProtocol {
         try await activitySystemService.updateActivityEventsSeenStatus(events: events)
     }
 
-    func followSubscriberBack(uid: String) async throws -> FollowStatus {
-        return try await followSystemService.followUser(uid: uid)
+    func followSubscriberBack(uid: String) async throws {
+        try await followSystemService.followUser(uid: uid)
     }
 
-    func unfollowSubscriber(uid: String) async throws -> FollowStatus {
-        return try await followSystemService.unfollowUser(uid: uid)
+    func unfollowSubscriber(uid: String) async throws {
+        try await followSystemService.unfollowUser(uid: uid)
     }
 
     func getAdditionalDataFor(events: [ActivityEvent]) async throws -> [ActivityEvent] {
         let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
 
-        let eventsWithAdditionalData = try await withThrowingTaskGroup(of: (Int, ActivityEvent).self, returning: [ActivityEvent].self) { group in
+        let eventsWithData = try await withThrowingTaskGroup(of: (Int, ActivityEvent).self, returning: [ActivityEvent].self) { group in
 
             for (index, event) in events.enumerated() {
                 group.addTask {
@@ -83,12 +83,11 @@ final class ActivityService: ActivityServiceProtocol {
             }
 
             var eventsWithAdditionalData = events
-
             for try await (index, event) in group {
                 eventsWithAdditionalData[index] = event
             }
             return eventsWithAdditionalData
         }
-        return eventsWithAdditionalData
+        return eventsWithData
     }
 }

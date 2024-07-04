@@ -65,6 +65,16 @@ extension UIViewController {
         show(userProfileVC, sender: self)
     }
 
+    func showProfileSettings() {
+        let service = UserDataValidationService(
+            authenticationService: AuthenticationService.shared,
+            userDataService: UserDataService.shared)
+        let profileEditingVC = ProfileEdditingViewController(service: service)
+        let navigationController = UINavigationController(rootViewController: profileEditingVC)
+        navigationController.modalPresentationStyle = .fullScreen
+        present(navigationController, animated: true)
+    }
+
     func showMenuForPost(postViewModel: PostViewModel, onDelete: @escaping () -> Void) {
         let actionSheet = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
         actionSheet.view.backgroundColor = Colors.background

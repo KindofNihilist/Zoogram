@@ -9,6 +9,7 @@ import UIKit
 
 @MainActor protocol PostsTableViewDelegate: AnyObject {
     func updateCollectionView(with postViewModels: [PostViewModel])
+    func lastVisibleItem(at indexPath: IndexPath?)
 }
 
 class PostsTableViewController: UIViewController {
@@ -19,7 +20,19 @@ class PostsTableViewController: UIViewController {
 
     private var postToFocusOn: IndexPath
 
+    override var title: String? {
+        didSet {
+            navigationBar.title = self.title
+        }
+    }
+
     private let tableView: PostsTableView
+
+    private var navigationBar: NavigationBar = {
+        let navigationBar = NavigationBar()
+        navigationBar.translatesAutoresizingMaskIntoConstraints = false
+        return navigationBar
+    }()
 
     private lazy var loadingErrorView: LoadingErrorView = {
         let loadingErrorView = LoadingErrorView()
@@ -31,13 +44,14 @@ class PostsTableViewController: UIViewController {
         self.service = service
         self.postToFocusOn = IndexPath(row: 0, section: 0)
         self.tableView = PostsTableView(service: service)
+        self.tableView.translatesAutoresizingMaskIntoConstraints = false
         self.tableView.allowsSelection = false
         self.tableView.separatorStyle = .none
         super.init(nibName: nil, bundle: nil)
-        view = tableView
-        tableView.setPostsViewModels(postsViewModels: posts)
-        tableView.reloadData()
+        setupConstraints()
+        configureNavigationBar()
         tableView.postsTableDelegate = self
+        tableView.setPostsViewModels(postsViewModels: posts)
     }
 
     required init?(coder: NSCoder) {
@@ -48,20 +62,20 @@ class PostsTableViewController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = Colors.background
         navigationController?.delegate = self
+        tableView.reloadData()
     }
 
     override func viewWillAppear(_ animated: Bool) {
+        navigationController?.setNavigationBarHidden(true, animated: false)
         super.viewWillAppear(animated)
         tableView.setupLoadingIndicatorFooter()
-        navigationController?.setNavigationBarHidden(false, animated: true)
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        guard isMovingFromParent else {
-            return
-        }
         updateParentPosts()
+        print("viewWillDisappear triggered")
+        delegate?.lastVisibleItem(at: tableView.lastVisibleCellIndexPath)
     }
 
     override func viewDidDisappear(_ animated: Bool) {
@@ -69,6 +83,29 @@ class PostsTableViewController: UIViewController {
         tableView.tasks.forEach { task in
             task?.cancel()
         }
+    }
+
+    private func configureNavigationBar() {
+        navigationBar.backgroundColor = Colors.background
+        navigationBar.leftButtonAction = { [weak self] in
+            self?.navigationController?.popViewController(animated: true)
+        }
+    }
+
+    private func setupConstraints() {
+        view.addSubviews(navigationBar, tableView)
+
+        NSLayoutConstraint.activate([
+            navigationBar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            navigationBar.heightAnchor.constraint(equalToConstant: 38),
+            navigationBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            navigationBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+
+            tableView.topAnchor.constraint(equalTo: navigationBar.bottomAnchor),
+            tableView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
+            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            tableView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor)
+        ])
     }
 
     func updateTableViewFrame(to frame: CGRect) {
@@ -82,10 +119,15 @@ class PostsTableViewController: UIViewController {
     }
 
     func focusTableViewOnPostWith(index: IndexPath) {
+        tableView.lastVisibleCellIndexPath = index
         tableView.scrollToRow(at: IndexPath(row: index.row, section: 0), at: .top, animated: false)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             self.tableView.scrollToRow(at: IndexPath(row: index.row, section: 0), at: .top, animated: false)
         }
+    }
+
+    func getLastVisibleCellIndexPath() -> IndexPath? {
+        return tableView.lastVisibleCellIndexPath
     }
 
     private func updateParentPosts() {

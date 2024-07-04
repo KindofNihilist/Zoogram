@@ -16,7 +16,6 @@ class CaptionSection: TableSectionController {
     }
 
     override func footerHeight() -> CGFloat {
-        return 0.5
+        return 1.0
     }
-
 }

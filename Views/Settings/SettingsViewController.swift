@@ -75,11 +75,7 @@ final class SettingsViewController: UIViewController {
     }
 
     private func didTapEditProfile() {
-        let service = UserDataValidationService()
-        let profileEdditingViewController = ProfileEdditingViewController(service: service)
-        let navVC = UINavigationController(rootViewController: profileEdditingViewController)
-        navVC.modalPresentationStyle = .fullScreen
-        present(navVC, animated: true)
+        showProfileSettings()
     }
 
     private func didTapBookmarks() {

@@ -9,40 +9,34 @@ import Foundation
 @preconcurrency import FirebaseDatabase
 
 protocol SearchServiceProtocol: Sendable {
-    func searchUserWith(username: String) async throws -> [ZoogramUser]
+    func searchUserWith(partialString: String) async throws -> [UserID]
 }
 
 final class SearchService: SearchServiceProtocol {
 
     private let databaseRef = Database.database(url: "https://catogram-58487-default-rtdb.europe-west1.firebasedatabase.app").reference()
 
-    func searchUserWith(username: String) async throws -> [ZoogramUser] {
-        let query = databaseRef.child(DatabaseKeys.users).queryOrdered(byChild: "username").queryStarting(atValue: username).queryEnding(atValue: "\(username)~")
-
+    func searchUserWith(partialString: String) async throws -> [UserID] {
+        let userRef = self.databaseRef.child("UsernamesForLookup")
+        let startString = partialString
+        let endString = partialString + "\u{F8FF}"
+        let query = userRef.queryOrdered(byChild: "username")
+            .queryStarting(atValue: startString)
+            .queryEnding(atValue: endString)
         do {
             let data = try await query.getData()
-            var foundUsers = [ZoogramUser]()
-
+            var foundUserIDs = [UserID]()
             for snapshot in data.children {
-                guard let userSnapshot = snapshot as? DataSnapshot,
-                      let userDictionary = userSnapshot.value as? [String: Any]
+                guard let dataSnapshot = snapshot as? DataSnapshot,
+                      let dictionary = dataSnapshot.value as? [String: String],
+                      let userID = dictionary["userID"]
                 else {
-                    print("snapshotCasting error")
                     throw ServiceError.snapshotCastingError
                 }
-                do {
-                    let jsonData = try JSONSerialization.data(withJSONObject: userDictionary as Any)
-                    var decodedUser = try JSONDecoder().decode(ZoogramUser.self, from: jsonData)
-                    decodedUser.followStatus = try await FollowSystemService.shared.checkFollowStatus(for: decodedUser.userID)
-                    foundUsers.append(decodedUser)
-                } catch {
-                    print("decoding found user error")
-                    throw error
-                }
+                foundUserIDs.append(userID)
             }
-            return foundUsers
+            return foundUserIDs
         } catch {
-            print("error: ", error)
             throw ServiceError.couldntCompleteTheSearch
         }
     }

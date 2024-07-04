@@ -240,7 +240,9 @@ class LoginViewController: UIViewController {
     }
 
     @objc func didTapCreateAccountButton() {
-        let service = RegistrationService()
+        let service = RegistrationService(
+            authenticationService: AuthenticationService.shared,
+            userDataService: UserDataService.shared)
         let registrationVC = RegistrationViewController(service: service)
         registrationVC.shouldKeepKeyboardFromPreviousVC = self.isKeyboardVisible
         navigationController?.pushViewController(registrationVC, animated: true)

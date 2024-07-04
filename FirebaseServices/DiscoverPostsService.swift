@@ -49,8 +49,7 @@ final class DiscoverPostsService: DiscoverPostsServiceProtocol {
 
                 do {
                     let jsonData = try JSONSerialization.data(withJSONObject: postDict as Any)
-                    var post = try JSONDecoder().decode(UserPost.self, from: jsonData)
-                    post.author = try await UserDataService().getUser(for: post.userID)
+                    let post = try JSONDecoder().decode(UserPost.self, from: jsonData)
                     retrievedPosts.append(post)
                 } catch {
                     throw error
@@ -81,8 +80,7 @@ final class DiscoverPostsService: DiscoverPostsServiceProtocol {
 
                 do {
                     let jsonData = try JSONSerialization.data(withJSONObject: postDict as Any)
-                    var post = try JSONDecoder().decode(UserPost.self, from: jsonData)
-                    post.author = try await UserDataService().getUser(for: post.userID)
+                    let post = try JSONDecoder().decode(UserPost.self, from: jsonData)
                     retrievedPosts.append(post)
                 } catch {
                     throw error

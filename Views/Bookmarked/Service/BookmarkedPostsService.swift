@@ -36,52 +36,63 @@ final class BookmarkedPostsService: BookmarkedPostsServiceProtocol {
     }
 
     func getItems() async throws -> [Bookmark]? {
-        let isPaginating = await paginationManager.isPaginating()
-        guard isPaginating == false else { return nil }
-        let numberOfItemsToGet = paginationManager.numberOfItemsToGetPerPagination
-        async let numberOfAllItems = getNumberOfItems()
-        async let retrievedBookmarks = bookmarksService.getBookmarks(numberOfBookmarksToGet: numberOfItemsToGet)
-        guard try await retrievedBookmarks.items.isEmpty != true else {
-            await paginationManager.setHasHitEndOfItemsStatus(to: true)
-            await paginationManager.finishPaginating()
-            return nil
-        }
-        let bookmarksWithAdditionalData = try await getAdditionalDataFor(bookmarks: retrievedBookmarks.items)
-        let lastRetrievedItemKey = try await retrievedBookmarks.lastRetrievedItemKey
-        await paginationManager.setHasHitEndOfItemsStatus(to: false)
-        await paginationManager.setLastReceivedItemKey(lastRetrievedItemKey)
-        await paginationManager.updateNumberOfRetrievedItems(value: bookmarksWithAdditionalData.count)
+        do {
+            let isPaginating = await paginationManager.isPaginating()
+            guard isPaginating == false else { return nil }
+            let numberOfItemsToGet = paginationManager.numberOfItemsToGetPerPagination
+            async let numberOfAllItems = getNumberOfItems()
+            async let retrievedBookmarks = bookmarksService.getBookmarks(numberOfBookmarksToGet: numberOfItemsToGet)
+            guard try await retrievedBookmarks.items.isEmpty != true else {
+                await paginationManager.setHasHitEndOfItemsStatus(to: true)
+                await paginationManager.finishPaginating()
+                return nil
+            }
+            let bookmarksWithAdditionalData = try await getAdditionalDataFor(bookmarks: retrievedBookmarks.items)
+            let lastRetrievedItemKey = try await retrievedBookmarks.lastRetrievedItemKey
+            await paginationManager.setHasHitEndOfItemsStatus(to: false)
+            await paginationManager.setLastReceivedItemKey(lastRetrievedItemKey)
+            await paginationManager.updateNumberOfRetrievedItems(value: bookmarksWithAdditionalData.count)
 
-        let numberOfRetrievedItems = await paginationManager.getNumberOfRetrievedItems()
-        if try await numberOfAllItems == numberOfRetrievedItems {
-            await paginationManager.setHasHitEndOfItemsStatus(to: true)
+            let numberOfRetrievedItems = await paginationManager.getNumberOfRetrievedItems()
+            if try await numberOfAllItems == numberOfRetrievedItems {
+                await paginationManager.setHasHitEndOfItemsStatus(to: true)
+            }
+            await paginationManager.finishPaginating()
+            return bookmarksWithAdditionalData
+
+        } catch {
+            await paginationManager.finishPaginating()
+            throw error
         }
-        await paginationManager.finishPaginating()
-        return bookmarksWithAdditionalData
     }
 
     func getMoreItems() async throws -> [Bookmark]? {
-        let lastReceivedItemKey = await paginationManager.getLastReceivedItemKey()
-        let isPaginating = await paginationManager.isPaginating()
-        guard isPaginating == false, lastReceivedItemKey != "" else { return nil }
-        await paginationManager.startPaginating()
-        let numberOfItemsToGet = paginationManager.numberOfItemsToGetPerPagination
-        let retrievedBookmarks = try await bookmarksService.getMoreBookmarks(after: lastReceivedItemKey, numberOfBookmarksToGet: numberOfItemsToGet)
-        guard retrievedBookmarks.items.isEmpty != true, retrievedBookmarks.lastRetrievedItemKey != lastReceivedItemKey else {
+        do {
+            let lastReceivedItemKey = await paginationManager.getLastReceivedItemKey()
+            let isPaginating = await paginationManager.isPaginating()
+            guard isPaginating == false, lastReceivedItemKey != "" else { return nil }
+            await paginationManager.startPaginating()
+            let numberOfItemsToGet = paginationManager.numberOfItemsToGetPerPagination
+            let retrievedBookmarks = try await bookmarksService.getMoreBookmarks(after: lastReceivedItemKey, numberOfBookmarksToGet: numberOfItemsToGet)
+            guard retrievedBookmarks.items.isEmpty != true, retrievedBookmarks.lastRetrievedItemKey != lastReceivedItemKey else {
+                await paginationManager.finishPaginating()
+                await paginationManager.setHasHitEndOfItemsStatus(to: true)
+                return nil
+            }
+            let bookmarksWithAdditionalData = try await getAdditionalDataFor(bookmarks: retrievedBookmarks.items)
+            await paginationManager.updateNumberOfRetrievedItems(value: bookmarksWithAdditionalData.count)
+            await paginationManager.setLastReceivedItemKey(retrievedBookmarks.lastRetrievedItemKey)
+            let numberOfAllItems = await paginationManager.getNumberOfAllItems()
+            let numberOfRetrievedItems = await paginationManager.getNumberOfRetrievedItems()
+            if numberOfAllItems == numberOfRetrievedItems {
+                await paginationManager.setHasHitEndOfItemsStatus(to: true)
+            }
             await paginationManager.finishPaginating()
-            await paginationManager.setHasHitEndOfItemsStatus(to: true)
-            return nil
+            return bookmarksWithAdditionalData
+        } catch {
+            await paginationManager.finishPaginating()
+            throw error
         }
-        let bookmarksWithAdditionalData = try await getAdditionalDataFor(bookmarks: retrievedBookmarks.items)
-        await paginationManager.updateNumberOfRetrievedItems(value: bookmarksWithAdditionalData.count)
-        await paginationManager.setLastReceivedItemKey(retrievedBookmarks.lastRetrievedItemKey)
-        let numberOfAllItems = await paginationManager.getNumberOfAllItems()
-        let numberOfRetrievedItems = await paginationManager.getNumberOfRetrievedItems()
-        if numberOfAllItems == numberOfRetrievedItems {
-            await paginationManager.setHasHitEndOfItemsStatus(to: true)
-        }
-        await paginationManager.finishPaginating()
-        return bookmarksWithAdditionalData
     }
 
     func getAdditionalDataFor(bookmarks: [Bookmark]) async throws -> [Bookmark] {
@@ -106,12 +117,14 @@ final class BookmarkedPostsService: BookmarkedPostsServiceProtocol {
     func likePost(postID: String, likeState: LikeState, postAuthorID: String) async throws {
         switch likeState {
         case .liked:
-            try await likeSystemService.removeLikeFromPost(postID: postID)
-            try await ActivitySystemService.shared.removeLikeEventForPost(postID: postID, postAuthorID: postAuthorID)
+            async let likeRemovalTask: Void = likeSystemService.removeLikeFromPost(postID: postID)
+            async let activityRemovalTask: Void = ActivitySystemService.shared.removeLikeEventForPost(postID: postID, postAuthorID: postAuthorID)
+            _ = try await [likeRemovalTask, activityRemovalTask]
         case .notLiked:
-            try await likeSystemService.likePost(postID: postID)
             let activityEvent = ActivityEvent.createActivityEventFor(likedPostID: postID)
-            try await ActivitySystemService.shared.addEventToUserActivity(event: activityEvent, userID: postAuthorID)
+            async let likeTask: Void = likeSystemService.likePost(postID: postID)
+            async let activityEventTask: Void = ActivitySystemService.shared.addEventToUserActivity(event: activityEvent, userID: postAuthorID)
+            _ = try await [likeTask, activityEventTask]
         }
     }
 

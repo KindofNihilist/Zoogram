@@ -17,10 +17,12 @@ enum VoidResult {
 
 struct DatabaseKeys {
     static let users = "Users/"
+    static let usernames = "UsernamesForLookup/"
     static let posts = "Posts/"
     static let postsLikes = "PostsLikes/"
     static let profilePictures = "/ProfilePictues/"
     static let images = "Images/"
+    static let timelines = "Timelines/"
 }
 
 enum StorageError: Error {
@@ -34,7 +36,7 @@ extension DataSnapshot {
 
     func decoded() throws -> ZoogramUser {
         let value = value
-        let jsonData = try JSONSerialization.data(withJSONObject: value)
+        let jsonData = try JSONSerialization.data(withJSONObject: value as Any)
         let object = try JSONDecoder().decode(ZoogramUser.self, from: jsonData)
         return object
     }

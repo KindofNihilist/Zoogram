@@ -35,7 +35,8 @@ final class FeedService: FeedServiceProtocol {
 
     func getPostsForTimeline(quantity: UInt) async throws -> PaginatedItems<UserPost> {
         let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
-        let query = databaseRef.child("Timelines/\(currentUserID)").queryOrderedByKey().queryLimited(toLast: quantity)
+        let path = DatabaseKeys.timelines + currentUserID
+        let query = databaseRef.child(path).queryOrderedByKey().queryLimited(toLast: quantity)
 
         do {
             let posts = try await withThrowingTaskGroup(of: (Int, UserPost).self, returning: (LastRetrievedPostKey, [UserPost]).self) { group in

@@ -86,8 +86,11 @@ class ActivityViewModel {
     }
 
     func markEventAsSeen(at indexPath: IndexPath) {
+        print(events[indexPath.row])
         events[indexPath.row].seen = true
+        print("after update: ", events[indexPath.row])
         let seenEvent = events[indexPath.row]
+        print("seenEvent: ", seenEvent)
         seenEvents.insert(seenEvent)
     }
 }

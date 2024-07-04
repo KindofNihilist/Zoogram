@@ -20,18 +20,24 @@ class PostsTableViewViewModel {
     }
 
     func getPosts() async throws {
-        guard let receivedItems = try await service.getItems() else { return }
-        self.posts = receivedItems.compactMap({ provider in
-            return provider.getPostViewModel()
-        })
+        let receivedItems = try await service.getItems()
+        if let unwrappedItems = receivedItems {
+            self.posts = unwrappedItems.compactMap({ provider in
+                return provider.getPostViewModel()
+            })
+        }
     }
 
     func getMorePosts() async throws -> [PostViewModel]? {
-        guard let receivedItems = try await service.getMoreItems() else { return nil }
-        let postViewModels = receivedItems.compactMap({ provider in
-            return provider.getPostViewModel()
-        })
-        return postViewModels
+        let receivedItems = try await service.getMoreItems()
+        if let unwrappedItems = receivedItems {
+            let postViewModels = unwrappedItems.compactMap({ provider in
+                return provider.getPostViewModel()
+            })
+            return postViewModels
+        } else {
+            return nil
+        }
     }
 
     func deletePost(at indexPath: IndexPath) async throws {

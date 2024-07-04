@@ -69,7 +69,7 @@ class ViewControllerWithLoadingIndicator: UIViewController {
             return
         }
 
-        UIView.animateKeyframes(withDuration: 0.7, delay: 0) {
+        UIView.animateKeyframes(withDuration: 0.6, delay: 0) {
             UIView.addKeyframe(withRelativeStartTime: 0.0, relativeDuration: 0.5) {
                 self.loadingIndicator.transform = CGAffineTransform(scaleX: 0.4, y: 0.4)
                 self.loadingIndicator.alpha = 0

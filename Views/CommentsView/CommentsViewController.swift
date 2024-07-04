@@ -7,15 +7,14 @@
 
 import UIKit
 
-@MainActor protocol CommentsTableViewActionsProtocol: PostTableViewCellProtocol, CommentCellProtocol {}
+@MainActor protocol CommentsTableViewDelegateProtocol: PostTableViewCellProtocol, CommentCellProtocol {}
 
 class CommentsViewController: ViewControllerWithLoadingIndicator {
 
+    private var readyToBecomeFirstResponder: Bool = false
     private let viewModel: CommentsViewModel
-    private var task: Task<Void, Error>?
     private(set) var factory: CommentListFactory!
     private(set) var dataSource: TableViewDataSource?
-    private var hasFinishedAppearing: Bool = false
     private var previousAccessoryViewHeight: CGFloat = 0
 
     private var tableView: UITableView = {
@@ -45,16 +44,9 @@ class CommentsViewController: ViewControllerWithLoadingIndicator {
 
     private lazy var keyboardAccessoryView: CommentAccessoryView = {
         let commentAccessoryView = CommentAccessoryView()
+        commentAccessoryView.translatesAutoresizingMaskIntoConstraints = false
         return commentAccessoryView
     }()
-
-    override var inputAccessoryView: UIView? {
-        return keyboardAccessoryView
-    }
-
-    override var canBecomeFirstResponder: Bool {
-        return true
-    }
 
     // MARK: Init
     init(post: UserPost, commentIDToFocusOn: String? = nil, shouldShowRelatedPost: Bool, service: CommentsServiceProtocol) {
@@ -64,7 +56,6 @@ class CommentsViewController: ViewControllerWithLoadingIndicator {
             shouldShowRelatedPost: shouldShowRelatedPost,
             service: service)
         super.init()
-        keyboardAccessoryView.delegate = self
     }
 
     init(postViewModel: PostViewModel, commentIDToFocusOn: String? = nil, shouldShowRelatedPost: Bool, service: CommentsServiceProtocol) {
@@ -74,7 +65,6 @@ class CommentsViewController: ViewControllerWithLoadingIndicator {
             shouldShowRelatedPost: shouldShowRelatedPost,
             service: service)
         super.init()
-        keyboardAccessoryView.delegate = self
     }
 
     required init?(coder: NSCoder) {
@@ -82,18 +72,18 @@ class CommentsViewController: ViewControllerWithLoadingIndicator {
     }
 
     // MARK: Lifecycle
-
     override func viewDidLoad() {
         super.viewDidLoad()
         self.view.backgroundColor = Colors.background
         self.mainView = tableView
-        view.addSubviews(tableView)
         title = String(localized: "Comments")
-        setupKeyboardEventsObservers()
         setupConstraints()
-        reloadAction = { self.fetchComments() }
         setupKeyboardAccessoryView()
         fetchComments()
+        setupKeyboardEventsObservers()
+        keyboardAccessoryView.delegate = self
+        setupBackButtonAction()
+        reloadAction = { self.fetchComments() }
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -101,68 +91,23 @@ class CommentsViewController: ViewControllerWithLoadingIndicator {
         self.navigationController?.setNavigationBarHidden(false, animated: true)
     }
 
-    override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
-        self.viewModel.hasInitialzied.bind { hasIntialized in
-            if hasIntialized {
-                self.setupFactory()
-                self.setupDataSource()
-                self.showMainView {
-                    self.scrollToSelectedCommentIfNeeded()
-                }
-                self.showNoCommentsViewIfNeeded()
-            }
-        }
-    }
-
-    override func viewDidDisappear(_ animated: Bool) {
-        super.viewDidDisappear(animated)
-        task?.cancel()
-    }
-
-    private func showNoCommentsViewIfNeeded() {
-        guard self.viewModel.comments.isEmpty && self.viewModel.shouldShowRelatedPost == false else { return }
-        noCommentsView.alpha = 1
-        tableView.addSubview(noCommentsView)
-        NSLayoutConstraint.activate([
-            noCommentsView.centerXAnchor.constraint(equalTo: tableView.centerXAnchor),
-            noCommentsView.centerYAnchor.constraint(equalTo: tableView.centerYAnchor),
-            noCommentsView.widthAnchor.constraint(equalTo: tableView.widthAnchor, constant: -20)
-        ])
-    }
-
-    private func removeNoCommentsViewIfNeeded() {
-        guard self.viewModel.comments.isEmpty else { return }
-        UIView.animate(withDuration: 0.2) {
-            self.noCommentsView.alpha = 0
-        } completion: { _ in
-            self.noCommentsView.removeFromSuperview()
-        }
-    }
-
-    private func fetchComments() {
-        task = Task {
-            do {
-                try await viewModel.fetchData()
-
-            } catch {
-                self.showLoadingErrorNotification(text: error.localizedDescription)
-            }
-        }
-    }
-
-    // MARK: Constraints setup
+    // MARK: Views setup
     private func setupConstraints() {
+        view.addSubviews(tableView, keyboardAccessoryView)
         NSLayoutConstraint.activate([
-            tableView.topAnchor.constraint(equalTo: view.topAnchor),
-            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            tableView.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor)
+            tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            tableView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
+            tableView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
+
+            keyboardAccessoryView.topAnchor.constraint(equalTo: tableView.bottomAnchor),
+            keyboardAccessoryView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            keyboardAccessoryView.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor),
+            keyboardAccessoryView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
         ])
     }
 
     private func setupKeyboardAccessoryView() {
-        task = Task {
+        Task {
             await viewModel.getCurrentUserModel()
             let userPfp = viewModel.getCurrentUserProfilePicture()
             keyboardAccessoryView.configure(with: userPfp)
@@ -183,6 +128,89 @@ class CommentsViewController: ViewControllerWithLoadingIndicator {
             object: nil)
     }
 
+    private func setupBackButtonAction() {
+        navigationItem.backAction = UIAction(handler: { _ in
+            print("back action triggered")
+            if self.viewModel.hasPendingComments {
+                print("inside hasPendingComments")
+                let userDefaultsKey = UserDefaultsKeys.shouldShowPendingNotification.rawValue
+                let shouldShowNotification = UserDefaults().bool(forKey: userDefaultsKey)
+
+                if shouldShowNotification {
+                    self.showPendingCommentsNotification()
+                } else {
+                    self.navigationController?.popViewController(animated: true)
+                }
+            } else {
+                self.navigationController?.popViewController(animated: true)
+            }
+        })
+    }
+
+    // MARK: Main methods
+
+    private func showPendingCommentsNotification() {
+        print("inside show pendingComments")
+        let title = String(localized: "Pending comments")
+        let message = String(localized: "You have pending comments, they'll be published once there's an active connection.")
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+
+        let okAction = UIAlertAction(title: "Ok", style: .default) { _ in
+            self.navigationController?.popViewController(animated: true)
+        }
+
+        let dontShowTitle = String(localized: "Don't show again")
+        let shouldShowPendingNotificationKey = UserDefaultsKeys.shouldShowPendingNotification.rawValue
+        let dontShowAction = UIAlertAction(title: dontShowTitle, style: .default) { _ in
+            UserDefaults().setValue(false, forKey: shouldShowPendingNotificationKey)
+            self.navigationController?.popViewController(animated: true)
+        }
+        alert.addAction(okAction)
+        alert.addAction(dontShowAction)
+        self.present(alert, animated: true)
+    }
+
+    private func showNoCommentsViewIfNeeded() {
+        guard self.viewModel.comments.isEmpty && self.viewModel.shouldShowRelatedPost == false else { return }
+        noCommentsView.alpha = 1
+        tableView.addSubview(noCommentsView)
+        NSLayoutConstraint.activate([
+            noCommentsView.centerXAnchor.constraint(equalTo: tableView.centerXAnchor),
+            noCommentsView.centerYAnchor.constraint(equalTo: tableView.centerYAnchor),
+            noCommentsView.widthAnchor.constraint(equalTo: tableView.widthAnchor, constant: -20)
+        ])
+    }
+
+    private func removeNoCommentsView() {
+        guard self.noCommentsView.superview != nil else { return }
+        UIView.animate(withDuration: 0.2) {
+            self.noCommentsView.alpha = 0
+        } completion: { _ in
+            self.noCommentsView.removeFromSuperview()
+        }
+    }
+
+    private func fetchComments() {
+        Task {
+            do {
+                try await viewModel.fetchData()
+                showCommentsTableView()
+            } catch {
+                showCommentsTableView()
+                self.showPopUp(issueText: error.localizedDescription)
+            }
+        }
+    }
+
+    private func showCommentsTableView() {
+        self.setupFactory()
+        self.setupDataSource()
+        self.showMainView {
+            self.scrollToSelectedCommentIfNeeded()
+        }
+        self.showNoCommentsViewIfNeeded()
+    }
+
     private func scrollToSelectedCommentIfNeeded() {
         if let indexPath = viewModel.indexPathOfCommentToToFocusOn,
            viewModel.hasAlreadyFocusedOnComment != true {
@@ -194,15 +222,9 @@ class CommentsViewController: ViewControllerWithLoadingIndicator {
         guard let indexPath = viewModel.indexPathOfCommentToToFocusOn else {
             return
         }
-        let cell = tableView.cellForRow(at: indexPath) as? CommentTableViewCell
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-            UIView.animate(withDuration: 0.6) {
-                cell?.backgroundColor = Colors.background
-            } completion: { _ in
-                self.viewModel.comments[indexPath.row].shouldBeMarkedUnseen = false
-                self.viewModel.hasAlreadyFocusedOnComment = true
-            }
-        }
+        self.factory.markCommentAsSeen(at: indexPath)
+        self.viewModel.comments[indexPath.row].shouldBeMarkedUnseen = false
+        self.viewModel.hasAlreadyFocusedOnComment = true
     }
 
     private func focusOnCommentIfNeeded() {
@@ -211,92 +233,31 @@ class CommentsViewController: ViewControllerWithLoadingIndicator {
         else {
             return
         }
-        let cell = tableView.cellForRow(at: indexPath) as? CommentTableViewCell
-
-        UIView.animate(withDuration: 0.5, delay: 0.5) {
-            cell?.backgroundColor = Colors.unseenBlue
-        } completion: { _ in
-            UIView.animate(withDuration: 0.3) {
-                cell?.backgroundColor = Colors.background
-            }
-            self.viewModel.hasAlreadyFocusedOnComment = true
-        }
+        self.factory.focusOnComment(at: indexPath)
+        self.viewModel.hasAlreadyFocusedOnComment = true
     }
 
-    private func showCreatedCommentIfNeeded(isTriggeredAfterScroll: Bool = false) {
-        guard viewModel.shouldShowNewlyCreatedComment else {
-            return
-        }
-
-        guard isCommentsScrolledToTop() else {
-            self.scrollToFirstRow()
-            return
-        }
-
-        guard let createdComment = viewModel.getLatestComment() else {
-            return
-        }
-
-        let delay = isTriggeredAfterScroll ? 0.3 : 0.0
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-            let indexPath = IndexPath(row: 0, section: self.factory.getCommentSectionIndex())
-            self.factory?.insertComment(with: createdComment, at: indexPath) {
-                self.viewModel.shouldShowNewlyCreatedComment = false
+    private func showCreatedComment() {
+        guard let createdComment = viewModel.getLatestComment() else { return }
+        let indexPath = IndexPath(row: 0, section: self.factory.getCommentSectionIndex())
+        self.factory?.insertComment(with: createdComment, at: indexPath) {
+            self.tableView.scrollToRow(at: indexPath, at: .none, animated: true)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
                 self.markNewlyCreatedCommentAsSeen()
             }
         }
     }
 
-    func scrollToFirstRow() {
-        if viewModel.shouldShowRelatedPost {
-            let areaToFocusOn = areaToFocusOnCommentPost()
-            self.tableView.setContentOffset(CGPoint(x: 0, y: Int(areaToFocusOn.minY)), animated: true)
-        } else {
-            self.tableView.scrollToRow(at: IndexPath(item: 0, section: 0), at: .top, animated: true)
+    private func markCommentAsPublished(_ comment: PostComment) {
+        let commentIndexPath = viewModel.getIndexPathOfComment(comment)
+        viewModel.comments[commentIndexPath.row].hasBeenPosted = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.factory.markCommentasPublished(at: commentIndexPath)
         }
-        viewModel.isAlreadyScrolling = true
     }
-
-    private func isCommentsScrolledToTop() -> Bool {
-        guard viewModel.postCaption != nil || viewModel.shouldShowRelatedPost || viewModel.comments.count > 1 else {
-            return true
-        }
-        let areaToFocusOnMinY = Int(areaToFocusOnCommentPost().minY)
-        let currentYContentOffset = Int(tableView.contentOffset.y)
-        return areaToFocusOnMinY == currentYContentOffset
-    }
-
-    private func areaToFocusOnCommentPost() -> CGRect {
-        if viewModel.shouldShowRelatedPost {
-            let postSectionRect = tableView.rect(forSection: 0)
-
-            guard viewModel.comments.count > 1 else {
-                // If currently tableView shows zero comments but viewModel already holds new comment that needs to be inserted
-                let offset = tableView.contentSize.height - tableView.frame.height
-                return postSectionRect.inset(by: UIEdgeInsets(top: offset + 100, left: 0, bottom: 0, right: 0))
-            }
-
-            let commentSectionIndex = factory.getCommentSectionIndex()
-            let commentSectionRect = tableView.rect(forSection: commentSectionIndex)
-            let firstCommentRect = tableView.rectForRow(at: IndexPath(row: 0, section: commentSectionIndex))
-//            let commentRectWithInset = firstCommentRect.inset(by: UIEdgeInsets(top: 0, left: 0, bottom: -firstCommentRect.height, right: 0))
-
-            guard commentSectionRect.height >= tableView.frame.height else {
-                let contentOffset =  firstCommentRect.maxY - tableView.frame.height
-                let postSectionWithInset = postSectionRect.inset(by: UIEdgeInsets(top: contentOffset + 5, left: 0, bottom: 0, right: 0  ))
-                return postSectionWithInset
-            }
-            let rectWithInset = firstCommentRect.inset(by: UIEdgeInsets(top: -100, left: 0, bottom: 0, right: 0))
-            return rectWithInset
-        } else {
-            return tableView.rect(forSection: 0)
-        }
-
-    }}
+}
 
 // MARK: Factory & DataSource setup
-
 extension CommentsViewController {
 
     func setupFactory() {
@@ -318,6 +279,7 @@ extension CommentsViewController {
     }
 }
 
+// MARK: Keyboard animation handler
 extension CommentsViewController {
 
     @objc func keyboardWillShow(_ notification: NSNotification) {
@@ -329,50 +291,85 @@ extension CommentsViewController {
     }
 
     func moveTableViewWithKeyboard(notification: NSNotification, keyboardWillShow: Bool) {
-        guard tableView.contentSize.height > tableView.frame.height else {
-            return
-        }
-        guard let beginKeyboardSize = (notification.userInfo?[UIResponder.keyboardFrameBeginUserInfoKey] as? NSValue)?.cgRectValue,
-              let endKeyboardSize = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue,
-              let keyboardAnimationDuration = notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double,
-              let animationCurve = notification.userInfo?[UIResponder.keyboardAnimationCurveUserInfoKey] as? Int,
-              let keyboardAnimationCurve = UIView.AnimationCurve(rawValue: animationCurve)
-        else {
-            return
-        }
+        let numberOfComments = viewModel.comments.count
+        guard numberOfComments > 0 else { return }
+        guard let keyboardAttributes = KeyboardAnimationAttributes(notification: notification) else { return }
+        guard keyboardAttributes.beginKeyboardSize.origin.y != keyboardAttributes.endKeyboardSize.origin.y else { return }
+
+        let commentSectionIndex = factory.getCommentSectionIndex()
+        let indexPath = IndexPath(row: numberOfComments - 1, section: commentSectionIndex)
+        let lastCommentRect = tableView.rectForRow(at: indexPath)
+        let lastCommentRelativeToView = tableView.convert(lastCommentRect, to: view)
+        let lastCommentPosition = lastCommentRelativeToView.maxY
+        let accessoryViewHeight = keyboardAccessoryView.frame.size.height
+        let keyboardPosition = keyboardAttributes.endKeyboardSize.minY - accessoryViewHeight
+        guard lastCommentPosition >= keyboardPosition else { return }
 
         var contentOffset = tableView.contentOffset
-
         let safeAreaBottomInset = self.view.safeAreaInsets.bottom
-        let accessoryViewHeight = keyboardAccessoryView.frame.height
-        let bottomInset = safeAreaBottomInset + accessoryViewHeight
+        let bottomInset = safeAreaBottomInset
+        var offsetValue: CGFloat = 0
 
-        if keyboardWillShow && beginKeyboardSize.height == bottomInset {
-            contentOffset.y += (endKeyboardSize.height - bottomInset)
+        let accessoryViewPosition = keyboardAttributes.beginKeyboardSize.minY - accessoryViewHeight
+
+        if  accessoryViewPosition > tableView.contentSize.height {
+            let positionYDifference = lastCommentPosition - keyboardPosition
+            offsetValue = positionYDifference
         } else {
-            contentOffset.y += (accessoryViewHeight - previousAccessoryViewHeight)
+            offsetValue = (keyboardAttributes.endKeyboardSize.height - bottomInset)
         }
 
-        let animator = UIViewPropertyAnimator(duration: keyboardAnimationDuration, curve: keyboardAnimationCurve) { [weak self] in
+        if keyboardWillShow {
+            contentOffset.y += offsetValue
+        } else {
+            let offset = keyboardAttributes.beginKeyboardSize.height - bottomInset
+            contentOffset.y -= offset
+        }
+
+        let animator = UIViewPropertyAnimator(
+            duration: keyboardAttributes.keyboardAnimationDuration,
+            curve: keyboardAttributes.keyboardAnimationCurve) { [weak self] in
             self?.tableView.setContentOffset(contentOffset, animated: false)
         }
 
         self.previousAccessoryViewHeight = accessoryViewHeight
-
         animator.startAnimation()
     }
 }
 
-// MARK: Post button tapped
+// MARK: TableView Delegate
+extension CommentsViewController: TableViewDataSourceDelegate {
+
+    func scrollViewDidEndScrollingAnimation() {
+        focusOnCommentIfNeeded()
+    }
+
+   func didCommit(editingStyle: UITableViewCell.EditingStyle, at indexPath: IndexPath) {
+        if editingStyle == .delete {
+            Task {
+                do {
+                    self.factory?.deleteComment(at: indexPath)
+                    self.showNoCommentsViewIfNeeded()
+                    try await viewModel.deleteComment(at: indexPath)
+                } catch {
+                    self.showPopUp(issueText: error.localizedDescription)
+                }
+            }
+        }
+    }
+}
+
+// MARK: Keyboard accessory action
 extension CommentsViewController: CommentAccessoryViewProtocol {
-    func postButtonTapped(commentText: String, completion: @escaping () -> Void) {
-        task = Task {
+    func sendButtonTapped(commentText: String) {
+        Task {
             do {
-                let postedComment = try await viewModel.postComment(commentText: commentText)
-                self.removeNoCommentsViewIfNeeded()
-                self.viewModel.insertNewlyCreatedComment(comment: postedComment)
-                self.showCreatedCommentIfNeeded()
-                completion()
+                let newComment = try viewModel.createPostComment(text: commentText)
+                viewModel.insertNewComment(comment: newComment)
+                self.removeNoCommentsView()
+                self.showCreatedComment()
+                try await viewModel.postComment(comment: newComment)
+                self.markCommentAsPublished(newComment)
             } catch {
                 self.showPopUp(issueText: error.localizedDescription)
             }
@@ -380,7 +377,8 @@ extension CommentsViewController: CommentAccessoryViewProtocol {
     }
 }
 
-extension CommentsViewController: CommentsTableViewActionsProtocol {
+// MARK: Comments delegate
+extension CommentsViewController: CommentsTableViewDelegateProtocol {
 
     func openUserProfile(of commentAuthor: ZoogramUser) {
         self.showProfile(of: commentAuthor)
@@ -389,7 +387,7 @@ extension CommentsViewController: CommentsTableViewActionsProtocol {
     func menuButtonTapped(cell: PostTableViewCell) {
         let postVM = viewModel.getPostViewModel()
         showMenuForPost(postViewModel: postVM, onDelete: {
-            self.task = Task {
+            Task {
                 do {
                     try await self.viewModel.deleteThisPost()
                     sendNotificationToUpdateUserProfile()
@@ -418,30 +416,5 @@ extension CommentsViewController: CommentsTableViewActionsProtocol {
 
     func didTapBookmarkButton(cell: PostTableViewCell) async throws {
         try await viewModel.bookmarkThisPost()
-    }
-}
-
-extension CommentsViewController: TableViewDataSourceDelegate {
-
-    func didSelectCell(at indexPath: IndexPath) {}
-
-    func scrollViewDidEndScrollingAnimation() {
-        showCreatedCommentIfNeeded(isTriggeredAfterScroll: true)
-        focusOnCommentIfNeeded()
-        viewModel.isAlreadyScrolling = false
-    }
-
-   func didCommit(editingStyle: UITableViewCell.EditingStyle, at indexPath: IndexPath) {
-        if editingStyle == .delete {
-            task = Task {
-                do {
-                    try await viewModel.deleteComment(at: indexPath)
-                    self.factory?.deleteComment(at: indexPath)
-                    self.showNoCommentsViewIfNeeded()
-                } catch {
-                    self.showPopUp(issueText: error.localizedDescription)
-                }
-            }
-        }
     }
 }

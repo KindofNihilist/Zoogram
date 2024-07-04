@@ -103,16 +103,14 @@ class UserProfileViewModel {
         self.user = userModel
     }
 
-    func followUser() async throws -> FollowStatus {
-        let newFollowStatus = try await service.followUser()
-        self.user.followStatus = newFollowStatus
-        return newFollowStatus
+    func followUser() async throws {
+        try await service.followUser()
+        self.user.followStatus = .following
     }
 
-    func unfollowUser() async throws -> FollowStatus {
-        let newFollowStatus = try await service.unfollowUser()
-        self.user.followStatus = newFollowStatus
-        return newFollowStatus
+    func unfollowUser() async throws {
+        try await service.unfollowUser()
+        self.user.followStatus = .notFollowing
     }
 
     func hasHitTheEndOfPosts() async -> Bool {

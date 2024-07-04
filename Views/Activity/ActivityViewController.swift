@@ -14,7 +14,7 @@ protocol ActivityViewNotificationProtocol: AnyObject {
 }
 
 @MainActor
-protocol ActivityViewCellActionsDelegate: AnyObject {
+protocol ActivityViewCellActionsDelegate: AnyObject, UITextViewDelegate {
     func didSelectUser(user: ZoogramUser)
 }
 
@@ -74,10 +74,11 @@ class ActivityViewController: UIViewController {
     // MARK: Lifecycle
     override func viewDidLoad() {
         view.backgroundColor = Colors.background
+        navigationItem.leftBarButtonItem = UIBarButtonItem(customView: activityNavBarlabel)
         tableView.delegate = self
         tableView.dataSource = self
         setupViewsConstraints()
-        navigationItem.leftBarButtonItem = UIBarButtonItem(customView: activityNavBarlabel)
+        setupPullToRefresh()
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -87,13 +88,11 @@ class ActivityViewController: UIViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-//        navigationController?.setNavigationBarHidden(true, animated: animated)
         self.tableView.reloadData()
-        showRecentNotificationsOnAppear()
+        showRecentNotifications(animated: false)
     }
 
     override func viewWillDisappear(_ animated: Bool) {
-//        navigationController?.setNavigationBarHidden(false, animated: animated)
         super.viewWillDisappear(animated)
         Task {
             do {
@@ -122,16 +121,21 @@ class ActivityViewController: UIViewController {
     }
 
     // MARK: Methods
+    private func setupPullToRefresh() {
+        let refreshControl = UIRefreshControl()
+        refreshControl.addTarget(self, action: #selector(refreshTableView), for: .valueChanged)
+        tableView.refreshControl = refreshControl
+    }
 
-    private func showRecentNotificationsOnAppear() {
+    private func showRecentNotifications(animated: Bool) {
         guard viewModel.hasZeroEvents != true else {
             return
         }
         CATransaction.begin()
         CATransaction.setCompletionBlock {
-            self.tableView.scrollToRow(at: IndexPath(row: 0, section: 0), at: .top, animated: false)
-            self.checkIfCellisFullyVisible()
-            self.markSeenEvents(delay: 0.5)
+            self.tableView.scrollToRow(at: IndexPath(row: 0, section: 0), at: .none, animated: animated)
+            self.markFullyVisibleEventsAsSeen()
+            self.animateSeenEventsStatusChange(delay: 0.5)
         }
         self.tableView.reloadData()
         CATransaction.commit()
@@ -149,7 +153,7 @@ class ActivityViewController: UIViewController {
         }
     }
 
-    private func checkIfCellisFullyVisible(completion: () -> Void = {}) {
+    private func markFullyVisibleEventsAsSeen(completion: () -> Void = {}) {
         let visibleCells = tableView.indexPathsForVisibleRows
 
         visibleCells?.forEach { indexPath in
@@ -166,7 +170,7 @@ class ActivityViewController: UIViewController {
         completion()
     }
 
-    private func markSeenEvents(delay: CFTimeInterval = 0) {
+    private func animateSeenEventsStatusChange(delay: CFTimeInterval = 0) {
         let visibleCells = tableView.indexPathsForVisibleRows
 
         UIView.animate(withDuration: 0.4, delay: delay, options: .allowAnimatedContent) {
@@ -200,6 +204,13 @@ class ActivityViewController: UIViewController {
 
     func observeActivityEvents() {
         viewModel.observeActivityEvents()
+    }
+
+    @objc private func refreshTableView() {
+        showRecentNotifications(animated: true)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            self.tableView.refreshControl?.endRefreshing()
+        }
     }
 }
 
@@ -253,11 +264,11 @@ extension ActivityViewController: UITableViewDelegate, UITableViewDataSource {
     }
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        checkIfCellisFullyVisible()
+        markFullyVisibleEventsAsSeen()
     }
 
     func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
-        markSeenEvents()
+        animateSeenEventsStatusChange()
     }
 
 }
@@ -265,38 +276,33 @@ extension ActivityViewController: UITableViewDelegate, UITableViewDataSource {
 // MARK: Cell actions Delegate
 extension ActivityViewController: ActivityViewCellActionsDelegate {
     func didSelectUser(user: ZoogramUser) {
-        let service = UserProfileService(
-            userID: user.userID,
-            followService: FollowSystemService.shared,
-            userPostsService: UserPostsService.shared,
-            userService: UserDataService(),
-            likeSystemService: LikeSystemService.shared,
-            bookmarksService: BookmarksSystemService.shared)
-        let userProfileViewController = UserProfileViewController(service: service, user: user, isTabBarItem: false)
-        userProfileViewController.title = user.username
-        userProfileViewController.hidesBottomBarWhenPushed = true
-        self.navigationController?.pushViewController(userProfileViewController, animated: true)
+        showProfile(of: user)
+    }
+
+    func textView(_ textView: UITextView, shouldInteractWith URL: URL, in characterRange: NSRange, interaction: UITextItemInteraction) -> Bool {
+        print("should interact with URL")
+        let userID = URL.absoluteString
+        let user = ZoogramUser(userID)
+        showProfile(of: user)
+        return true
     }
 }
 
 extension ActivityViewController: FollowEventTableViewCellDelegate {
-    func followUserTapped(user: ZoogramUser, followCompletion: @escaping (FollowStatus) -> Void) {
+    func followUserTapped(user: ZoogramUser) {
         Task {
             do {
                 let newFollowStatus = try await FollowSystemService.shared.followUser(uid: user.userID)
-                followCompletion(newFollowStatus)
             } catch {
                 self.showPopUp(issueText: error.localizedDescription)
             }
         }
     }
 
-    func unfollowUserTapped(user: ZoogramUser, unfollowCompletion: @escaping (FollowStatus) -> Void) {
+    func unfollowUserTapped(user: ZoogramUser) {
         Task {
             do {
                 let newFollowStatus = try await FollowSystemService.shared.unfollowUser(uid: user.userID)
-                try await ActivitySystemService.shared.removeFollowEventForUser(userID: user.userID)
-                unfollowCompletion(newFollowStatus)
             } catch {
                 self.showPopUp(issueText: error.localizedDescription)
             }

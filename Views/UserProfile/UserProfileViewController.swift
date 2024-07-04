@@ -60,6 +60,7 @@ final class UserProfileViewController: ViewControllerWithLoadingIndicator {
         self.setupCollectionView()
         self.setupRefreshControl()
         self.postTableViewController.delegate = self
+        self.postTableViewController.title = String(localized: "Posts")
     }
 
     required init?(coder: NSCoder) {
@@ -76,6 +77,7 @@ final class UserProfileViewController: ViewControllerWithLoadingIndicator {
     }
 
     override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
         navigationController?.setNavigationBarHidden(false, animated: true)
     }
 
@@ -207,6 +209,20 @@ final class UserProfileViewController: ViewControllerWithLoadingIndicator {
         settingsVC.title = String(localized: "Settings")
         self.navigationController?.pushViewController(settingsVC, animated: true)
     }
+
+    private func showPost(at indexPath: IndexPath) {
+        guard self.viewModel.posts.value.isEmpty != true else { return }
+        self.postTableViewController.focusTableViewOnPostWith(index: indexPath)
+        if #available(iOS 18.0, *) {
+            self.postTableViewController.preferredTransition = .zoom { context in
+                let postsTableView = context.zoomedViewController as! PostsTableViewController
+                let lastSeenPostIndexPath = postsTableView.getLastVisibleCellIndexPath() ?? indexPath
+                let collectionViewIndexPath = IndexPath(row: lastSeenPostIndexPath.row, section: indexPath.section)
+                return self.collectionView.cell(at: collectionViewIndexPath)
+            }
+        }
+        self.navigationController?.pushViewController(self.postTableViewController, animated: true)
+    }
 }
 
 // MARK: CollectionView Datasource setup
@@ -220,9 +236,7 @@ extension UserProfileViewController {
         self.collectionView.dataSource = dataSource
         self.collectionView.delegate = dataSource
         self.factory.postCellAction = { indexPath in
-            guard self.viewModel.posts.value.isEmpty != true else { return }
-            self.postTableViewController.focusTableViewOnPostWith(index: indexPath)
-            self.navigationController?.pushViewController(self.postTableViewController, animated: true)
+            self.showPost(at: indexPath)
         }
         self.collectionView.reloadData()
     }
@@ -275,18 +289,13 @@ extension UserProfileViewController: ProfileHeaderDelegate {
     }
 
     func editProfileButtonTapped() {
-        let service = UserDataValidationService()
-        let profileEditingVC = ProfileEdditingViewController(service: service)
-        let navigationController = UINavigationController(rootViewController: profileEditingVC)
-        navigationController.modalPresentationStyle = .fullScreen
-        present(navigationController, animated: true)
+        showProfileSettings()
     }
 
-    func followButtonTapped(completion: @escaping (FollowStatus) -> Void) {
+    func followButtonTapped() {
         let task = Task {
             do {
-                let newFollowStatus = try await viewModel.followUser()
-                completion(newFollowStatus)
+                try await viewModel.followUser()
             } catch {
                 self.showPopUp(issueText: error.localizedDescription)
             }
@@ -294,11 +303,10 @@ extension UserProfileViewController: ProfileHeaderDelegate {
         tasks.append(task)
     }
 
-    func unfollowButtonTapped(completion: @escaping (FollowStatus) -> Void) {
+    func unfollowButtonTapped() {
         let task = Task {
             do {
-                let newFollowStatus = try await viewModel.unfollowUser()
-                completion(newFollowStatus)
+                try await viewModel.unfollowUser()
             } catch {
                 self.showPopUp(issueText: error.localizedDescription)
             }
@@ -308,6 +316,13 @@ extension UserProfileViewController: ProfileHeaderDelegate {
 }
 
 extension UserProfileViewController: PostsTableViewDelegate {
+    func lastVisibleItem(at indexPath: IndexPath?) {
+        guard let indexPath = indexPath else { return }
+        guard let postsSectionIndex = factory.getPostsSectionIndex() else { return }
+        let adaptedIndexPath = IndexPath(row: indexPath.row, section: postsSectionIndex)
+        self.collectionView.scrollToItem(at: adaptedIndexPath, at: .centeredVertically, animated: false)
+    }
+    
     func updateCollectionView(with postViewModels: [PostViewModel]) {
         updatePostsCollectionView(with: postViewModels)
     }

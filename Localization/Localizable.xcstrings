@@ -529,12 +529,12 @@
         }
       }
     },
-    "Discover" : {
+    "Don't show again" : {
       "localizations" : {
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Відкриття нового"
+            "value" : "Не відображати знову"
           }
         }
       }
@@ -805,6 +805,16 @@
         }
       }
     },
+    "Latest" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Новинки"
+          }
+        }
+      }
+    },
     "liked your post. " : {
       "localizations" : {
         "uk" : {
@@ -951,6 +961,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Пароль"
+          }
+        }
+      }
+    },
+    "Pending comments" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Очікуючі коментарі"
           }
         }
       }
@@ -1195,17 +1215,6 @@
         }
       }
     },
-    "The username is already taken" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "uk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Імʼя користувача вже зайнято"
-          }
-        }
-      }
-    },
     "The username should be at least 4 characters long" : {
       "localizations" : {
         "uk" : {
@@ -1261,7 +1270,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Цей юзернейм вже використовується"
+            "value" : "Імʼя користувача вже зайнято"
           }
         }
       }
@@ -1444,6 +1453,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Невірний пароль"
+          }
+        }
+      }
+    },
+    "You have pending comments, they'll be published once there's an active connection." : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "У вас є очікуючі коментарі, вони будуть опубліковані як тільки відновиться інтернет зʼєднання."
           }
         }
       }

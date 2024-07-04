@@ -14,8 +14,10 @@ import UIKit.UITableView
 }
 
 extension TableViewDataSourceDelegate {
-    func scrollViewDidEndScrollingAnimation() {}
+    func didSelectCell(at indexPath: IndexPath) {}
     func didCommit(editingStyle: UITableViewCell.EditingStyle, at indexPath: IndexPath) {}
+    func scrollViewDidEndScrollingAnimation() {}
+
 }
 
 typealias TableViewDataSource = UITableViewDelegate & UITableViewDataSource

@@ -27,6 +27,7 @@ enum FilterType {
     case coldMonkey
 }
 
+@MainActor
 protocol ImageFilter {
     var filterType: FilterType { get set }
     var minimumValue: Float { get set }
@@ -85,11 +86,11 @@ class Filter: ImageFilter {
     }
 
     func revertChanges() {
-        let filterDefaultValue = getFilterValue(for: self.defaultValue)
-        filter.setValue(filterDefaultValue, forKey: filterKey)
+        applyFilter(sliderValue: latestValue)
     }
 
     private func getFilterValue(for sliderValue: Float) -> Any {
+        print("sliderValue for \(self.filterType): ", sliderValue)
         switch filterType {
         case .warmth:
             return CIVector(x: CGFloat(sliderValue) + 6500, y: 0)
@@ -111,6 +112,7 @@ class Filter: ImageFilter {
 
 }
 
+@MainActor
 class PhotoFilter: ImageFilter {
 
     static let effects = EditingFilters()
@@ -147,7 +149,7 @@ class PhotoFilter: ImageFilter {
     }
 
     func revertChanges() {
-//        self.outputImage = inputImage
+        changeFilterIntensity(to: latestValue)
     }
 
     func setInputImage(image: UIImage) {
@@ -178,7 +180,6 @@ class PhotoFilter: ImageFilter {
     }
 
     func changeFilterIntensity(to alphaValue: Float) {
-        print("Applying changes")
         let alphaValue = CGFloat(alphaValue)
         let overlayRGBA = [0, 0, 0, alphaValue]
         let alphaVector = CIVector(values: overlayRGBA, count: 4)
@@ -191,7 +192,8 @@ class PhotoFilter: ImageFilter {
     }
 }
 
-func getFilter(of type: FilterType) -> ImageFilter {
+@MainActor
+ func getFilter(of type: FilterType) -> ImageFilter {
     switch type {
     case .exposure:
         return EditingFilters().exposureFilter

@@ -23,6 +23,7 @@ class PostsTableView: UITableView {
     private let viewModel: PostsTableViewViewModel
 
     var tasks = [Task<Void, Never>?]()
+    var lastVisibleCellIndexPath: IndexPath?
 
     weak var postsTableDelegate: PostsTableViewProtocol?
     var didScrollAction: ((ScrollViewOffset, ScrollViewPreviousOffset) -> Void)?
@@ -57,17 +58,21 @@ class PostsTableView: UITableView {
     }
 
     @objc func getPosts() {
+        print("getPostsTriggered")
         let task = Task {
             do {
                 try await viewModel.getPosts()
+                print("past viewModel.getPosts()")
                 if viewModel.posts.isEmpty {
                     self.showNoPostsNotificationIfNeeded()
                 } else {
                     self.reloadData()
                     self.removeNoPostsNotificationIfDisplayed()
                     if await self.viewModel.hasHitTheEndOfPosts() {
+                        print("removing pagination footer")
                         self.removePaginationFooter()
                     } else {
+                        print("showing pagination footer")
                         self.showPaginationFooter()
                     }
                 }
@@ -211,6 +216,17 @@ class PostsTableView: UITableView {
             noPostsNotificationView = nil
         }
     }
+
+    func saveLastMostVisibleCellIndexPath() {
+        guard let visiblePosts = self.indexPathsForVisibleRows else { return }
+        visiblePosts.forEach { indexPath in
+            guard let cell = self.cell(at: indexPath) else { return }
+            let cellYOrigin = cell.frame.origin.y - self.contentOffset.y
+            if cellYOrigin < (self.frame.height / 2) {
+                self.lastVisibleCellIndexPath = indexPath
+            }
+        }
+    }
 }
 
 extension PostsTableView: UITableViewDelegate, UITableViewDataSource {
@@ -249,6 +265,7 @@ extension PostsTableView: UITableViewDelegate, UITableViewDataSource {
         if contentYOffset > (contentHeight - tableViewHeight - 100) {
             self.getMorePosts()
         }
+        saveLastMostVisibleCellIndexPath()
     }
 
     func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {

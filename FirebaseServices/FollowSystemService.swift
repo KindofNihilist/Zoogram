@@ -16,8 +16,8 @@ protocol FollowSystemProtocol: Sendable {
     func getFollowers(for uid: String) async throws -> [UserID]
     func getFollowing(for uid: String) async throws -> [UserID]
     func checkFollowStatus(for uid: String) async throws -> FollowStatus
-    func followUser(uid: String) async throws -> FollowStatus
-    func unfollowUser(uid: String) async throws -> FollowStatus
+    func followUser(uid: String) async throws
+    func unfollowUser(uid: String) async throws
     func insertFollower(with uid: String, to user: String) async throws
     func removeFollower(with uid: String, from user: String) async throws
     func forcefullyRemoveFollower(uid: String) async throws
@@ -89,13 +89,10 @@ final class FollowSystemService: FollowSystemProtocol {
                 else {
                     throw ServiceError.snapshotCastingError
                 }
-                print("followed user: ", snapshot)
-                print("userID: ", userID)
                 followedUsers.append(userID)
             }
             return followedUsers
         } catch {
-            print("getFollowing error: ", error.localizedDescription)
             throw ServiceError.couldntLoadData
         }
     }
@@ -117,7 +114,7 @@ final class FollowSystemService: FollowSystemProtocol {
         }
     }
 
-    func followUser(uid: String) async throws -> FollowStatus {
+    func followUser(uid: String) async throws {
         let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
         let databaseKey = "Following/\(currentUserID)/\(uid)"
 
@@ -126,23 +123,21 @@ final class FollowSystemService: FollowSystemProtocol {
             try await insertFollower(with: currentUserID, to: uid)
 
             let eventID = ActivitySystemService.shared.createEventUID()
-            let activityEvent = ActivityEvent(eventType: .followed, userID: currentUserID, eventID: eventID, date: Date())
+            let activityEvent = ActivityEvent(eventType: .followed, userID: currentUserID, eventID: eventID, timestamp: Date())
             try await ActivitySystemService.shared.addEventToUserActivity(event: activityEvent, userID: uid)
-            return .following
         } catch {
             throw ServiceError.couldntCompleteTheAction
         }
     }
 
-    func unfollowUser(uid: String) async throws -> FollowStatus {
+    func unfollowUser(uid: String) async throws {
         let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
         let databaseKey = "Following/\(currentUserID)/\(uid)"
 
         do {
-            try await databaseRef.child(databaseKey).removeValue()
+            try await databaseRef.child(databaseKey).setValue(nil)
             try await removeFollower(with: currentUserID, from: uid)
             try await ActivitySystemService.shared.removeFollowEventForUser(userID: uid)
-            return .notFollowing
         } catch {
             throw ServiceError.couldntCompleteTheAction
         }
@@ -155,7 +150,7 @@ final class FollowSystemService: FollowSystemProtocol {
 
     func removeFollower(with uid: String, from user: String) async throws {
         let databaseKey = "Followers/\(user)/\(uid)"
-        try await databaseRef.child(databaseKey).removeValue()
+        try await databaseRef.child(databaseKey).setValue(nil)
     }
 
     func forcefullyRemoveFollower(uid: String) async throws {
@@ -163,7 +158,7 @@ final class FollowSystemService: FollowSystemProtocol {
         let databaseKey = "Following/\(uid)/\(currentUserID)"
 
         do {
-            try await databaseRef.child(databaseKey).removeValue()
+            try await databaseRef.child(databaseKey).setValue(nil)
             try await removeFollower(with: uid, from: currentUserID)
         } catch {
             throw ServiceError.couldntCompleteTheAction

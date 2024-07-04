@@ -45,10 +45,8 @@ class PostLikedEventTableViewCell: UITableViewCell {
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         selectionStyle = .none
-        let userProfileGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(didSelectUser))
         let userProfileImageGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(didSelectUser))
         profileImageView.addGestureRecognizer(userProfileImageGestureRecognizer)
-        activityMessageLabel.addGestureRecognizer(userProfileGestureRecognizer)
         setupViewsAndConstraints()
     }
 
@@ -56,18 +54,36 @@ class PostLikedEventTableViewCell: UITableViewCell {
         fatalError("init(coder:) has not been implemented")
     }
 
-    public func configure(with event: ActivityEvent) {
+    func configure(with event: ActivityEvent) {
         self.event = event
+        let attributedString = createAttributedString(for: event)
+        activityMessageLabel.attributedText = attributedString
         likedPostPhotoImageView.image = event.post?.image
-        let attributedUsername = NSAttributedString(string: "\(event.user!.username) ", attributes: [NSAttributedString.Key.font: CustomFonts.boldFont(ofSize: 14), NSAttributedString.Key.foregroundColor: Colors.label])
+        profileImageView.image = event.user?.getProfilePhoto() ?? UIImage.profilePicturePlaceholder
+
+        if event.seen == false {
+            self.contentView.backgroundColor = Colors.unseenBlue
+        } else {
+            self.contentView.backgroundColor = Colors.background
+        }
+    }
+
+    private func createAttributedString(for event: ActivityEvent) -> NSAttributedString {
+        let attributedUsername = NSAttributedString(
+            string: "\(event.user!.username) ",
+            attributes: [.font: CustomFonts.boldFont(ofSize: 14),
+                         .foregroundColor: Colors.label])
+
         let localizedMessage = String(localized: "liked your post. ")
         let attributedEventMessage = NSAttributedString(
             string: localizedMessage,
-            attributes: [.font: CustomFonts.regularFont(ofSize: 14), .foregroundColor: Colors.label])
+            attributes: [.font: CustomFonts.regularFont(ofSize: 14),
+                         .foregroundColor: Colors.label])
 
         let attributedTimeStamp = NSAttributedString(
-            string: event.date.timeAgoDisplay(),
-            attributes: [.font: CustomFonts.regularFont(ofSize: 14), .foregroundColor: UIColor.secondaryLabel])
+            string: event.timestamp.timeAgoDisplay(),
+            attributes: [.font: CustomFonts.regularFont(ofSize: 14),
+                         .foregroundColor: UIColor.secondaryLabel])
 
         let wholeMessage = NSMutableAttributedString()
         wholeMessage.append(attributedUsername)
@@ -81,15 +97,7 @@ class PostLikedEventTableViewCell: UITableViewCell {
         wholeMessage.addAttribute(.paragraphStyle,
                                   value: paragraphStyle,
                                   range: NSRange(location: 0, length: wholeMessage.length))
-
-        profileImageView.image = event.user?.getProfilePhoto() ?? UIImage.profilePicturePlaceholder
-        activityMessageLabel.attributedText = wholeMessage
-
-        if event.seen == false {
-            self.contentView.backgroundColor = Colors.unseenBlue
-        } else {
-            self.contentView.backgroundColor = Colors.background
-        }
+        return wholeMessage
     }
 
     private func setupViewsAndConstraints() {

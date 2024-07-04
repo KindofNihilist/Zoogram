@@ -45,6 +45,10 @@ actor PaginationManager {
         self.numberOfAllItems = itemsCount
     }
 
+    func resetNumberOfRetrievedItems() {
+        self.numberOfRetrievedItems = 0
+    }
+    
     func updateNumberOfRetrievedItems(value: Int) {
         self.numberOfRetrievedItems += value
     }
@@ -62,6 +66,7 @@ actor PaginationManager {
     }
 
     func finishPaginating() {
+        print("has finished pagination")
         self.isPaginationInProgress = false
     }
 
@@ -127,28 +132,26 @@ extension AdditionalPostDataSource {
         let postsWithAdditionalData = try await withThrowingTaskGroup(of: (Int, UserPost).self, returning: [UserPost].self) { group in
             for (index, post) in postsOfMultipleUsers.enumerated() {
                 group.addTask {
-                    do {
-                        var postWithAdditionalData = post
-                        let postID = postWithAdditionalData.postID
-                        let photoURL = postWithAdditionalData.photoURL
-                        let profilePhotoURL = postWithAdditionalData.author.profilePhotoURL
-                        async let profilePhoto = ImageService.shared.getImage(for: profilePhotoURL)
-                        async let postPhoto = ImageService.shared.getImage(for: photoURL)
-                        async let likesCount = LikeSystemService.shared.getLikesCountForPost(id: postID)
-                        async let commentsCount = CommentSystemService.shared.getCommentsCountForPost(postID: postID)
-                        async let bookmarkState = BookmarksSystemService.shared.checkIfBookmarked(postID: postID)
-                        async let likeState = LikeSystemService.shared.checkIfPostIsLiked(postID: postID)
+                    var author = try await UserDataService.shared.getUser(for: post.userID)
+                    var postWithAdditionalData = post
+                    let postID = postWithAdditionalData.postID
+                    let photoURL = postWithAdditionalData.photoURL
+                    let profilePhotoURL = author.profilePhotoURL
+                    async let profilePhoto = ImageService.shared.getImage(for: profilePhotoURL)
+                    async let postPhoto = ImageService.shared.getImage(for: photoURL)
+                    async let likesCount = LikeSystemService.shared.getLikesCountForPost(id: postID)
+                    async let commentsCount = CommentSystemService.shared.getCommentsCountForPost(postID: postID)
+                    async let bookmarkState = BookmarksSystemService.shared.checkIfBookmarked(postID: postID)
+                    async let likeState = LikeSystemService.shared.checkIfPostIsLiked(postID: postID)
 
-                        postWithAdditionalData.author.setProfilePhoto(try await profilePhoto)
-                        postWithAdditionalData.image = try await postPhoto
-                        postWithAdditionalData.likesCount = try await likesCount
-                        postWithAdditionalData.commentsCount = try await commentsCount
-                        postWithAdditionalData.bookmarkState = try await bookmarkState
-                        postWithAdditionalData.likeState = try await likeState
-                        return (index, postWithAdditionalData)
-                    } catch {
-                        throw error
-                    }
+                    author.setProfilePhoto(try await profilePhoto)
+                    postWithAdditionalData.author = author
+                    postWithAdditionalData.image = try await postPhoto
+                    postWithAdditionalData.likesCount = try await likesCount
+                    postWithAdditionalData.commentsCount = try await commentsCount
+                    postWithAdditionalData.bookmarkState = try await bookmarkState
+                    postWithAdditionalData.likeState = try await likeState
+                    return (index, postWithAdditionalData)
                 }
             }
 
@@ -162,45 +165,39 @@ extension AdditionalPostDataSource {
     }
 
     func getAdditionalPostDataFor(postsOfSingleUser: [UserPost]) async throws -> [UserPost] {
-        guard var postsAuthor = postsOfSingleUser.first?.author,
-                postsOfSingleUser.isEmpty != true else {
-            return []
-        }
+        guard let authorID = postsOfSingleUser.first?.userID else { return [] }
 
-        if let profilePhotoURL = postsAuthor.profilePhotoURL {
-            postsAuthor.setProfilePhoto(try await ImageService.shared.getImage(for: profilePhotoURL))
+        var author = try await UserDataService.shared.getUser(for: authorID)
+        if let profilePhotoURL = author.profilePhotoURL {
+            let profilePhoto = try await ImageService.shared.getImage(for: profilePhotoURL)
+            author.setProfilePhoto(profilePhoto)
         }
 
         let postsWithAdditionalData = try await withThrowingTaskGroup(of: (Int, UserPost).self, returning: [UserPost].self) { group in
 
             for (index, post) in postsOfSingleUser.enumerated() {
-                group.addTask {
-                    do {
-                        var postWithAdditionalData = post
-                        let postID = postWithAdditionalData.postID
-                        let photoURL = postWithAdditionalData.photoURL
-                        async let postPhoto = ImageService.shared.getImage(for: photoURL)
-                        async let likesCount = LikeSystemService.shared.getLikesCountForPost(id: postID)
-                        async let commentsCount = CommentSystemService.shared.getCommentsCountForPost(postID: postID)
-                        async let bookmarkState = BookmarksSystemService.shared.checkIfBookmarked(postID: postID)
-                        async let likeState = LikeSystemService.shared.checkIfPostIsLiked(postID: postID)
+                group.addTask { [author] in
+                    var postWithAdditionalData = post
+                    let postID = postWithAdditionalData.postID
+                    let photoURL = postWithAdditionalData.photoURL
+                    async let postPhoto = ImageService.shared.getImage(for: photoURL)
+                    async let likesCount = LikeSystemService.shared.getLikesCountForPost(id: postID)
+                    async let commentsCount = CommentSystemService.shared.getCommentsCountForPost(postID: postID)
+                    async let bookmarkState = BookmarksSystemService.shared.checkIfBookmarked(postID: postID)
+                    async let likeState = LikeSystemService.shared.checkIfPostIsLiked(postID: postID)
 
-                        postWithAdditionalData.image = try await postPhoto
-                        postWithAdditionalData.likesCount = try await likesCount
-                        postWithAdditionalData.commentsCount = try await commentsCount
-                        postWithAdditionalData.bookmarkState = try await bookmarkState
-                        postWithAdditionalData.likeState = try await likeState
-                        return (index, postWithAdditionalData)
-                    } catch {
-                        throw error
-                    }
+                    postWithAdditionalData.author = author
+                    postWithAdditionalData.image = try await postPhoto
+                    postWithAdditionalData.likesCount = try await likesCount
+                    postWithAdditionalData.commentsCount = try await commentsCount
+                    postWithAdditionalData.bookmarkState = try await bookmarkState
+                    postWithAdditionalData.likeState = try await likeState
+                    return (index, postWithAdditionalData)
                 }
             }
 
             var postsToReturn = postsOfSingleUser
             for try await (index, post) in group {
-                var post = post
-                post.author = postsAuthor
                 postsToReturn[index] = post
             }
             return postsToReturn
@@ -210,8 +207,10 @@ extension AdditionalPostDataSource {
 
     func getAdditionalPostDataFor(_ post: UserPost) async throws -> UserPost {
         var postWithData = post
-        if let profilePhotoURL = post.author.profilePhotoURL {
-            postWithData.author.setProfilePhoto(try await ImageService.shared.getImage(for: profilePhotoURL))
+        let author = try await UserDataService.shared.getUser(for: post.userID)
+        if let profilePhotoURL = author.profilePhotoURL {
+            let profilePhoto = try await ImageService.shared.getImage(for: profilePhotoURL)
+            postWithData.author.setProfilePhoto(profilePhoto)
         }
 
         let postID = postWithData.postID
@@ -222,6 +221,7 @@ extension AdditionalPostDataSource {
         async let bookmarkState = BookmarksSystemService.shared.checkIfBookmarked(postID: postID)
         async let likeState = LikeSystemService.shared.checkIfPostIsLiked(postID: postID)
 
+        postWithData.author = author
         postWithData.image = try await postPhoto
         postWithData.likesCount = try await likesCount
         postWithData.commentsCount = try await commentsCount

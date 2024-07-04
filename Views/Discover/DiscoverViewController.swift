@@ -74,7 +74,7 @@ class DiscoverViewController: UIViewController {
 
     init(service: any DiscoverServiceProtocol) {
         self.postsTableView = PostsTableViewController(posts: [], service: service)
-        self.postsTableView.title = String(localized: "Discover")
+        self.postsTableView.title = String(localized: "Latest")
         self.viewModel = DiscoverViewModel(service: service)
         super.init(nibName: nil, bundle: nil)
         self.postsTableView.delegate = self
@@ -102,10 +102,6 @@ class DiscoverViewController: UIViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         navigationController?.setNavigationBarHidden(true, animated: true)
-    }
-
-    override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -150,11 +146,22 @@ class DiscoverViewController: UIViewController {
         self.collectionView.delegate = dataSource
         self.collectionView.dataSource = dataSource
         factory.cellAction = { indexPath in
-            guard self.viewModel.posts.value.isEmpty != true else { return }
-            self.postsTableView.focusTableViewOnPostWith(index: indexPath)
-            self.navigationController?.pushViewController(self.postsTableView, animated: true)
+            self.showPost(at: indexPath)
         }
         self.collectionView.reloadData()
+    }
+
+    private func showPost(at indexPath: IndexPath) {
+        guard self.viewModel.posts.value.isEmpty != true else { return }
+        self.postsTableView.focusTableViewOnPostWith(index: indexPath)
+        if #available(iOS 18.0, *) {
+            self.postsTableView.preferredTransition = .zoom { context in
+                let postsTableView = context.zoomedViewController as! PostsTableViewController
+                let lastSeenPostIndexPath = postsTableView.getLastVisibleCellIndexPath() ?? indexPath
+                return self.collectionView.cell(at: lastSeenPostIndexPath)
+            }
+        }
+        self.navigationController?.pushViewController(self.postsTableView, animated: true)
     }
 
     private func showCollectionViewWithPosts() {
@@ -379,7 +386,8 @@ extension DiscoverViewController: UISearchBarDelegate {
                 Task { @MainActor [weak self] in
                     if searchText.trimmingExtraWhitespace().count >= 3 {
                         do {
-                            try await self?.viewModel.searchUser(for: searchText)
+                            let lowercasedSearchText = searchText.lowercased()
+                            try await self?.viewModel.searchUser(for: lowercasedSearchText)
                         } catch {
                             print("searchBar searchUser error: ", error)
                             self?.showPopUp(issueText: error.localizedDescription)
@@ -414,6 +422,11 @@ extension DiscoverViewController: UISearchTextFieldDelegate, UITextFieldDelegate
 }
 
 extension DiscoverViewController: PostsTableViewDelegate {
+    func lastVisibleItem(at indexPath: IndexPath?) {
+        guard let indexPath = indexPath else { return }
+        self.collectionView.scrollToItem(at: indexPath, at: .centeredVertically, animated: true)
+    }
+    
     func updateCollectionView(with postViewModels: [PostViewModel]) {
         updatePostsCollectionView(with: postViewModels)
     }

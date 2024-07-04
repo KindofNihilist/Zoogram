@@ -16,7 +16,7 @@ protocol CommentsServiceProtocol: Sendable, PostActionsService {
     var bookmarksService: BookmarksSystemServiceProtocol { get }
 
     func getComments() async throws -> [PostComment]
-    func postComment(comment: PostComment) async throws -> PostComment
+    func postComment(comment: PostComment) async throws
     func deleteComment(commentID: String) async throws
 }
 
@@ -71,47 +71,53 @@ final class CommentsService: CommentsServiceProtocol {
 
     func getComments() async throws -> [PostComment] {
         var comments = try await commentsService.getCommentsForPost(postID: postID)
-        try await withThrowingTaskGroup(of: (Int, PostComment).self) { group in
+        do {
+            try await withThrowingTaskGroup(of: (Int, PostComment).self) { group in
+                for (index, comment) in comments.enumerated() {
+                    group.addTask {
+                        var commentWithPfp = comment
+                        var commentAuthor = try await self.userDataService.getUser(for: comment.authorID)
+                        let authorPfp = try await ImageService.shared.getImage(for: commentAuthor.profilePhotoURL)
+                        commentAuthor.setProfilePhoto(authorPfp)
+                        commentWithPfp.author = commentAuthor
+                        return (index, commentWithPfp)
+                    }
+                }
 
-            for (index, comment) in comments.enumerated() {
-                group.addTask {
-                    var commentWithPfp = comment
-                    let authorPfp = try await ImageService.shared.getImage(for: comment.author.profilePhotoURL)
-                    commentWithPfp.author.setProfilePhoto(authorPfp)
-                    return (index, commentWithPfp)
+                for try await (index, comment) in group {
+                    comments[index] = comment
                 }
             }
-
-            for try await (index, comment) in group {
-                comments[index] = comment
-            }
+        } catch {
+            throw ServiceError.couldntLoadComments
         }
         return comments
     }
 
-    func postComment(comment: PostComment) async throws -> PostComment {
-        var commentToPost = comment
-        try await commentsService.postComment(for: postID, comment: commentToPost)
-        let activityEvent = ActivityEvent.createActivityEventFor(comment: commentToPost, postID: self.postID)
-        try await ActivitySystemService.shared.addEventToUserActivity(event: activityEvent, userID: self.postAuthorID)
-        commentToPost.author = try await userDataService.getUser(for: commentToPost.authorID)
-        return commentToPost
+    func postComment(comment: PostComment) async throws {
+        let activityEvent = ActivityEvent.createActivityEventFor(comment: comment, postID: self.postID)
+        async let commentWriteTask: Void = commentsService.postComment(for: postID, comment: comment)
+        async let activityNotificationTask: Void = ActivitySystemService.shared.addEventToUserActivity(event: activityEvent, userID: self.postAuthorID)
+        _ = try await [commentWriteTask, activityNotificationTask]
     }
 
     func deleteComment(commentID: String) async throws {
-        try await commentsService.deleteComment(postID: postID, commentID: commentID)
-        try await ActivitySystemService.shared.removeCommentEventForPost(commentID: commentID, postAuthorID: self.postAuthorID)
+        async let commentDeletionTask: Void = commentsService.deleteComment(postID: postID, commentID: commentID)
+        async let activityRemovalTask: Void = ActivitySystemService.shared.removeCommentEventForPost(commentID: commentID, postAuthorID: self.postAuthorID)
+        _ = try await [commentDeletionTask, activityRemovalTask]
     }
 
     func likePost(postID: String, likeState: LikeState, postAuthorID: String) async throws {
         switch likeState {
         case .liked:
-            try await likesService.removeLikeFromPost(postID: postID)
-            try await ActivitySystemService.shared.removeLikeEventForPost(postID: postID, postAuthorID: postAuthorID)
+            async let likeRemovalTask: Void = likesService.removeLikeFromPost(postID: postID)
+            async let activityRemovalTask: Void = ActivitySystemService.shared.removeLikeEventForPost(postID: postID, postAuthorID: postAuthorID)
+            _ = try await [likeRemovalTask, activityRemovalTask]
         case .notLiked:
-            try await likesService.likePost(postID: postID)
             let activityEvent = ActivityEvent.createActivityEventFor(likedPostID: postID)
-            try await ActivitySystemService.shared.addEventToUserActivity(event: activityEvent, userID: postAuthorID)
+            async let likeTask: Void = likesService.likePost(postID: postID)
+            async let activityEventTask: Void = ActivitySystemService.shared.addEventToUserActivity(event: activityEvent, userID: postAuthorID)
+            _ = try await [likeTask, activityEventTask]
         }
     }
 

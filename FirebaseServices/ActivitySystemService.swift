@@ -29,18 +29,20 @@ final class ActivitySystemService: ActivitySystemProtocol {
     }
 
     func addEventToUserActivity(event: ActivityEvent, userID: String) async throws {
+        let eventType = event.eventType.rawValue
+        var referenceString = ActivityEvent.generateReferenceString(for: event)
         guard userID != event.userID else { return }
         guard let eventDictionary = event.dictionary else { throw ServiceError.unexpectedError }
-        let path = "Activity/\(userID)/\(event.eventID)"
+        let path = "Activity/\(userID)/\(referenceString)"
         try await databaseRef.child(path).setValue(eventDictionary)
     }
 
     func updateActivityEventsSeenStatus(events: Set<ActivityEvent>) async throws {
         let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
         var updatedEvents = [String: Any]()
-
         events.forEach { event in
-            updatedEvents["Activity/\(currentUserID)/\(event.eventID)/seen"] = true
+            let referenceString = ActivityEvent.generateReferenceString(for: event)
+            updatedEvents["Activity/\(currentUserID)/\(referenceString)/seen"] = true
         }
         try await databaseRef.updateChildValues(updatedEvents)
     }
@@ -48,14 +50,11 @@ final class ActivitySystemService: ActivitySystemProtocol {
     func observeActivityEvents() -> AsyncThrowingStream<[ActivityEvent], Error> {
         let currentUserID = UserManager.shared.getUserID()
         let path = "Activity/\(currentUserID)"
-        let query = databaseRef.child(path).queryOrderedByKey()
-        let dispatchGroup = DispatchGroup()
+        let query = databaseRef.child(path).queryOrdered(byChild: "timestamp")
 
         return AsyncThrowingStream { continuation in
             query.observe(.value) { snapshot in
                 var events = [ActivityEvent]()
-                print("observing activities query")
-                print("activities: \(snapshot.childrenCount)")
                 for snapshotChild in snapshot.children {
                     guard let activityEventSnapshot = snapshotChild as? DataSnapshot,
                           let activityEventDictionary = activityEventSnapshot.value as? [String: Any]
@@ -65,71 +64,35 @@ final class ActivitySystemService: ActivitySystemProtocol {
                     }
                     do {
                         let jsonData = try JSONSerialization.data(withJSONObject: activityEventDictionary as Any)
-                        var decodedEvent = try JSONDecoder().decode(ActivityEvent.self, from: jsonData)
-                        dispatchGroup.enter()
-                        UserDataService().getUser(for: decodedEvent.userID) { result in
-                            switch result {
-                            case .success(let relatedUser):
-                                decodedEvent.user = relatedUser
-                                events.append(decodedEvent)
-                            case .failure(let error):
-                                continuation.finish(throwing: error)
-                            }
-                            dispatchGroup.leave()
-                        }
+                        let decodedEvent = try JSONDecoder().decode(ActivityEvent.self, from: jsonData)
+                        events.append(decodedEvent)
                     } catch {
                         continuation.finish(throwing: ServiceError.jsonParsingError)
                     }
                 }
-
-                dispatchGroup.notify(queue: .main) {
-                    continuation.yield(events)
-                }
+                continuation.yield(events)
             }
-
         }
     }
 
     func removeLikeEventForPost(postID: String, postAuthorID: String) async throws {
-        let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
-
         let path = "Activity/\(postAuthorID)"
-        let referenceString = "\(ActivityEventType.postLiked.rawValue)_\(currentUserID)_\(postID)"
-        let query = databaseRef.child(path).queryOrdered(byChild: "referenceString").queryEqual(toValue: referenceString)
-
-        do {
-            let data = try await query.getData()
-
-            for snapshot in data.children {
-                guard let childSnap = snapshot as? DataSnapshot else { throw ServiceError.snapshotCastingError }
-                try await childSnap.ref.removeValue()
-            }
-        }
+        let referenceString = ActivityEvent.generateReferenceStringForPost(postID)
+        let query = databaseRef.child(path).child(referenceString)
+        try await query.setValue(nil)
     }
 
     func removeCommentEventForPost(commentID: String, postAuthorID: String) async throws {
-        let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
         let path = "Activity/\(postAuthorID)"
-        let referenceString = "\(ActivityEventType.postCommented.rawValue)_\(currentUserID)_\(commentID)"
-        let query = databaseRef.child(path).queryOrdered(byChild: "referenceString").queryEqual(toValue: referenceString)
-        let data = try await query.getData()
-
-        for snapshot in data.children {
-            guard let childSnap = snapshot as? DataSnapshot else { throw ServiceError.snapshotCastingError }
-            try await childSnap.ref.removeValue()
-        }
+        let referenceString = ActivityEvent.generateReferenceStringForComment(commentID)
+        let query = databaseRef.child(path).child(referenceString)
+        try await query.setValue(nil)
     }
 
     func removeFollowEventForUser(userID: String) async throws {
-        let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
         let path = "Activity/\(userID)"
-        let referenceString = "\(ActivityEventType.followed.rawValue)_\(currentUserID)"
-        let query = databaseRef.child(path).queryOrdered(byChild: "referenceString").queryEqual(toValue: referenceString)
-        let data = try await query.getData()
-
-        for snapshot in data.children {
-            guard let childSnap = snapshot as? DataSnapshot else { throw ServiceError.snapshotCastingError }
-            try await childSnap.ref.removeValue()
-        }
+        let referenceString = ActivityEvent.generateReferenceStringForFollowEvent()
+        let query = databaseRef.child(path).child(referenceString)
+        try await query.setValue(nil)
     }
 }

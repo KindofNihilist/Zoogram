@@ -170,15 +170,14 @@ final class UserPostsService: UserPostsServiceProtocol {
     }
 
     func getPosts(quantity: UInt, for userID: UserID) async throws -> PaginatedItems<UserPost> {
-        let databaseKey = "Posts/\(userID)/"
-        let query = databaseRef.child(databaseKey).queryOrderedByKey().queryLimited(toLast: quantity)
+        let path = DatabaseKeys.posts + userID
+        let query = databaseRef.child(path).queryOrderedByKey().queryLimited(toLast: quantity)
 
         do {
             let data = try await query.getData()
 
             var retrievedPosts = [UserPost]()
             var lastPostKey = ""
-            let postsAuthor = try await UserDataService().getUser(for: userID)
 
             for snapshot in data.children.reversed() {
                 guard let postSnapshot = snapshot as? DataSnapshot,
@@ -190,8 +189,7 @@ final class UserPostsService: UserPostsServiceProtocol {
 
                 do {
                     let jsonData = try JSONSerialization.data(withJSONObject: postDictionary as Any)
-                    var decodedPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
-                    decodedPost.author = postsAuthor
+                    let decodedPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
                     retrievedPosts.append(decodedPost)
                 } catch {
                     throw error
@@ -212,7 +210,6 @@ final class UserPostsService: UserPostsServiceProtocol {
 
             var lastRetrievedPostKey = ""
             var retrievedPosts = [UserPost]()
-            let postsAuthor = try await UserDataService().getUser(for: userID)
 
             for snapshot in data.children.reversed() {
                 guard let postSnapshot = snapshot as? DataSnapshot,
@@ -223,8 +220,7 @@ final class UserPostsService: UserPostsServiceProtocol {
                 lastRetrievedPostKey = postSnapshot.key
                 do {
                     let jsonData = try JSONSerialization.data(withJSONObject: postDictionary as Any)
-                    var decodedPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
-                    decodedPost.author = postsAuthor
+                    let decodedPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
                     retrievedPosts.append(decodedPost)
                 } catch {
                     throw ServiceError.jsonParsingError

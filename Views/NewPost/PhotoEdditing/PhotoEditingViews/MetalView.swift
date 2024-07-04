@@ -8,7 +8,7 @@
 import UIKit
 import MetalKit
 
-class MetalView: MTKView {
+class ImageEditorMetalPreview: MTKView, MTKViewDelegate {
 
     // MARK: Metal Resources
     var defaultDevice: MTLDevice!
@@ -16,11 +16,10 @@ class MetalView: MTKView {
     var sourceTexture: MTLTexture!
 
     var context: CIContext!
-    var queue: MTLCommandQueue!
     let colorSpace = CGColorSpaceCreateDeviceRGB()
     var image: CIImage? {
         didSet {
-            drawCIImge()
+            drawCIImage()
         }
     }
 
@@ -38,10 +37,10 @@ class MetalView: MTKView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    private func drawCIImge() {
+    private func drawCIImage() {
         guard let image = image else { return }
         let drawable = currentDrawable!
-        let buffer = queue.makeCommandBuffer()!
+        let buffer = commandQueue.makeCommandBuffer()!
 
         let widthScale = drawableSize.width / image.extent.width
         let heightScale = drawableSize.height / image.extent.height
@@ -62,5 +61,13 @@ class MetalView: MTKView {
         buffer.present(drawable)
         buffer.commit()
         setNeedsDisplay()
+    }
+
+    func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
+
+    }
+
+    func draw(in view: MTKView) {
+
     }
 }

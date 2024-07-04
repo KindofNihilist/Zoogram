@@ -9,17 +9,26 @@ import UIKit.UICollectionView
 
 class NavigationSection: CollectionSectionController {
 
-    weak var delegate: NavigationHeaderActionsDelegate?
+    var header: NavigationReusableView?
 
-    var header: NavigationHeaderView?
+    var leftButtonAction: (() -> Void)?
+    var rightButtonAction: (() -> Void)?
 
     override func header(at indexPath: IndexPath) -> UICollectionReusableView {
         guard let header = sectionHolder.dequeueReusableView(
-            withIdentifier: NavigationHeaderView.identifier,
+            withIdentifier: NavigationReusableView.identifier,
             ofKind: UICollectionView.elementKindSectionHeader,
-            for: indexPath) as? NavigationHeaderView
+            for: indexPath) as? NavigationReusableView
         else { fatalError("Wrong view passed") }
-        header.delegate = delegate
+        header.navigationView.backgroundColor = .black
+        header.navigationView.leftButton.setImage(withSystemName: "xmark")
+        header.navigationView.title = String(localized: "New Post")
+        header.navigationView.rightButtonTitle = String(localized: "Next")
+        header.navigationView.leftButtonAction = leftButtonAction
+        header.navigationView.rightButtonAction = rightButtonAction
+        header.navigationView.leftButton.tintColor = .white
+        header.navigationView.titleLabel.textColor = .white
+        header.navigationView.rightButton.tintColor = .systemBlue
         self.header = header
         return header
     }
@@ -30,8 +39,8 @@ class NavigationSection: CollectionSectionController {
 
     override func registerSupplementaryViews() {
         sectionHolder.register(
-            NavigationHeaderView.self,
+            NavigationReusableView.self,
             forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader,
-            withReuseIdentifier: NavigationHeaderView.identifier)
+            withReuseIdentifier: NavigationReusableView.identifier)
     }
 }

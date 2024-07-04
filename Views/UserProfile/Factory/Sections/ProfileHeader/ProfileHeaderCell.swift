@@ -13,8 +13,8 @@ import UIKit
     func followingButtonTapped()
     func followersButtonTapped()
     func editProfileButtonTapped()
-    func followButtonTapped(completion: @escaping (FollowStatus) -> Void)
-    func unfollowButtonTapped(completion: @escaping (FollowStatus) -> Void)
+    func followButtonTapped()
+    func unfollowButtonTapped()
 }
 
 final class ProfileHeaderCell: UICollectionViewCell {
@@ -194,13 +194,11 @@ final class ProfileHeaderCell: UICollectionViewCell {
 
         switch followButton.followStatus {
         case .notFollowing:
-            delegate?.followButtonTapped {  followStatus in
-                followButton.followStatus = followStatus
-            }
+            delegate?.followButtonTapped()
+            followButton.followStatus = .following
         case .following:
-            delegate?.unfollowButtonTapped { followStatus in
-                followButton.followStatus = followStatus
-            }
+            delegate?.unfollowButtonTapped()
+            followButton.followStatus = .notFollowing
         }
     }
 }

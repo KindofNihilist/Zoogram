@@ -104,14 +104,12 @@ class FollowedTableViewCell: UITableViewCell {
 
         switch followUnfollowButton.followStatus {
         case .notFollowing:
-            delegate?.followButtonTapped(userID: self.userID) { status in
-                self.followUnfollowButton.followStatus = status
-            }
+            delegate?.followButtonTapped(userID: self.userID)
+            self.followUnfollowButton.followStatus = .following
 
         case .following:
-            delegate?.unfollowButtonTapped(userID: self.userID) { status in
-                self.followUnfollowButton.followStatus = status
-            }
+            delegate?.unfollowButtonTapped(userID: self.userID)
+            self.followUnfollowButton.followStatus = .notFollowing
         }
     }
 }

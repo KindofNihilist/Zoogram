@@ -9,8 +9,8 @@ import SDWebImage
 import UIKit
 
 @MainActor protocol FollowEventTableViewCellDelegate: ActivityViewCellActionsDelegate, AnyObject {
-    func followUserTapped(user: ZoogramUser, followCompletion: @escaping (FollowStatus) -> Void)
-    func unfollowUserTapped(user: ZoogramUser, unfollowCompletion: @escaping (FollowStatus) -> Void)
+    func followUserTapped(user: ZoogramUser)
+    func unfollowUserTapped(user: ZoogramUser)
 }
 
 class FollowEventTableViewCell: UITableViewCell {
@@ -60,16 +60,31 @@ class FollowEventTableViewCell: UITableViewCell {
         if let followStatus = event.user?.followStatus {
             self.followUnfollowButton.followStatus = followStatus
         }
+        let attributedString = createAttributedString(for: event)
+        activityMessageLabel.attributedText = attributedString
+        profileImageView.image = event.user?.getProfilePhoto() ?? UIImage.profilePicturePlaceholder
+
+        if event.seen == false {
+            self.contentView.backgroundColor = Colors.unseenBlue
+        } else {
+            self.contentView.backgroundColor = Colors.background
+        }
+    }
+
+    private func createAttributedString(for event: ActivityEvent) -> NSAttributedString {
         let attributedUsername = NSAttributedString(
             string: "\(event.user!.username) ",
-            attributes: [.font: CustomFonts.boldFont(ofSize: 14), .foregroundColor: Colors.label])
+            attributes: [.font: CustomFonts.boldFont(ofSize: 14),
+                         .foregroundColor: Colors.label])
         let localizedMessage = String(localized: "started following you. ")
         let attributedEventMessage = NSAttributedString(
             string: localizedMessage,
-            attributes: [.font: CustomFonts.regularFont(ofSize: 14), .foregroundColor: Colors.label])
+            attributes: [.font: CustomFonts.regularFont(ofSize: 14),
+                         .foregroundColor: Colors.label])
         let attributedTimeStamp = NSAttributedString(
-            string: event.date.timeAgoDisplay(),
-            attributes: [.font: CustomFonts.regularFont(ofSize: 14), .foregroundColor: UIColor.secondaryLabel])
+            string: event.timestamp.timeAgoDisplay(),
+            attributes: [.font: CustomFonts.regularFont(ofSize: 14),
+                         .foregroundColor: UIColor.secondaryLabel])
 
         let wholeMessage = NSMutableAttributedString()
         wholeMessage.append(attributedUsername)
@@ -83,16 +98,7 @@ class FollowEventTableViewCell: UITableViewCell {
         wholeMessage.addAttribute(NSAttributedString.Key.paragraphStyle,
                                   value: paragraphStyle,
                                   range: NSRange(location: 0, length: wholeMessage.length))
-
-        activityMessageLabel.attributedText = wholeMessage
-
-        profileImageView.image = event.user?.getProfilePhoto() ?? UIImage.profilePicturePlaceholder
-
-        if event.seen == false {
-            self.contentView.backgroundColor = Colors.unseenBlue
-        } else {
-            self.contentView.backgroundColor = Colors.background
-        }
+        return wholeMessage
     }
 
     private func setupViewsAndConstraints() {
@@ -127,16 +133,14 @@ class FollowEventTableViewCell: UITableViewCell {
         switch user.followStatus {
 
         case .notFollowing:
-            delegate?.followUserTapped(user: user) { followStatus in
-                self.event?.user?.followStatus = followStatus
-                self.followUnfollowButton.followStatus = followStatus
-            }
+            delegate?.followUserTapped(user: user)
+            event?.user?.followStatus = .following
+            followUnfollowButton.followStatus = .following
 
         case .following:
-            delegate?.unfollowUserTapped(user: user) { followStatus in
-                self.event?.user?.followStatus = followStatus
-                self.followUnfollowButton.followStatus = followStatus
-            }
+            delegate?.unfollowUserTapped(user: user)
+            self.event?.user?.followStatus = .notFollowing
+            self.followUnfollowButton.followStatus = .notFollowing
         case .none: return
         }
     }

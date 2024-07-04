@@ -17,10 +17,10 @@ import UIKit
     private var captionSection: CaptionSection?
     private var commentsSection: CommentSection!
 
-    private let delegate: CommentsTableViewActionsProtocol
+    private let delegate: CommentsTableViewDelegateProtocol
     private let shouldShowRelatedPost: Bool
 
-    init(for tableView: UITableView, shouldShowRelatedPost: Bool, delegate: CommentsTableViewActionsProtocol) {
+    init(for tableView: UITableView, shouldShowRelatedPost: Bool, delegate: CommentsTableViewDelegateProtocol) {
         self.tableView = tableView
         self.delegate = delegate
         self.shouldShowRelatedPost = shouldShowRelatedPost
@@ -58,7 +58,6 @@ import UIKit
 
     func insertComment(with comment: PostComment, at indexPath: IndexPath, completion: @escaping () -> Void) {
         let cellController = CommentCellController(comment: comment, delegate: self.delegate)
-        print("Inserting new comment: \(comment.commentText)")
         commentsSection.insertCell(with: cellController, at: indexPath.row)
         completion()
     }
@@ -68,5 +67,20 @@ import UIKit
         tableView.performBatchUpdates {
             tableView.deleteRows(at: [indexPath], with: .automatic)
         }
+    }
+
+    func markCommentAsSeen(at indexPath: IndexPath) {
+        guard let commentController = commentsSection.cellController(at: indexPath) as? CommentCellController else { return }
+        commentController.markAsSeen()
+    }
+
+    func focusOnComment(at indexPath: IndexPath) {
+        guard let commentController = commentsSection.cellController(at: indexPath) as? CommentCellController else { return }
+        commentController.focus()
+    }
+
+    func markCommentasPublished(at indexPath: IndexPath) {
+        guard let commentController = commentsSection.cellController(at: indexPath) as? CommentCellController else { return }
+        commentController.markAsPublished()
     }
 }

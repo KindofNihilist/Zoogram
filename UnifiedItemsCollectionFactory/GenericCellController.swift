@@ -10,6 +10,7 @@ import UIKit
 typealias TableCellController = CellController<UITableView>
 typealias CollectionCellController = CellController<UICollectionView>
 
+// MARK: Only for subclassing, should not be used directly.
 open class GenericCellController<T: ReusableCell>: CellController<T.CellHolder> {
 
     public final override var cellClass: AnyClass {
@@ -41,5 +42,9 @@ open class GenericCellController<T: ReusableCell>: CellController<T.CellHolder> 
 
     open func didEndDisplayingCell(_ cell: T) {
         // Overrides by subclass
+    }
+
+    func cell() -> T? {
+        return cell as? T
     }
 }

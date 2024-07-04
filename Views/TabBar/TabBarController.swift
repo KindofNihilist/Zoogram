@@ -30,6 +30,7 @@ class TabBarController: UITabBarController {
     let discoverVC: DiscoverViewController = {
         let service = DiscoverService(
             searchService: SearchService(),
+            userDataService: UserDataService.shared,
             discoverPostsService: DiscoverPostsService.shared,
             likeSystemService: LikeSystemService.shared,
             userPostsService: UserPostsService.shared,

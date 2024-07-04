@@ -23,17 +23,14 @@ protocol UserDataServiceProtocol: Sendable {
 
 final class UserDataService: UserDataServiceProtocol {
 
-//    static let shared = UserDataService()
+    static let shared = UserDataService()
 
     private let databaseRef = Database.database(url: "https://catogram-58487-default-rtdb.europe-west1.firebasedatabase.app").reference()
 
     func observeUser(with uid: UserID, completion: @escaping (Result<ZoogramUser, Error>) -> Void) {
-//        let path = DatabaseKeys.users + uid
-        let path = "Users/" + uid
-        print("Path: ", path)
+        let path = DatabaseKeys.users + uid
         let query = databaseRef.child(path)
         query.observe(.value) { snapshot in
-            print("Observed user snapshot: ", snapshot.value)
             guard let snapshotDict = snapshot.value as? [String: Any] else {
                 completion(.failure(ServiceError.snapshotCastingError))
                 return
@@ -96,7 +93,7 @@ final class UserDataService: UserDataServiceProtocol {
             decodedUser.followStatus = try await FollowSystemService.shared.checkFollowStatus(for: userID)
             return decodedUser
         } catch {
-            print("getUser error: ", error.localizedDescription)
+            print("getUser error: ", error)
             throw ServiceError.couldntLoadUserData
         }
     }
@@ -107,19 +104,29 @@ final class UserDataService: UserDataServiceProtocol {
 
         do {
             try await databaseRef.child(databaseKey).setValue(userDictionary)
+            try await insertLowercasedUsername(username: userData.username, userID: userData.userID)
         } catch {
             throw ServiceError.couldntUploadUserData
         }
     }
 
+    func insertLowercasedUsername(username: String, userID: String) async throws {
+        let lowercasedUsername = username.lowercased()
+        var dictionary = [String: String]()
+        dictionary["userID"] = userID
+        dictionary["username"] = lowercasedUsername
+        let lowercasedUsernamesRef = databaseRef.child(DatabaseKeys.usernames).child(userID)
+        try await lowercasedUsernamesRef.setValue(dictionary)
+    }
+
     func checkIfUsernameIsAvailable(username: String) async throws -> Bool {
-        let query = databaseRef.child(DatabaseKeys.users).queryOrdered(byChild: "username").queryEqual(toValue: username)
+        let query = databaseRef.child(DatabaseKeys.usernames).queryOrdered(byChild: "username").queryEqual(toValue: username)
 
         do {
             let data = try await query.getData()
             return data.exists() ? false : true
         } catch {
-            throw ServiceError.couldntLoadData
+            throw ServiceError.unexpectedError
         }
     }
 
@@ -134,6 +141,9 @@ final class UserDataService: UserDataServiceProtocol {
             } catch {
                 throw ServiceError.couldntUploadUserData
             }
+        }
+        if let username = values["username"] as? String {
+            try await self.insertLowercasedUsername(username: username, userID: currentUserID)
         }
     }
 

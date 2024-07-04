@@ -7,10 +7,10 @@
 import UIKit
 
 @MainActor protocol CommentAccessoryViewProtocol: AnyObject {
-    func postButtonTapped(commentText: String, completion: @escaping () -> Void)
+    func sendButtonTapped(commentText: String)
 }
 
-class CommentAccessoryView: UIInputView {
+class CommentAccessoryView: UIView {
 
     weak var delegate: CommentAccessoryViewProtocol?
 
@@ -23,16 +23,9 @@ class CommentAccessoryView: UIInputView {
     var charactersLeft = 300
     let placeholder = String(localized: "Enter comment")
 
-    private lazy var postButtonBottomConstraint = postButton.bottomAnchor.constraint(equalTo: commentTextView.bottomAnchor, constant: -5)
-    private lazy var postButtonCenterYConstraint = postButton.centerYAnchor.constraint(equalTo: userProfilePicture.centerYAnchor)
-    private lazy var postButtonTrailingConstraint = postButton.trailingAnchor.constraint(equalTo: inputContainerView.trailingAnchor, constant: -3)
-
-    private var separator: UIView = {
-        let separator = UIView()
-        separator.translatesAutoresizingMaskIntoConstraints = false
-        separator.backgroundColor = Colors.detailGray
-        return separator
-    }()
+    private var postButtonBottomConstraint: NSLayoutConstraint!
+    private var postButtonCenterYConstraint: NSLayoutConstraint!
+    private var postButtonTrailingConstraint: NSLayoutConstraint!
 
      var userProfilePicture: ProfilePictureImageView = {
         let imageView = ProfilePictureImageView()
@@ -80,25 +73,30 @@ class CommentAccessoryView: UIInputView {
         return label
     }()
 
-    private lazy var postButton: UIButton = {
-        let button = UIButton(type: .system)
+    private lazy var sendButton: SendButton = {
+        let button = SendButton()
         button.translatesAutoresizingMaskIntoConstraints = false
-        button.clipsToBounds = true
-        button.layer.cornerRadius = 30/2
-        button.setImage(UIImage(systemName: "arrow.up.circle.fill",
-                                withConfiguration: UIImage.SymbolConfiguration(pointSize: 35)), for: .normal)
-        button.tintColor = Colors.coolBlue
-        button.addTarget(self, action: #selector(didTapPostButton), for: .touchUpInside)
         return button
     }()
 
-    override init(frame: CGRect, inputViewStyle: UIInputView.Style) {
-        super.init(frame: frame, inputViewStyle: inputViewStyle)
+    private lazy var loadingIndicator: UIActivityIndicatorView = {
+        let view = UIActivityIndicatorView(style: .medium)
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.alpha = 0
+        view.isHidden = true
+        return view
+    }()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
         autoresizingMask = .flexibleHeight
         backgroundColor = Colors.background
         setupConstraints()
         placeholderLabel.text = placeholder
         commentTextView.delegate = self
+        sendButton.action = { [weak self] in
+            self?.didTapSendButton()
+        }
     }
 
     required init?(coder: NSCoder) {
@@ -132,29 +130,28 @@ class CommentAccessoryView: UIInputView {
         inputContainerView.layer.cornerRadius = elementsHeight / 2
     }
    private func setupConstraints() {
-       self.addSubviews(separator, userProfilePicture, inputContainerView)
-        inputContainerView.addSubviews(commentTextView, postButton, placeholderLabel, charLimitLabel)
+       self.addSubviews(userProfilePicture, inputContainerView)
+       inputContainerView.addSubviews(commentTextView, sendButton, placeholderLabel, charLimitLabel, loadingIndicator)
+
+       postButtonBottomConstraint = sendButton.bottomAnchor.constraint(equalTo: commentTextView.bottomAnchor, constant: -5)
+       postButtonCenterYConstraint = sendButton.centerYAnchor.constraint(equalTo: userProfilePicture.centerYAnchor)
+       postButtonTrailingConstraint = sendButton.trailingAnchor.constraint(equalTo: inputContainerView.trailingAnchor, constant: -3)
 
         NSLayoutConstraint.activate([
-
-//            separator.topAnchor.constraint(equalTo: self.topAnchor),
-//            separator.heightAnchor.constraint(equalToConstant: 1),
-//            separator.widthAnchor.constraint(equalTo: self.widthAnchor),
-
             userProfilePicture.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -10),
-            userProfilePicture.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: 10),
+            userProfilePicture.leadingAnchor.constraint(equalTo: safeAreaLayoutGuide.leadingAnchor, constant: 10),
             userProfilePicture.widthAnchor.constraint(equalToConstant: elementsHeight),
             userProfilePicture.heightAnchor.constraint(equalToConstant: elementsHeight),
 
             inputContainerView.leadingAnchor.constraint(equalTo: userProfilePicture.trailingAnchor, constant: 10),
             inputContainerView.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -10),
-            inputContainerView.topAnchor.constraint(equalTo: self.topAnchor, constant: 10),
-            inputContainerView.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -10),
+            inputContainerView.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor, constant: 10),
+            inputContainerView.trailingAnchor.constraint(equalTo: safeAreaLayoutGuide.trailingAnchor, constant: -10),
 
             commentTextView.topAnchor.constraint(equalTo: inputContainerView.topAnchor),
             commentTextView.leadingAnchor.constraint(equalTo: inputContainerView.leadingAnchor, constant: 10),
             commentTextView.bottomAnchor.constraint(equalTo: inputContainerView.bottomAnchor),
-            commentTextView.trailingAnchor.constraint(equalTo: postButton.leadingAnchor),
+            commentTextView.trailingAnchor.constraint(equalTo: sendButton.leadingAnchor),
             commentTextView.heightAnchor.constraint(greaterThanOrEqualToConstant: elementsHeight),
 
             placeholderLabel.leadingAnchor.constraint(equalTo: commentTextView.leadingAnchor, constant: 5),
@@ -162,24 +159,58 @@ class CommentAccessoryView: UIInputView {
 
             postButtonTrailingConstraint,
             postButtonCenterYConstraint,
-            postButton.widthAnchor.constraint(equalToConstant: elementsHeight - 3),
-            postButton.heightAnchor.constraint(equalToConstant: elementsHeight - 3),
+            sendButton.widthAnchor.constraint(equalToConstant: elementsHeight - 3),
+            sendButton.heightAnchor.constraint(equalToConstant: elementsHeight - 3),
 
-            charLimitLabel.bottomAnchor.constraint(equalTo: postButton.topAnchor),
-            charLimitLabel.centerXAnchor.constraint(equalTo: postButton.centerXAnchor)
+            loadingIndicator.centerYAnchor.constraint(equalTo: sendButton.centerYAnchor),
+            loadingIndicator.heightAnchor.constraint(equalTo: sendButton.heightAnchor),
+            loadingIndicator.widthAnchor.constraint(equalTo: sendButton.widthAnchor),
+            loadingIndicator.trailingAnchor.constraint(equalTo: sendButton.trailingAnchor),
+
+            charLimitLabel.bottomAnchor.constraint(equalTo: sendButton.topAnchor),
+            charLimitLabel.centerXAnchor.constraint(equalTo: sendButton.centerXAnchor)
         ])
     }
 
-    @objc func didTapPostButton() {
+    private func didTapSendButton() {
         guard let text = commentTextView.text, text != placeholder, text != "" else {
             return
         }
-        delegate?.postButtonTapped(commentText: text) {
-            self.commentTextView.text.removeAll()
-            self.numberOfLines = self.commentTextView.numberOfLines()
-            self.handleLinesCount()
-            self.handlePlaceholder(for: self.commentTextView)
-            self.layoutPostButton()
+        delegate?.sendButtonTapped(commentText: text)
+        self.showSendButton()
+        self.sendButton.performSuccessfulFeedback()
+        self.commentTextView.text.removeAll()
+        self.numberOfLines = self.commentTextView.numberOfLines()
+        self.handleLinesCount()
+        self.handlePlaceholder(for: self.commentTextView)
+        self.layoutPostButton()
+    }
+
+    private func showLoadingIndicator() {
+        print("showLoadingIndicator")
+        loadingIndicator.isHidden = false
+        loadingIndicator.transform = CGAffineTransform(scaleX: 0.4, y: 0.4)
+        loadingIndicator.startAnimating()
+        UIView.animate(withDuration: 0.3) {
+            self.sendButton.alpha = 0
+            self.sendButton.transform = CGAffineTransform(scaleX: 0.4, y: 0.4)
+            self.loadingIndicator.alpha = 1
+            self.loadingIndicator.transform = .identity
+        } completion: { _ in
+            self.sendButton.isHidden = true
+        }
+    }
+
+    private func showSendButton() {
+        print("showSendButton")
+        self.sendButton.isHidden = false
+        UIView.animate(withDuration: 0.3) {
+            self.sendButton.alpha = 1
+            self.sendButton.transform = .identity
+            self.loadingIndicator.alpha = 0
+            self.loadingIndicator.transform = CGAffineTransform(scaleX: 0.4, y: 0.4)
+        } completion: { _ in
+            self.loadingIndicator.isHidden = true
         }
     }
 
@@ -233,11 +264,11 @@ class CommentAccessoryView: UIInputView {
     private func handlePostButton() {
         if charactersLeft < 0 {
             UIView.animate(withDuration: 0.3) {
-                self.postButton.isEnabled = false
+                self.sendButton.isEnabled = false
             }
         } else {
             UIView.animate(withDuration: 0.3) {
-                self.postButton.isEnabled = true
+                self.sendButton.isEnabled = true
             }
         }
     }
@@ -263,10 +294,15 @@ class CommentAccessoryView: UIInputView {
         let excessiveTextColor = UIColor.systemRed.withAlphaComponent(0.5)
 
         let fittingText = NSAttributedString(string: String(textView.text.prefix(textViewCharacterLimit)),
-                                             attributes: [.font: commentTextView.font as Any])
+                                             attributes: [
+                                                .font: commentTextView.font as Any,
+                                                .foregroundColor: Colors.label])
 
         let textPastTheLimit = NSAttributedString(string: String(textView.text.suffix(extraCharactersCount)),
-                                                  attributes: [.backgroundColor: excessiveTextColor, .font: commentTextView.font as Any])
+                                                  attributes: [
+                                                    .backgroundColor: excessiveTextColor,
+                                                    .foregroundColor: Colors.label,
+                                                    .font: commentTextView.font as Any])
 
         let wholeAttributedText = NSMutableAttributedString()
         wholeAttributedText.append(fittingText)

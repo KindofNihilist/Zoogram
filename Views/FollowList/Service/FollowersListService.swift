@@ -21,7 +21,7 @@ final class FollowersListService: FollowListServiceProtocol {
     }
 
     func getUserList() async throws -> [ZoogramUser] {
-        var followersIDs = try await followSystemService.getFollowers(for: userID)
+        let followersIDs = try await followSystemService.getFollowers(for: userID)
         let followers = try await withThrowingTaskGroup(of: (Int, ZoogramUser).self, returning: [ZoogramUser].self) { group in
             for (index, userID) in followersIDs.enumerated() {
                 group.addTask {
@@ -40,12 +40,12 @@ final class FollowersListService: FollowListServiceProtocol {
         return followers
     }
 
-    func followUser(uid: String) async throws -> FollowStatus {
-        return try await followSystemService.followUser(uid: uid)
+    func followUser(uid: String) async throws {
+        try await followSystemService.followUser(uid: uid)
     }
 
-    func unfollowUser(uid: String) async throws -> FollowStatus {
-        return try await followSystemService.unfollowUser(uid: uid)
+    func unfollowUser(uid: String) async throws {
+        try await followSystemService.unfollowUser(uid: uid)
     }
 
     func removeUserFollowingMe(uid: String) async throws {
