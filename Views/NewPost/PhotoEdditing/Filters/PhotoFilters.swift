@@ -8,7 +8,7 @@
 import UIKit
 
 @MainActor
-class ImageFilters {
+class PhotoFilters {
     lazy var withoutFilter = WithoutFilter(displayName: String(localized: "Normal"), filterType: .normal)
     lazy var noirPhotoFilter = NoirPhotoFilter(displayName: "Noir", filterType: .noir)
     lazy var vividPhotoFilter = VividPhotoFilter(displayName: "Vivid", filterType: .vivid)
