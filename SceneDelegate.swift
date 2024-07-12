@@ -30,18 +30,18 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
 //        logOut()
 
-        AuthenticationService.shared.listenToAuthenticationState { user in
+        AuthenticationService.shared.listenToAuthenticationState { userID in
             guard self.shouldListenToAuthenticationStateChanges else { return }
-            guard let unwrappedUser = user else {
+            guard let unwrappedID = userID else {
                 self.hideCurrentRootViewControllerIfNeeded {
                     self.showLoginView(for: windowScene)
                 }
                 return
             }
             Task {
-                await UserManager.shared.setUserID(uid: unwrappedUser.uid)
+                await UserManager.shared.setUserID(uid: unwrappedID)
             }
-            let zoogramUser = ZoogramUser(unwrappedUser.uid)
+            let zoogramUser = ZoogramUser(unwrappedID)
             self.tabBarController = TabBarController(for: zoogramUser, showAppearAnimation: false)
             self.window?.windowScene = windowScene
             self.window?.rootViewController = self.tabBarController

@@ -15,6 +15,8 @@ protocol UserProfileServiceProtocol: PostsNetworking<UserPost> {
     var userDataService: UserDataServiceProtocol { get }
     var likeSystemService: LikeSystemServiceProtocol { get }
     var bookmarksService: BookmarksSystemServiceProtocol { get }
+    var activityService: ActivitySystemProtocol { get }
+    var imageService: ImageServiceProtocol { get }
 
     func getFollowersCount() async throws -> Int
     func getFollowingCount() async throws -> Int
@@ -29,24 +31,33 @@ final class UserProfileService: UserProfileServiceProtocol {
 
     let userID: String
 
-    let followService: FollowSystemProtocol
-    let userPostsService: UserPostsServiceProtocol
-    let userDataService: UserDataServiceProtocol
-    let likeSystemService: LikeSystemServiceProtocol
-    let bookmarksService: BookmarksSystemServiceProtocol
+    internal let followService: FollowSystemProtocol
+    internal let userPostsService: UserPostsServiceProtocol
+    internal let userDataService: UserDataServiceProtocol
+    internal let likeSystemService: LikeSystemServiceProtocol
+    internal let bookmarksService: BookmarksSystemServiceProtocol
+    internal let activityService: ActivitySystemProtocol
+    internal let imageService: ImageServiceProtocol
+    internal let commentsService: CommentSystemServiceProtocol
 
     init(userID: String,
          followService: FollowSystemProtocol,
          userPostsService: UserPostsServiceProtocol,
          userService: UserDataServiceProtocol,
          likeSystemService: LikeSystemServiceProtocol,
-         bookmarksService: BookmarksSystemServiceProtocol) {
+         bookmarksService: BookmarksSystemServiceProtocol,
+         activityService: ActivitySystemProtocol,
+         imageService: ImageServiceProtocol,
+         commentsService: CommentSystemServiceProtocol) {
         self.userID = userID
         self.followService = followService
         self.userPostsService = userPostsService
         self.userDataService = userService
         self.likeSystemService = likeSystemService
         self.bookmarksService = bookmarksService
+        self.activityService = activityService
+        self.imageService = imageService
+        self.commentsService = commentsService
     }
 
     func getFollowersCount() async throws -> Int {
@@ -65,7 +76,7 @@ final class UserProfileService: UserProfileServiceProtocol {
         } else {
             var user = try await userDataService.getUser(for: userID)
             if let profilePhotoURL = user.profilePhotoURL {
-                let profilePicture = try await ImageService.shared.getImage(for: profilePhotoURL)
+                let profilePicture = try await imageService.getImage(for: profilePhotoURL)
                 user.setProfilePhoto(profilePicture)
             }
             return user
@@ -80,15 +91,13 @@ final class UserProfileService: UserProfileServiceProtocol {
 
     func getItems() async throws -> [UserPost]? {
         do {
-            let isPaginating = await paginationManager.isPaginating()
-            guard isPaginating == false else { return nil }
+            guard await paginationManager.isPaginating() == false else { return nil }
             await paginationManager.startPaginating()
             let numberOfItemsToGet = paginationManager.numberOfItemsToGetPerPagination
             async let numberOfAllItems = getNumberOfItems()
             async let retrievedPosts = userPostsService.getPosts(quantity: numberOfItemsToGet, for: userID)
 
             guard try await retrievedPosts.items.isEmpty != true else {
-                await paginationManager.setHasHitEndOfItemsStatus(to: true)
                 await paginationManager.finishPaginating()
                 return nil
             }
@@ -96,13 +105,8 @@ final class UserProfileService: UserProfileServiceProtocol {
             let postsWithAdditionalData = try await getAdditionalPostDataFor(postsOfSingleUser: retrievedPosts.items)
             let lastRetrievedItemKey = try await retrievedPosts.lastRetrievedItemKey
             await paginationManager.setLastReceivedItemKey(lastRetrievedItemKey)
-            await paginationManager.setHasHitEndOfItemsStatus(to: false)
+            await paginationManager.resetNumberOfRetrievedItems()
             await paginationManager.updateNumberOfRetrievedItems(value: postsWithAdditionalData.count)
-
-            let numberOfRetrievedItems = await paginationManager.getNumberOfRetrievedItems()
-            if try await numberOfRetrievedItems == numberOfAllItems {
-                await paginationManager.setHasHitEndOfItemsStatus(to: true)
-            }
             await paginationManager.finishPaginating()
             return postsWithAdditionalData
         } catch {
@@ -124,18 +128,12 @@ final class UserProfileService: UserProfileServiceProtocol {
 
             guard paginatedPosts.items.isEmpty != true, paginatedPosts.lastRetrievedItemKey != lastReceivedItemKey else {
                 await paginationManager.finishPaginating()
-                await paginationManager.setHasHitEndOfItemsStatus(to: true)
                 return nil
             }
 
             let postsWithAdditionalData = try await getAdditionalPostDataFor(postsOfSingleUser: paginatedPosts.items)
             await paginationManager.setLastReceivedItemKey(paginatedPosts.lastRetrievedItemKey)
             await paginationManager.updateNumberOfRetrievedItems(value: paginatedPosts.items.count)
-            let numberOfAllItems = await paginationManager.getNumberOfAllItems()
-            let numberOfRetrievedItems = await paginationManager.getNumberOfRetrievedItems()
-            if numberOfRetrievedItems == numberOfAllItems {
-                await paginationManager.setHasHitEndOfItemsStatus(to: true)
-            }
             await paginationManager.finishPaginating()
             return postsWithAdditionalData
         } catch {
@@ -156,12 +154,12 @@ final class UserProfileService: UserProfileServiceProtocol {
         switch likeState {
         case .liked:
             async let likeRemovalTask: Void = likeSystemService.removeLikeFromPost(postID: postID)
-            async let activityRemovalTask: Void = ActivitySystemService.shared.removeLikeEventForPost(postID: postID, postAuthorID: postAuthorID)
+            async let activityRemovalTask: Void = activityService.removeLikeEventForPost(postID: postID, postAuthorID: postAuthorID)
             _ = try await [likeRemovalTask, activityRemovalTask]
         case .notLiked:
             let activityEvent = ActivityEvent.createActivityEventFor(likedPostID: postID)
             async let likeTask: Void = likeSystemService.likePost(postID: postID)
-            async let activityEventTask: Void = ActivitySystemService.shared.addEventToUserActivity(event: activityEvent, userID: postAuthorID)
+            async let activityEventTask: Void = activityService.addEventToUserActivity(event: activityEvent, userID: postAuthorID)
             _ = try await [likeTask, activityEventTask]
         }
     }

@@ -18,27 +18,20 @@ typealias FilterValue = Float
 class PhotoEditingViewController: UIViewController {
 
     weak var delegate: NewPostProtocol?
-
-    let isWidthDominant: Bool
-    let ratio: CGFloat
     private var currentEdditingViewKind: EdittingViewKind
     private var selectedPhotoEffectButton: EdditingFilterButton?
-    private var selectedPhotoFilterButton: EdditingFilterButton?
+
+    private let photoFilters = PhotoFilters()
+    private let editingFilters = EditingFilters()
 
     // MARK: CoreImage resources
     let originalImage: UIImage
     var modifiedImage: CIImage
     var autoEnhancedImage: CIImage?
-    var context: CIContext!
     var currentFilter: ImageFilter!
-    let colorSpace: CGColorSpace = CGColorSpaceCreateDeviceRGB()
-
-    var edditingFiltersApplied = [FilterType: FilterValue]()
-    var imageFilterApplied = (filterType: FilterType.normal, value: 0.0 as Float)
+    var edditingFiltersApplied = [FilterSubtype: FilterValue]()
+    var photoFilterApplied = (filterType: FilterSubtype.normal, value: 0.0 as Float)
     // MARK: Metal resources
-    var device: MTLDevice!
-    var commandQueue: MTLCommandQueue!
-    var sourceTexture: MTLTexture!
 
     override var prefersStatusBarHidden: Bool {
         return true
@@ -46,21 +39,22 @@ class PhotoEditingViewController: UIViewController {
 
     // MARK: Subviews
 
-    private var metalView: MTKView = {
-        let metalView = MTKView()
+    private lazy var metalView: ImageMetalPreview = {
+        let metalView = ImageMetalPreview(image: self.originalImage)
         metalView.translatesAutoresizingMaskIntoConstraints = false
         metalView.clipsToBounds = true
+        metalView.previewDelegate = self
         return metalView
     }()
 
-    private let photoEffectsView: EdditingFiltersView = {
-        let scrollView = EdditingFiltersView()
+    private lazy var photoEffectsView: EdditingFiltersView = {
+        let scrollView = EdditingFiltersView(filters: self.editingFilters)
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         return scrollView
     }()
 
-    private let photoFiltersView: PhotoFiltersView = {
-        let scrollView = PhotoFiltersView()
+    private lazy var photoFiltersView: PhotoFiltersView = {
+        let scrollView = PhotoFiltersView(filters: self.photoFilters)
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.alpha = 0
         scrollView.isHidden = true
@@ -139,10 +133,8 @@ class PhotoEditingViewController: UIViewController {
     init(photo: UIImage) {
         self.originalImage = photo
         self.modifiedImage = CIImage(cgImage: photo.cgImage!)
-        self.isWidthDominant = photo.isWidthDominant()
         self.currentEdditingViewKind = .edditingFilters
-        self.ratio = photo.ratio()
-        currentFilter = ImageFilters().withoutFilter
+        currentFilter = PhotoFilters().withoutFilter
         currentFilter.setInputImage(image: photo)
         super.init(nibName: nil, bundle: nil)
     }
@@ -155,7 +147,6 @@ class PhotoEditingViewController: UIViewController {
         view.backgroundColor = .black
         setupNavBar()
         setupViewsAndConstraints()
-        setupMetalPreview()
         photoEffectsView.delegate = self
         photoFiltersView.delegate = self
         photoFiltersView.setupFilterPreviews(for: self.modifiedImage)
@@ -197,27 +188,6 @@ class PhotoEditingViewController: UIViewController {
         ])
     }
 
-    private func setupMetalPreview() {
-        guard let imageData = originalImage.jpegData(compressionQuality: 1) else {
-            print("Couldn't convert chosen image to Data")
-            return
-        }
-        device = MTLCreateSystemDefaultDevice()
-        commandQueue = device.makeCommandQueue()
-        metalView.delegate = self
-        metalView.device = device
-        metalView.framebufferOnly = false
-        context = CIContext(mtlDevice: device)
-
-        let loader = MTKTextureLoader(device: device)
-
-        do {
-            sourceTexture = try loader.newTexture(data: imageData)
-        } catch {
-            print("Couldn't create a texture with chosen image")
-        }
-    }
-
     private func setupNavBar() {
         navigationItem.leftBarButtonItem = UIBarButtonItem(customView: backButton)
         navigationItem.titleView = autoEnhanceButton
@@ -225,6 +195,11 @@ class PhotoEditingViewController: UIViewController {
     }
 
     // MARK: Actions
+
+    @objc private func navigateBack() {
+        navigationController?.popViewController(animated: true)
+    }
+
     @objc private func didSelectFiltersTab() {
         self.filterButton.isUserInteractionEnabled = false
         self.editButton.isUserInteractionEnabled = false
@@ -269,6 +244,7 @@ class PhotoEditingViewController: UIViewController {
         guard var imageToEnhance = CIImage(image: self.originalImage), self.autoEnhancedImage == nil else {
             self.autoEnhancedImage = nil
             updateCurrentImage()
+            animateAutoEnhanceButtonState(isApplied: false)
             return
         }
         let enhancementFilters = imageToEnhance.autoAdjustmentFilters()
@@ -280,47 +256,47 @@ class PhotoEditingViewController: UIViewController {
         }
         self.autoEnhancedImage = imageToEnhance
         updateCurrentImage()
+        animateAutoEnhanceButtonState(isApplied: true)
     }
 
-    @objc private func navigateBack() {
-        navigationController?.popViewController(animated: true)
+    private func animateAutoEnhanceButtonState(isApplied: Bool) {
+        var colorToApply: UIColor = isApplied ? UIColor.systemYellow : .white
+        UIView.animate(withDuration: 0.2) {
+            self.autoEnhanceButton.tintColor = colorToApply
+        }
     }
 
     @objc private func didFinishEditingPhoto() {
-        let imageToPost = UIImage(ciImage: self.modifiedImage)
+        guard let edditedCIImage = applyFilters() else { return }
+        let imageToPost = UIImage(ciImage: edditedCIImage)
         let makePostVC = MakeAPostViewController(photo: imageToPost)
         makePostVC.delegate = self.delegate
         navigationController?.pushViewController(makePostVC, animated: true)
     }
 
     func updateCurrentImage() {
-        guard let imageToSet = getImageForEdditing(for: currentFilter) else { return }
+        guard let imageToSet = applyFilters() else { return }
         self.modifiedImage = imageToSet
-        self.currentFilter.setInputImage(image: imageToSet)
-        self.currentFilter.applyFilter(sliderValue: currentFilter.latestValue)
-
+        self.metalView.setNeedsDisplay()
     }
 
-    func getImageForEdditing(for selectedFilter: ImageFilter?, shouldApplyImageFilter: Bool = true) -> CIImage? {
+    func applyFilters(shouldApplyImageFilter: Bool = true) -> CIImage? {
+        print("applying filters")
         guard var inputImage = self.autoEnhancedImage ?? CIImage(image: originalImage) else { return nil }
 
         for filterType in edditingFiltersApplied {
-            if filterType.key == selectedFilter?.filterType {
-                continue
-            }
-            let filterToApply = getFilter(of: filterType.key)
+            let filterToApply = editingFilters.getFilter(of: filterType.key)
             filterToApply.setInputImage(image: inputImage)
             filterToApply.applyFilter(sliderValue: filterType.value)
             inputImage = filterToApply.getOutput()!
         }
 
         if shouldApplyImageFilter {
-                    let imageFilter = getFilter(of: imageFilterApplied.filterType)
+            let imageFilter = photoFilters.getFilter(of: photoFilterApplied.filterType)
                     imageFilter.setInputImage(image: inputImage)
-                    imageFilter.applyFilter(sliderValue: imageFilterApplied.value)
+                    imageFilter.applyFilter(sliderValue: photoFilterApplied.value)
                     inputImage = imageFilter.getOutput()!
-                    print("Applying filter")
-                }
+        }
         return inputImage
     }
 }
@@ -330,25 +306,14 @@ class PhotoEditingViewController: UIViewController {
 extension PhotoEditingViewController: PhotoFiltersViewDelegate {
 
     func userHasSelected(button: EdditingFilterButton, with filter: PhotoFilter) {
-        guard let imageForEdditing = getImageForEdditing(for: filter, shouldApplyImageFilter: false) else { return }
-
         currentFilter = filter
-        filter.setInputImage(image: imageForEdditing)
-        filter.applyFilter(sliderValue: currentFilter.latestValue)
-
         if button.hasBeenAlreadySelected {
-            guard filter.filterType != .normal else { return }
+            guard filter.filterSubtype != .normal else { return }
             сonfigureSlider(for: filter)
             showSlider()
         } else {
-            self.selectedPhotoFilterButton?.hasAppliedRelatedEffect = false
-            self.selectedPhotoFilterButton?.hasBeenAlreadySelected = false
-            self.selectedPhotoFilterButton = button
-            self.selectedPhotoFilterButton?.hasAppliedRelatedEffect = true
-            self.selectedPhotoFilterButton?.hasBeenAlreadySelected = true
-            self.imageFilterApplied.filterType = currentFilter.filterType
-            self.imageFilterApplied.value = currentFilter.latestValue
-            self.modifiedImage = currentFilter.getOutput()!
+            photoFilterApplied.filterType = currentFilter.filterSubtype
+            photoFilterApplied.value = currentFilter.latestValue
         }
     }
 }
@@ -358,11 +323,9 @@ extension PhotoEditingViewController: PhotoFiltersViewDelegate {
 extension PhotoEditingViewController: EddittingFiltersDelegate {
 
     func userHasSelected(button: EdditingFilterButton, with filter: ImageFilter) {
-        guard let imageForEdditing = getImageForEdditing(for: filter) else { return }
         self.selectedPhotoEffectButton = button
         currentFilter = filter
-        filter.setInputImage(image: imageForEdditing)
-        filter.applyFilter(sliderValue: filter.latestValue)
+        edditingFiltersApplied[filter.filterSubtype] = filter.latestValue
         сonfigureSlider(for: filter)
         showSlider()
     }
@@ -373,29 +336,43 @@ extension PhotoEditingViewController: EddittingFiltersDelegate {
 extension PhotoEditingViewController: PhotoEffectSliderDelegate {
 
     func didChangeSliderValue(value: Float) {
-        currentFilter.applyFilter(sliderValue: value)
+        if currentFilter.filterType == .editingFilter {
+            edditingFiltersApplied[currentFilter.filterSubtype] = value
+        } else if currentFilter.filterType == .photoFilter {
+            photoFilterApplied.value = value
+        }
+        metalView.setNeedsDisplay()
         print("Slider value: \(value) for \(currentFilter.displayName)")
     }
 
     func cancelFilterApplication() {
         currentFilter.revertChanges()
+        if currentFilter.filterType == .editingFilter {
+            edditingFiltersApplied[currentFilter.filterSubtype] = currentFilter.latestValue
+        } else if currentFilter.filterType == .photoFilter {
+            photoFilterApplied.value = currentFilter.latestValue
+        }
+        metalView.setNeedsDisplay()
         hideSlider()
     }
 
     func saveFilterApplication() {
-        guard let outputImage = currentFilter.getOutput() else { return }
+        guard let outputImage = applyFilters() else { return }
         let filterValue = sliderView.getSliderValue()
         if let currentFilter = currentFilter as? PhotoFilter {
-            imageFilterApplied.filterType = currentFilter.filterType
-            imageFilterApplied.value = sliderView.getSliderValue()
+            photoFilterApplied.filterType = currentFilter.filterSubtype
+            photoFilterApplied.value = sliderView.getSliderValue()
         } else {
             selectedPhotoEffectButton?.hasAppliedRelatedEffect = filterValue != currentFilter.defaultValue
-            edditingFiltersApplied[currentFilter.filterType] = filterValue
+            if filterValue == currentFilter.defaultValue {
+                edditingFiltersApplied.removeValue(forKey: currentFilter.filterSubtype)
+            } else {
+                edditingFiltersApplied[currentFilter.filterSubtype] = filterValue
+            }
         }
         modifiedImage = outputImage
         currentFilter.latestValue = filterValue
         hideSlider()
-        print("APPLIED FILTERS LIST: \(edditingFiltersApplied)")
     }
 
     private func showSlider() {
@@ -438,85 +415,14 @@ extension PhotoEditingViewController: PhotoEffectSliderDelegate {
     }
 
     private func сonfigureSlider(for filter: ImageFilter) {
-        let isInverted = filter.filterType == .warmth
+        let isInverted = filter.filterSubtype == .warmth
         sliderView.configure(for: filter)
         sliderView.isInverted = isInverted
     }
 }
 
-// MARK: MTKViewDelegate
-
-extension PhotoEditingViewController: MTKViewDelegate {
-    nonisolated func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
-
-    func createScaledImage(image: CIImage, originY: CGFloat, originX: CGFloat, scale: CGFloat) -> CIImage {
-#if targetEnvironment(simulator)
-            let originY = originY < 0 ? 0 : originY
-            let transformedPosition = CGAffineTransform(translationX: originX, y: originY)
-            let transformedScale = CGAffineTransform(scaleX: scale, y: scale)
-            return image
-                .transformed(by: transformedScale)
-                .transformed(by: transformedPosition)
-#else
-            let originY = originY < 0 ? 0 : originY
-            let originX = originX < 0 ? 0 : originX
-            let transformedPosition = CGAffineTransform(translationX: originX, y: originY)
-            let transformedScale = CGAffineTransform(scaleX: scale, y: scale)
-            return image
-                .transformed(by: transformedScale)
-                .transformed(by: transformedPosition)
-#endif
-    }
-
-    // MetalKit was not updated for concurrency yet, so it might throw warnings.
-    // Using nonisolated to silence the warning is not an option since there are MainActor isolated properties used inside
-    // and the MainActor.assumeIsolated is only available in iOS 17.0+
-    func draw(in view: MTKView) {
-        guard let currentDrawable = view.currentDrawable,
-              let sourceTexture = self.sourceTexture,
-              let commandBuffer = self.commandQueue.makeCommandBuffer(),
-              let inputImage = CIImage(mtlTexture: sourceTexture),
-              let currentFilter = self.currentFilter else { return }
-
-        let bounds = CGRect(x: 0, y: 0, width: view.drawableSize.width, height: view.drawableSize.height)
-
-        let scaleX = view.drawableSize.width / inputImage.extent.width
-        let scaleY = view.drawableSize.height / inputImage.extent.height
-        var scale: CGFloat = 0
-        var width: CGFloat = 0
-        var height: CGFloat = 0
-        var imageOriginYPoint: CGFloat = 0
-        var imageOriginXPoint: CGFloat = 0
-
-        scale = (scaleY > scaleX) ? scaleX : scaleY
-
-        width = inputImage.extent.width * scale
-        height = inputImage.extent.height * scale
-
-        if isWidthDominant {
-            imageOriginYPoint = (bounds.maxY - height) / 2
-        } else {
-            imageOriginXPoint = (bounds.maxX - width) / 2
-        }
-
-        let originX = (bounds.minX + imageOriginXPoint)
-        let originY = (bounds.minY + imageOriginYPoint)
-
-        if let filterOutput = currentFilter.getOutput() {
-
-            let scaledImage = createScaledImage(image: filterOutput,
-                                                originY: originY,
-                                                originX: originX,
-                                                scale: scale)
-
-            context.render(scaledImage,
-                           to: currentDrawable.texture,
-                           commandBuffer: commandBuffer,
-                           bounds: bounds,
-                           colorSpace: colorSpace)
-
-            commandBuffer.present(currentDrawable)
-            commandBuffer.commit()
-        }
+extension PhotoEditingViewController: ImageMetalPreviewDelegate {
+    func getImageToRender() -> CIImage? {
+        return applyFilters()
     }
 }

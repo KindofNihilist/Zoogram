@@ -52,7 +52,7 @@ final class UserProfileViewController: ViewControllerWithLoadingIndicator {
 
     init(service: any UserProfileServiceProtocol, user: ZoogramUser, isTabBarItem: Bool) {
         self.viewModel = UserProfileViewModel(service: service, user: user)
-        self.postTableViewController = PostsTableViewController(posts: viewModel.posts.value, service: service)
+        self.postTableViewController = PostsTableViewController(posts: viewModel.posts, service: service)
         self.isTabBarItem = isTabBarItem
         super.init()
         self.view.backgroundColor = Colors.background
@@ -108,13 +108,13 @@ final class UserProfileViewController: ViewControllerWithLoadingIndicator {
     }
 
     private func updateTableViewPosts() {
-        let posts = viewModel.posts.value
+        let posts = viewModel.posts
         self.postTableViewController.updatePostsArrayWith(posts: posts)
     }
 
     private func updatePostsCollectionView(with posts: [PostViewModel]) {
-        if self.viewModel.posts.value.count != posts.count {
-            viewModel.posts.value = posts
+        if self.viewModel.posts.count != posts.count {
+            viewModel.posts = posts
             self.setupDatasource()
             hideLoadingFooterIfNeeded()
         }
@@ -148,8 +148,8 @@ final class UserProfileViewController: ViewControllerWithLoadingIndicator {
 
     func getUserProfileDataAndPostsIfNeeded() {
         Task {
-            let hasLoadedData = await viewModel.hasLoadedData()
-            if hasLoadedData == false {
+            let shouldReloadData = await viewModel.shouldReloadData()
+            if shouldReloadData {
                 getUserProfileDataAndPosts()
             }
         }
@@ -211,7 +211,7 @@ final class UserProfileViewController: ViewControllerWithLoadingIndicator {
     }
 
     private func showPost(at indexPath: IndexPath) {
-        guard self.viewModel.posts.value.isEmpty != true else { return }
+        guard self.viewModel.posts.isEmpty != true else { return }
         self.postTableViewController.focusTableViewOnPostWith(index: indexPath)
         if #available(iOS 18.0, *) {
             self.postTableViewController.preferredTransition = .zoom { context in
@@ -259,7 +259,7 @@ extension UserProfileViewController: CollectionViewDataSourceDelegate {
 extension UserProfileViewController: ProfileHeaderDelegate {
 
     func postsButtonTapped() {
-        guard viewModel.posts.value.isEmpty != true else {
+        guard viewModel.posts.isEmpty != true else {
             return
         }
         // center view on the posts section

@@ -19,9 +19,7 @@ class BookmarksViewModel {
     }
 
     func isPaginationAllowed() async -> Bool {
-        let isPaginating = await service.paginationManager.isPaginating()
-        let hasHitTheEndOfPosts = await service.checkIfHasHitEndOfItems()
-        return hasHitTheEndOfPosts == false && isPaginating == false
+        return await service.paginationManager.isPaginationAllowed()
     }
 
     func getBookmarks() async throws -> [Bookmark]? {

@@ -8,7 +8,7 @@
 import Foundation
 
 protocol HomeFeedServiceProtocol: PostsNetworking<UserPost> {
-    func makeANewPost(post: UserPost, progressUpdateCallback: @Sendable @escaping (Progress?) -> Void) async throws
+    func makeANewPost(post: inout UserPost, progressUpdateCallback: @Sendable @escaping (Progress?) -> Void) async throws
 }
 
 final class HomeFeedService: HomeFeedServiceProtocol {
@@ -16,21 +16,30 @@ final class HomeFeedService: HomeFeedServiceProtocol {
     internal let paginationManager = PaginationManager(numberOfItemsToGetPerPagination: 10)
 
     private let feedService: FeedService
-    private let likeSystemService: LikeSystemServiceProtocol
+    internal let likeSystemService: LikeSystemServiceProtocol
     private let userPostsService: UserPostsServiceProtocol
-    private let bookmarksService: BookmarksSystemServiceProtocol
+    internal let bookmarksService: BookmarksSystemServiceProtocol
     private let storageManager: StorageManagerProtocol
+    internal let userDataService: any UserDataServiceProtocol
+    internal let imageService: any ImageServiceProtocol
+    internal let commentsService: any CommentSystemServiceProtocol
 
     init(feedService: FeedService,
          likeSystemService: LikeSystemService,
          userPostsService: UserPostsService,
          bookmarksService: BookmarksSystemService,
-         storageManager: StorageManager) {
+         storageManager: StorageManager,
+         userDataService: UserDataServiceProtocol,
+         imageService: ImageServiceProtocol,
+         commentsService: CommentSystemServiceProtocol) {
         self.feedService = feedService
         self.likeSystemService = likeSystemService
         self.userPostsService = userPostsService
         self.bookmarksService = bookmarksService
         self.storageManager = storageManager
+        self.userDataService = userDataService
+        self.imageService = imageService
+        self.commentsService = commentsService
     }
 
     func getNumberOfItems() async throws -> Int {
@@ -41,34 +50,22 @@ final class HomeFeedService: HomeFeedServiceProtocol {
 
     func getItems() async throws -> [UserPost]? {
         do {
-            print("inside getItems")
-            let isPaginating = await paginationManager.isPaginating()
-            guard isPaginating == false else { return nil }
-            print("past isPaginating")
+            guard await paginationManager.isPaginating() == false else { return nil }
             await paginationManager.startPaginating()
             let numberOfItemsToGet = paginationManager.numberOfItemsToGetPerPagination
             async let numberOfAllItems = getNumberOfItems()
             async let feedPosts = feedService.getPostsForTimeline(quantity: numberOfItemsToGet)
 
             guard try await feedPosts.items.isEmpty != true else {
-                await self.paginationManager.setHasHitEndOfItemsStatus(to: true)
                 await paginationManager.finishPaginating()
                 return nil
             }
 
             let postsWithAdditionalData = try await getAdditionalPostDataFor(postsOfMultipleUsers: feedPosts.items)
             let lastRetrievedItemKey = try await feedPosts.lastRetrievedItemKey
-            print("received \(postsWithAdditionalData.count) posts")
             await paginationManager.resetNumberOfRetrievedItems()
             await paginationManager.setLastReceivedItemKey(lastRetrievedItemKey)
-            await paginationManager.setHasHitEndOfItemsStatus(to: false)
             await paginationManager.updateNumberOfRetrievedItems(value: postsWithAdditionalData.count)
-
-            let numberOfRetrievedItems = await paginationManager.getNumberOfRetrievedItems()
-            if try await numberOfRetrievedItems == numberOfAllItems {
-                print("hasHitEndOfItems")
-                await paginationManager.setHasHitEndOfItemsStatus(to: true)
-            }
             await paginationManager.finishPaginating()
             return postsWithAdditionalData
         } catch {
@@ -89,19 +86,12 @@ final class HomeFeedService: HomeFeedServiceProtocol {
 
             guard feedPosts.items.isEmpty != true, feedPosts.lastRetrievedItemKey != lastReceivedItemKey else {
                 await self.paginationManager.finishPaginating()
-                await paginationManager.setHasHitEndOfItemsStatus(to: true)
                 return nil
             }
 
             let postsWithAdditionalData = try await getAdditionalPostDataFor(postsOfMultipleUsers: feedPosts.items)
             await paginationManager.setLastReceivedItemKey(feedPosts.lastRetrievedItemKey)
             await paginationManager.updateNumberOfRetrievedItems(value: postsWithAdditionalData.count)
-            let numberOfAllItems = await paginationManager.getNumberOfAllItems()
-            let numberOfRetrievedItems = await paginationManager.getNumberOfRetrievedItems()
-
-            if numberOfRetrievedItems == numberOfAllItems {
-                await paginationManager.setHasHitEndOfItemsStatus(to: true)
-            }
             await paginationManager.finishPaginating()
             return postsWithAdditionalData
         } catch {
@@ -110,18 +100,17 @@ final class HomeFeedService: HomeFeedServiceProtocol {
         }
     }
 
-    func makeANewPost(post: UserPost, progressUpdateCallback: @Sendable @escaping (Progress?) -> Void) async throws {
+    func makeANewPost(post: inout UserPost, progressUpdateCallback: @Sendable @escaping (Progress?) -> Void) async throws {
         guard let image = post.image else {
             return
         }
-        var postToPost = post
-        let fileName = "\(postToPost.postID)_post.png"
+        let fileName = "\(post.postID)_post.png"
 
         let uploadedPhotoURL = try await storageManager.uploadPostPhoto(photo: image, fileName: fileName) { progress in
             progressUpdateCallback(progress)
         }
-        postToPost.photoURL = uploadedPhotoURL.absoluteString
-        try await userPostsService.insertNewPost(post: postToPost)
+        post.photoURL = uploadedPhotoURL.absoluteString
+        try await userPostsService.insertNewPost(post: post)
     }
 
     func likePost(postID: String, likeState: LikeState, postAuthorID: String) async throws {

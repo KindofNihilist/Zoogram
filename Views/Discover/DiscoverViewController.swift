@@ -188,8 +188,8 @@ class DiscoverViewController: UIViewController {
 
     func getDataIfNeeded() {
         let task = Task {
-            let hasLoadedData = await viewModel.hasLoadedData()
-            if hasLoadedData == false {
+            let shouldReloadData = await viewModel.shouldReloadData()
+            if shouldReloadData {
                 refreshControl?.beginRefreshingManually()
             }
         }
@@ -236,11 +236,11 @@ class DiscoverViewController: UIViewController {
     private func handleLoadingError(error: Error) {
         refreshControl?.endRefreshing()
         let task = Task {
-            let hasLoadedData = await viewModel.hasLoadedData()
-            if hasLoadedData {
-                showPopUp(issueText: error.localizedDescription)
-            } else {
+            let shouldReloadData = await viewModel.shouldReloadData()
+            if shouldReloadData {
                 showReloadButton(with: error)
+            } else {
+                showPopUp(issueText: error.localizedDescription)
             }
         }
         tasks.append(task)
@@ -364,15 +364,7 @@ extension DiscoverViewController: UITableViewDelegate, UITableViewDataSource {
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let user = viewModel.foundUsers.value[indexPath.row]
-        let service = UserProfileService(userID: user.userID,
-                                         followService: FollowSystemService.shared,
-                                         userPostsService: UserPostsService.shared,
-                                         userService: UserDataService(),
-                                         likeSystemService: LikeSystemService.shared,
-                                         bookmarksService: BookmarksSystemService.shared)
-        let userProfileViewController = UserProfileViewController(service: service, user: user, isTabBarItem: false)
-        userProfileViewController.title = user.username
-        self.navigationController?.pushViewController(userProfileViewController, animated: true)
+        showProfile(of: user)
     }
 }
 

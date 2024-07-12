@@ -15,25 +15,31 @@ final class DiscoverService: DiscoverServiceProtocol {
 
     internal let paginationManager = PaginationManager(numberOfItemsToGetPerPagination: 18)
 
-    let searchService: SearchServiceProtocol
-    let discoverPostsService: DiscoverPostsServiceProtocol
-    let likeSystemService: LikeSystemServiceProtocol
-    let userPostsService: UserPostsServiceProtocol
-    let bookmarksService: BookmarksSystemServiceProtocol
-    let userDataService: UserDataServiceProtocol
+    internal let searchService: SearchServiceProtocol
+    internal let discoverPostsService: DiscoverPostsServiceProtocol
+    internal let likeSystemService: LikeSystemServiceProtocol
+    internal let userPostsService: UserPostsServiceProtocol
+    internal let bookmarksService: BookmarksSystemServiceProtocol
+    internal let userDataService: UserDataServiceProtocol
+    internal let imageService: any ImageServiceProtocol
+    internal let commentsService: any CommentSystemServiceProtocol
 
     init(searchService: SearchServiceProtocol,
          userDataService: UserDataServiceProtocol,
          discoverPostsService: DiscoverPostsServiceProtocol,
          likeSystemService: LikeSystemServiceProtocol,
          userPostsService: UserPostsServiceProtocol,
-         bookmarksService: BookmarksSystemServiceProtocol) {
+         bookmarksService: BookmarksSystemServiceProtocol,
+         imageService: ImageServiceProtocol,
+         commentsService: CommentSystemServiceProtocol) {
         self.searchService = searchService
         self.discoverPostsService = discoverPostsService
         self.likeSystemService = likeSystemService
         self.userPostsService = userPostsService
         self.bookmarksService = bookmarksService
         self.userDataService = userDataService
+        self.imageService = imageService
+        self.commentsService = commentsService
     }
 
     func getNumberOfItems() async throws -> Int {
@@ -44,8 +50,7 @@ final class DiscoverService: DiscoverServiceProtocol {
 
     func getItems() async throws -> [UserPost]? {
         do {
-            let isPaginating = await self.paginationManager.isPaginating()
-            guard isPaginating == false else { return nil }
+            guard await paginationManager.isPaginating() == false else { return nil }
             await self.paginationManager.startPaginating()
 
             let numberOfItemsToGet = paginationManager.numberOfItemsToGetPerPagination
@@ -53,7 +58,6 @@ final class DiscoverService: DiscoverServiceProtocol {
             async let discoverPosts = discoverPostsService.getDiscoverPosts(quantity: numberOfItemsToGet)
 
             guard try await discoverPosts.items.isEmpty != true else {
-                await paginationManager.setHasHitEndOfItemsStatus(to: true)
                 await paginationManager.finishPaginating()
                 return nil
             }
@@ -61,13 +65,8 @@ final class DiscoverService: DiscoverServiceProtocol {
             let postsWithAdditionalData = try await getAdditionalPostDataFor(postsOfMultipleUsers: discoverPosts.items)
             let lastRetrievedItemKey = try await discoverPosts.lastRetrievedItemKey
             await paginationManager.setLastReceivedItemKey(lastRetrievedItemKey)
-            await paginationManager.setHasHitEndOfItemsStatus(to: false)
+            await paginationManager.resetNumberOfRetrievedItems()
             await paginationManager.updateNumberOfRetrievedItems(value: postsWithAdditionalData.count)
-
-            let numberOfRetrievedItems = await paginationManager.getNumberOfRetrievedItems()
-            if try await numberOfRetrievedItems == numberOfAllItems {
-                await paginationManager.setHasHitEndOfItemsStatus(to: true)
-            }
             await paginationManager.finishPaginating()
             return postsWithAdditionalData
         } catch {
@@ -88,18 +87,12 @@ final class DiscoverService: DiscoverServiceProtocol {
 
             guard discoverPosts.items.isEmpty != true, discoverPosts.lastRetrievedItemKey != lastReceivedItemKey else {
                 await paginationManager.finishPaginating()
-                await paginationManager.setHasHitEndOfItemsStatus(to: true)
                 return nil
             }
 
             let postsWithAdditionalData = try await getAdditionalPostDataFor(postsOfMultipleUsers: discoverPosts.items)
             await paginationManager.setLastReceivedItemKey(discoverPosts.lastRetrievedItemKey)
             await paginationManager.updateNumberOfRetrievedItems(value: discoverPosts.items.count)
-            let numberOfRetrievedItems = await paginationManager.getNumberOfRetrievedItems()
-            let numberOfAllItems = await paginationManager.getNumberOfAllItems()
-            if numberOfRetrievedItems == numberOfAllItems {
-                await paginationManager.setHasHitEndOfItemsStatus(to: true)
-            }
             await paginationManager.finishPaginating()
             return postsWithAdditionalData
         } catch {

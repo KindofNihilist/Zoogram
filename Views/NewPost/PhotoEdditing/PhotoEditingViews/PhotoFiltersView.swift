@@ -20,7 +20,8 @@ class PhotoFiltersView: UIView {
 
     weak var delegate: PhotoFiltersViewDelegate?
 
-    var photoFilters = ImageFilters()
+    var photoFilters: PhotoFilters
+    private var selectedPhotoFilterButton: EdditingFilterButton?
 
     private let scrollView: UIScrollView = {
         let scrollView = UIScrollView()
@@ -96,13 +97,15 @@ class PhotoFiltersView: UIView {
         return button
     }()
 
-    override init(frame: CGRect) {
-        super.init(frame: frame)
+    init(filters: PhotoFilters) {
+        self.photoFilters = filters
+        super.init(frame: CGRect.zero)
         backgroundColor = .black
         addSubviews(scrollView)
         scrollView.addSubview(stackView)
         setupConstraints()
         setupScrollViewButtons()
+        setSelected(withoutFilterButton)
     }
 
     required init?(coder: NSCoder) {
@@ -133,6 +136,7 @@ class PhotoFiltersView: UIView {
         else {
             return
         }
+
         withoutFilterButton.configure(effectIcon: withoutFilterPreview, effectName: photoFilters.withoutFilter.displayName)
         noirFilterButton.configure(effectIcon: noirPreview, effectName: photoFilters.noirPhotoFilter.displayName)
         vividFilterButton.configure(effectIcon: vividPreview, effectName: photoFilters.vividPhotoFilter.displayName)
@@ -158,35 +162,49 @@ class PhotoFiltersView: UIView {
         ])
     }
 
+    private func setSelected(_ button: EdditingFilterButton) {
+        self.selectedPhotoFilterButton?.setDeselected()
+        button.setSelected()
+        self.selectedPhotoFilterButton = button
+    }
+
     @objc private func didSelectWithoutFilter(button: EdditingFilterButton) {
         self.delegate?.userHasSelected(button: button, with: photoFilters.withoutFilter)
+        setSelected(button)
     }
 
     @objc private func didSelectNoirFilter(button: EdditingFilterButton) {
         self.delegate?.userHasSelected(button: button, with: photoFilters.noirPhotoFilter)
+        setSelected(button)
     }
 
     @objc private func didSelectVividFilter(button: EdditingFilterButton) {
         self.delegate?.userHasSelected(button: button, with: photoFilters.vividPhotoFilter)
+        setSelected(button)
     }
 
     @objc private func didSelectHoneyFilter(button: EdditingFilterButton) {
         self.delegate?.userHasSelected(button: button, with: photoFilters.honeyPhotoFilter)
+        setSelected(button)
     }
 
     @objc private func didSelectSillyFilter(button: EdditingFilterButton) {
         self.delegate?.userHasSelected(button: button, with: photoFilters.sillyPhotoFilter)
+        setSelected(button)
     }
 
     @objc private func didSelectFunkyFilter(button: EdditingFilterButton) {
         self.delegate?.userHasSelected(button: button, with: photoFilters.funkyPhotoFilter)
+        setSelected(button)
     }
 
     @objc private func didSelectPawsFilter(button: EdditingFilterButton) {
         self.delegate?.userHasSelected(button: button, with: photoFilters.pawsPhotoFilter)
+        setSelected(button)
     }
 
     @objc private func didSelectColdMonkeyFilter(button: EdditingFilterButton) {
         self.delegate?.userHasSelected(button: button, with: photoFilters.coldMonkeyPhotoFilter)
+        setSelected(button)
     }
 }

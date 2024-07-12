@@ -20,9 +20,7 @@ class DiscoverViewModel {
     }
 
     func isPaginationAllowed() async -> Bool {
-        let isPaginating = await service.paginationManager.isPaginating()
-        let hasHitTheEndOfPosts = await service.checkIfHasHitEndOfItems()
-        return hasHitTheEndOfPosts == false && isPaginating == false
+        return await service.paginationManager.isPaginationAllowed()
     }
 
     func getPostsToDiscover() async throws -> [PostViewModel] {
@@ -60,19 +58,7 @@ class DiscoverViewModel {
         return await service.checkIfHasHitEndOfItems()
     }
 
-    func hasLoadedData() async -> Bool {
-        let numberOfRetrievedItems = await service.paginationManager.getNumberOfRetrievedItems()
-        let numberOfAllItems = await service.paginationManager.getNumberOfAllItems()
-        let numberOfItemsToGet = service.paginationManager.numberOfItemsToGetPerPagination
-        let hasntRetrievedPosts = numberOfRetrievedItems == 0
-        let numberOfReceivedItemsIsLessThanRequired = numberOfRetrievedItems < numberOfItemsToGet
-        let hasntRetrievedAllPosts = numberOfRetrievedItems < numberOfAllItems
-        let retrievedLessPostsThanRequired = numberOfReceivedItemsIsLessThanRequired && hasntRetrievedAllPosts
-
-        if hasntRetrievedPosts || retrievedLessPostsThanRequired {
-            return false
-        } else {
-            return true
-        }
+    func shouldReloadData() async -> Bool {
+        return await service.paginationManager.shouldReloadData()
     }
 }

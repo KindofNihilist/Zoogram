@@ -8,6 +8,11 @@
 import UIKit
 
 enum FilterType {
+    case photoFilter
+    case editingFilter
+}
+
+enum FilterSubtype {
     case exposure
     case brightness
     case contrast
@@ -30,6 +35,7 @@ enum FilterType {
 @MainActor
 protocol ImageFilter {
     var filterType: FilterType { get set }
+    var filterSubtype: FilterSubtype { get set }
     var minimumValue: Float { get set }
     var maximumValue: Float { get set }
     var defaultValue: Float { get set }
@@ -46,6 +52,7 @@ class Filter: ImageFilter {
     let filter: CIFilter
     let filterKey: String
     var filterType: FilterType
+    var filterSubtype: FilterSubtype
     var defaultValue: Float
     let filterName: String
     var displayName: String
@@ -54,8 +61,9 @@ class Filter: ImageFilter {
     var maximumValue: Float
     var latestValue: Float
 
-    init(filterType: FilterType, filterName: String, displayName: String, filterIcon: UIImage, filterKey: String, filterDefaultValue: Float, minimumValue: Float, maximumValue: Float) {
+    init(filterType: FilterType, filterSubtype: FilterSubtype, filterName: String, displayName: String, filterIcon: UIImage, filterKey: String, filterDefaultValue: Float, minimumValue: Float, maximumValue: Float) {
         self.filterType = filterType
+        self.filterSubtype = filterSubtype
         self.defaultValue = filterDefaultValue
         self.filter = CIFilter(name: filterName)!
         self.filterName = filterName
@@ -90,8 +98,8 @@ class Filter: ImageFilter {
     }
 
     private func getFilterValue(for sliderValue: Float) -> Any {
-        print("sliderValue for \(self.filterType): ", sliderValue)
-        switch filterType {
+        print("sliderValue for \(self.filterSubtype): ", sliderValue)
+        switch filterSubtype {
         case .warmth:
             return CIVector(x: CGFloat(sliderValue) + 6500, y: 0)
         case .tint:
@@ -119,6 +127,7 @@ class PhotoFilter: ImageFilter {
 
     var displayName: String
     var filterType: FilterType
+    var filterSubtype: FilterSubtype
     var defaultValue: Float = 1.0
     var minimumValue: Float = 0.0
     var maximumValue: Float = 1.0
@@ -131,9 +140,10 @@ class PhotoFilter: ImageFilter {
     var filteredImage: CIImage?
     var outputImage: CIImage?
 
-    init(displayName: String, filterType: FilterType) {
+    init(displayName: String, filterType: FilterType, filterSubtype: FilterSubtype) {
         self.displayName = displayName
         self.filterType = filterType
+        self.filterSubtype = filterSubtype
     }
 
     func applyFilter() {
@@ -185,49 +195,9 @@ class PhotoFilter: ImageFilter {
         let alphaVector = CIVector(values: overlayRGBA, count: 4)
         overlayFilter?.setValue(filteredImage, forKey: kCIInputImageKey)
         overlayFilter?.setValue(alphaVector, forKey: "inputAVector")
-
         compositionFilter?.setValue(inputImage, forKey: kCIInputBackgroundImageKey)
         compositionFilter?.setValue(overlayFilter?.outputImage, forKey: kCIInputImageKey)
         self.outputImage = compositionFilter?.outputImage
     }
 }
 
-@MainActor
- func getFilter(of type: FilterType) -> ImageFilter {
-    switch type {
-    case .exposure:
-        return EditingFilters().exposureFilter
-    case .brightness:
-        return EditingFilters().brightnessFilter
-    case .contrast:
-        return EditingFilters().contrastFilter
-    case .saturation:
-        return EditingFilters().saturationFilter
-    case .warmth:
-        return EditingFilters().warmthFilter
-    case .tint:
-        return EditingFilters().tintFilter
-    case .highlihts:
-        return EditingFilters().highlightsFilter
-    case .shadows:
-        return EditingFilters().shadowsFilter
-    case .vignette:
-        return EditingFilters().vignetteFilter
-    case .noir:
-        return ImageFilters().noirPhotoFilter
-    case .vivid:
-        return ImageFilters().vividPhotoFilter
-    case .honey:
-        return ImageFilters().honeyPhotoFilter
-    case .silly:
-        return ImageFilters().sillyPhotoFilter
-    case .funky:
-        return ImageFilters().funkyPhotoFilter
-    case .paws:
-        return ImageFilters().pawsPhotoFilter
-    case .coldMonkey:
-        return ImageFilters().coldMonkeyPhotoFilter
-    case .normal:
-        return ImageFilters().withoutFilter
-    }
-}

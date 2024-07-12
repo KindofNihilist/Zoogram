@@ -13,6 +13,7 @@ class PostsTableViewViewModel {
     private var service: any PostsNetworking
 
     var posts = [PostViewModel]()
+    var isDisplayingFooter: Bool = false
 
     init(service: any PostsNetworking, posts: [PostViewModel]) {
         self.service = service
@@ -65,9 +66,7 @@ class PostsTableViewViewModel {
     }
 
     func isPaginationAllowed() async -> Bool {
-        let hasHitTheEndOfItems = await service.checkIfHasHitEndOfItems()
-        let isPaginating = await service.isPaginating()
-        return hasHitTheEndOfItems == false && isPaginating == false
+        return await service.paginationManager.isPaginationAllowed()
     }
 
     func hasHitTheEndOfPosts() async -> Bool {

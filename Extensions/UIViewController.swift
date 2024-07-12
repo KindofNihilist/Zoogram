@@ -58,7 +58,10 @@ extension UIViewController {
             userPostsService: UserPostsService.shared,
             userService: UserDataService(),
             likeSystemService: LikeSystemService.shared,
-            bookmarksService: BookmarksSystemService.shared)
+            bookmarksService: BookmarksSystemService.shared,
+            activityService: ActivitySystemService.shared,
+            imageService: ImageService.shared, 
+            commentsService: CommentSystemService.shared)
 
         let userProfileVC = UserProfileViewController(service: service, user: user, isTabBarItem: false)
         userProfileVC.title = user.username

@@ -20,8 +20,34 @@ class EditingFilters {
                            self.shadowsFilter,
                            self.vignetteFilter]
 
+    func getFilter(of type: FilterSubtype) -> ImageFilter {
+        switch type {
+        case .exposure:
+            return self.exposureFilter
+        case .brightness:
+            return self.brightnessFilter
+        case .contrast:
+            return self.contrastFilter
+        case .saturation:
+            return self.saturationFilter
+        case .warmth:
+            return self.warmthFilter
+        case .tint:
+            return self.tintFilter
+        case .highlihts:
+            return self.highlightsFilter
+        case .shadows:
+            return self.shadowsFilter
+        case .vignette:
+            return self.vignetteFilter
+        default:
+            fatalError()
+        }
+    }
+
     lazy var exposureFilter = Filter(
-        filterType: .exposure,
+        filterType: .editingFilter,
+        filterSubtype: .exposure,
         filterName: "CIExposureAdjust",
         displayName: String(localized: "Exposure"),
         filterIcon: UIImage(systemName: "plusminus")!,
@@ -31,7 +57,8 @@ class EditingFilters {
         maximumValue: 1.0)
 
     lazy var brightnessFilter = Filter(
-        filterType: .brightness,
+        filterType: .editingFilter,
+        filterSubtype: .brightness,
         filterName: "CIColorControls",
         displayName: String(localized: "Brightness"),
         filterIcon: UIImage(systemName: "sun.max")!,
@@ -41,7 +68,8 @@ class EditingFilters {
         maximumValue: 0.10)
 
     lazy var contrastFilter = Filter(
-        filterType: .contrast,
+        filterType: .editingFilter,
+        filterSubtype: .contrast,
         filterName: "CIColorControls",
         displayName: String(localized: "Contrast"),
         filterIcon: UIImage(systemName: "circle.lefthalf.filled")!,
@@ -51,7 +79,8 @@ class EditingFilters {
         maximumValue: 1.1)
 
     lazy var saturationFilter = Filter(
-        filterType: .saturation,
+        filterType: .editingFilter,
+        filterSubtype: .saturation,
         filterName: "CIColorControls",
         displayName: String(localized: "Saturation"),
         filterIcon: UIImage(systemName: "drop")!,
@@ -61,7 +90,8 @@ class EditingFilters {
         maximumValue: 2.0)
 
     lazy var warmthFilter = Filter(
-        filterType: .warmth,
+        filterType: .editingFilter,
+        filterSubtype: .warmth,
         filterName: "CITemperatureAndTint",
         displayName: String(localized: "Warmth"),
         filterIcon: UIImage(systemName: "thermometer.sun")!,
@@ -71,7 +101,8 @@ class EditingFilters {
         maximumValue: 2000.0)
 
     lazy var tintFilter = Filter(
-        filterType: .tint,
+        filterType: .editingFilter,
+        filterSubtype: .tint,
         filterName: "CITemperatureAndTint",
         displayName: String(localized: "Tint"),
         filterIcon: UIImage(systemName: "eyedropper.halffull")!,
@@ -81,7 +112,8 @@ class EditingFilters {
         maximumValue: 100.0)
 
     lazy var highlightsFilter = Filter(
-        filterType: .highlihts,
+        filterType: .editingFilter,
+        filterSubtype: .highlihts,
         filterName: "CIHighlightShadowAdjust",
         displayName: String(localized: "Highlights"),
         filterIcon: UIImage(systemName: "circle.fill")!,
@@ -91,7 +123,8 @@ class EditingFilters {
         maximumValue: 2.0)
 
     lazy var shadowsFilter = Filter(
-        filterType: .shadows,
+        filterType: .editingFilter,
+        filterSubtype: .shadows,
         filterName: "CIHighlightShadowAdjust",
         displayName: String(localized: "Shadows"),
         filterIcon: UIImage(systemName: "circle.fill")!,
@@ -101,7 +134,8 @@ class EditingFilters {
         maximumValue: 0.8)
 
     lazy var vignetteFilter = Filter(
-        filterType: .vignette,
+        filterType: .editingFilter,
+        filterSubtype: .vignette,
         filterName: "CIVignette",
         displayName: String(localized: "Vignette"),
         filterIcon: UIImage(systemName: "smallcircle.filled.circle")!,

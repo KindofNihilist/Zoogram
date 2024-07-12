@@ -175,16 +175,7 @@ extension PostsTableViewController: PostsTableViewProtocol {
     }
 
     func didSelectUser(user: ZoogramUser) {
-        let service = UserProfileService(
-            userID: user.userID,
-            followService: FollowSystemService.shared,
-            userPostsService: UserPostsService.shared,
-            userService: UserDataService(),
-            likeSystemService: LikeSystemService.shared,
-            bookmarksService: BookmarksSystemService.shared)
-        let userProfileVC = UserProfileViewController(service: service, user: user, isTabBarItem: false)
-        userProfileVC.title = user.username
-        self.navigationController?.pushViewController(userProfileVC, animated: true)
+        showProfile(of: user)
     }
 
     func didTapMenuButton(postModel: PostViewModel, indexPath: IndexPath) {

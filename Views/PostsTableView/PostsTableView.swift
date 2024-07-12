@@ -160,9 +160,8 @@ class PostsTableView: UITableView {
 
     func setupLoadingIndicatorFooter() {
         let task = Task {
-            let hasHitTheEndOfPosts = await viewModel.hasHitTheEndOfPosts()
-            print("hasHitEndOfPosts: \(hasHitTheEndOfPosts)")
-            if hasHitTheEndOfPosts == false {
+            guard viewModel.posts.isEmpty == false else { return }
+            if await viewModel.hasHitTheEndOfPosts() == false {
                 self.showPaginationFooter()
             } else {
                 self.removePaginationFooter()
@@ -172,17 +171,20 @@ class PostsTableView: UITableView {
     }
 
     private func showPaginationFooter() {
-        guard viewModel.posts.isEmpty != true else { return }
+        guard viewModel.isDisplayingFooter == false else { return }
         let footerView = UIView(frame: CGRect(x: 0, y: 0, width: self.frame.width, height: 200))
         let spinner = UIActivityIndicatorView(style: .medium)
         footerView.addSubview(spinner)
         spinner.center = footerView.center
         spinner.startAnimating()
         self.tableFooterView = footerView
+        viewModel.isDisplayingFooter = true
     }
 
     private func removePaginationFooter() {
+        guard viewModel.isDisplayingFooter == true else { return }
         self.tableFooterView = nil
+        viewModel.isDisplayingFooter = false
     }
 
     private func showPaginationErrorView(for error: Error) {
@@ -257,8 +259,10 @@ extension PostsTableView: UITableViewDelegate, UITableViewDataSource {
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
         let contentYOffset = scrollView.contentOffset.y
-        didScrollAction?(contentYOffset, previousScrollOffset)
-        previousScrollOffset = contentYOffset
+        if scrollView.isDragging || scrollView.isDecelerating {
+            didScrollAction?(contentYOffset, previousScrollOffset)
+            previousScrollOffset = contentYOffset
+        }
         guard contentYOffset > 0 else { return }
         let contentHeight = self.contentSize.height
         let tableViewHeight = self.frame.size.height

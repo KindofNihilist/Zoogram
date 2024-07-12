@@ -22,6 +22,16 @@ class EdditingFilterButton: UIButton {
             }
         }
     }
+
+    func setSelected() {
+        self.hasBeenAlreadySelected = true
+        self.hasAppliedRelatedEffect = true
+    }
+
+    func setDeselected() {
+        self.hasBeenAlreadySelected = false
+        self.hasAppliedRelatedEffect = false
+    }
 }
 
 class PhotoEffectButton: EdditingFilterButton {
@@ -108,7 +118,7 @@ class PhotoEffectButton: EdditingFilterButton {
         ])
     }
 
-    public func configure(effectIcon: UIImage, effectName: String) {
+    func configure(effectIcon: UIImage, effectName: String) {
         self.effectIcon.image = effectIcon
         self.effectLabel.text = effectName
     }

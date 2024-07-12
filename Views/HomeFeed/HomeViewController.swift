@@ -119,7 +119,7 @@ class HomeViewController: UIViewController {
         self.showMakingNewPostNotificationViewFor(username: user.username, with: postModel.image)
         task = Task {
             do {
-                try await service.makeANewPost(post: postModelToPost) { progress in
+                try await service.makeANewPost(post: &postModelToPost) { progress in
                     Task { @MainActor in
                         self.updateProgressBar(progress: progress)
                     }
@@ -180,9 +180,9 @@ class HomeViewController: UIViewController {
 
     private func setupTableViewDidScrollAction() {
         tableView.didScrollAction = { offset, previousOffset in
-            let tableViewContentSizeDifference = self.tableView.contentSize.height - self.tableView.frame.height
+            let absoluteBottom = self.tableView.contentSize.height - self.tableView.frame.size.height
 
-            guard tableViewContentSizeDifference >= self.headerHeight else {
+            guard absoluteBottom >= self.headerHeight else {
                 if self.headerLogoTopConstraint.constant != 0 {
                     self.latestScrollDirection = .none
                     self.animateHeader(offset: 0, alpha: 1)
@@ -190,12 +190,12 @@ class HomeViewController: UIViewController {
                 return
             }
             let absoluteTop: CGFloat = 0
-            let absoluteBottom = self.tableView.contentSize.height - self.tableView.frame.size.height
             let scrollDifference = offset - previousOffset
             let isScrollingUp = scrollDifference < 0 && offset < absoluteBottom
             let isScrollingDown = scrollDifference > 0 && offset > absoluteTop
             var headerLogoTopOffset: CGFloat = self.headerLogoTopConstraint.constant
 
+            guard offset + self.headerHeight < absoluteBottom else { return }
             if isScrollingDown {
                 headerLogoTopOffset = max(-self.headerHeight, self.headerLogoTopConstraint.constant - abs(scrollDifference))
                 let alphaPercentage = self.convertHeaderOffsetToAlphaPercentage(offset: headerLogoTopOffset)
@@ -218,6 +218,13 @@ class HomeViewController: UIViewController {
 
     private func setupTableViewDidEndScrollAction() {
         tableView.didEndScrollingAction = {
+            let absoluteBottom = self.tableView.contentSize.height - self.tableView.frame.size.height
+            guard self.tableView.contentOffset.y < absoluteBottom else {
+                if self.headerLogoView.alpha > 0 {
+                    self.animateHeader(offset: -self.headerHeight, alpha: 0)
+                }
+                return
+            }
             let currentLogoOffset = self.headerLogoTopConstraint.constant
             var alpha: CGFloat = self.headerLogoView.alpha
             var offset: CGFloat = self.headerLogoTopConstraint.constant

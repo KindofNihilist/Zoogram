@@ -35,8 +35,7 @@ final class UserDataValidationService: UserDataValidationServiceProtocol {
     }
 
     func checkIfEmailIsValid(email: String) -> Bool {
-        let emailRegEx = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
-
+        let emailRegEx = "^(?!.*\\.\\.)[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
         let emailPred = NSPredicate(format: "SELF MATCHES %@", emailRegEx)
         return emailPred.evaluate(with: email)
     }
@@ -64,7 +63,7 @@ final class UserDataValidationService: UserDataValidationServiceProtocol {
             throw UsernameValidationError.noLetters
         }
 
-        // No whitespace charcters
+        // No whitespace characters
         if username.range(of: #"\s+"#, options: .regularExpression) != nil {
             throw UsernameValidationError.includesWhitespaces
         }

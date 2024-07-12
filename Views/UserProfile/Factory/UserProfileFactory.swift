@@ -32,12 +32,12 @@ import UIKit.UICollectionView
         self.headerSection = headerSection
         sections.append(headerSection)
 
-        guard profileViewModel.posts.value.isEmpty != true else {
+        guard profileViewModel.posts.isEmpty != true else {
             let noPostsSection = NoPostsSection(sectionHolder: collectionView, cellControllers: [NoPostsCellController()], sectionIndex: 1)
             sections.append(noPostsSection)
             return
         }
-        let postsSection = createPostsSection(with: profileViewModel.posts.value)
+        let postsSection = createPostsSection(with: profileViewModel.posts)
         self.postsSection = postsSection
         sections.append(postsSection)
 

@@ -40,7 +40,6 @@ class ActivityViewModel {
         return events.count
     }
 
-    var hasReceivedNewEvents = Observable(false)
     var hasUnseenEvents = Observable(false)
     var hasZeroEvents: Bool {
         return events.isEmpty
@@ -86,11 +85,8 @@ class ActivityViewModel {
     }
 
     func markEventAsSeen(at indexPath: IndexPath) {
-        print(events[indexPath.row])
         events[indexPath.row].seen = true
-        print("after update: ", events[indexPath.row])
         let seenEvent = events[indexPath.row]
-        print("seenEvent: ", seenEvent)
         seenEvents.insert(seenEvent)
     }
 }

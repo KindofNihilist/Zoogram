@@ -23,7 +23,10 @@ class TabBarController: UITabBarController {
             likeSystemService: LikeSystemService.shared,
             userPostsService: UserPostsService.shared,
             bookmarksService: BookmarksSystemService.shared,
-            storageManager: StorageManager.shared)
+            storageManager: StorageManager.shared,
+            userDataService: UserDataService.shared,
+            imageService: ImageService.shared,
+            commentsService: CommentSystemService.shared)
         return HomeViewController(service: service)
     }()
 
@@ -34,7 +37,9 @@ class TabBarController: UITabBarController {
             discoverPostsService: DiscoverPostsService.shared,
             likeSystemService: LikeSystemService.shared,
             userPostsService: UserPostsService.shared,
-            bookmarksService: BookmarksSystemService.shared)
+            bookmarksService: BookmarksSystemService.shared,
+            imageService: ImageService.shared,
+            commentsService: CommentSystemService.shared)
         return DiscoverViewController(service: service)
     }()
 
@@ -57,7 +62,10 @@ class TabBarController: UITabBarController {
             userPostsService: UserPostsService.shared,
             userService: UserDataService(),
             likeSystemService: LikeSystemService.shared,
-            bookmarksService: BookmarksSystemService.shared)
+            bookmarksService: BookmarksSystemService.shared,
+            activityService: ActivitySystemService.shared,
+            imageService: ImageService.shared,
+            commentsService: CommentSystemService.shared)
         return UserProfileViewController(service: service, user: self.currentUser, isTabBarItem: true)
     }()
 

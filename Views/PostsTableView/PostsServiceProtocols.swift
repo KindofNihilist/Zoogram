@@ -16,7 +16,13 @@ protocol PostActionsService {
     func bookmarkPost(postID: String, authorID: String, bookmarkState: BookmarkState) async throws
 }
 
-protocol AdditionalPostDataSource {
+protocol AdditionalPostDataSource: Sendable {
+    var userDataService: UserDataServiceProtocol { get }
+    var likeSystemService: LikeSystemServiceProtocol { get }
+    var bookmarksService: BookmarksSystemServiceProtocol { get }
+    var imageService: ImageServiceProtocol { get }
+    var commentsService: CommentSystemServiceProtocol { get }
+
     func getAdditionalPostDataFor(postsOfMultipleUsers: [UserPost]) async throws -> [UserPost]
     func getAdditionalPostDataFor(postsOfSingleUser: [UserPost]) async throws -> [UserPost]
 }
@@ -28,18 +34,23 @@ struct PaginatedItems<ItemType: PostViewModelProvider> {
 
 actor PaginationManager {
 
+    let numberOfItemsToGetPerPagination: UInt
     private var numberOfAllItems: Int = 0
     private var numberOfRetrievedItems: Int = 0
-    let numberOfItemsToGetPerPagination: UInt
+    private var isPaginationInProgress: Bool = false
+    private var lastReceivedItemKey: String = ""
+
+    private var paginationAllowed: Bool {
+        return isPaginationInProgress == false && hasHitTheEndOfItems == false
+    }
+
+    private var hasHitTheEndOfItems: Bool {
+        return numberOfAllItems == numberOfRetrievedItems
+    }
 
     init(numberOfItemsToGetPerPagination: UInt) {
         self.numberOfItemsToGetPerPagination = numberOfItemsToGetPerPagination
     }
-
-    private var isPaginationInProgress: Bool = false
-    private var lastReceivedItemKey: String = ""
-    private var isPaginationAllowed: Bool = true
-    private var hasHitTheEndOfPosts: Bool = false
 
     func setNumberOfAllItems(_ itemsCount: Int) {
         self.numberOfAllItems = itemsCount
@@ -82,20 +93,29 @@ actor PaginationManager {
         self.lastReceivedItemKey = key
     }
 
-    func checkIfPaginationAllowed() -> Bool {
-        return isPaginationAllowed
-    }
-
-    func setIsPaginationAllowedStatus(to status: Bool) {
-        self.isPaginationAllowed = status
+    func isPaginationAllowed() -> Bool {
+        return paginationAllowed
     }
 
     func checkIfHasHitEndOfItems() -> Bool {
-        return hasHitTheEndOfPosts
+        return hasHitTheEndOfItems
     }
 
-    func setHasHitEndOfItemsStatus(to status: Bool) {
-        self.hasHitTheEndOfPosts = status
+    func shouldReloadData() async -> Bool {
+        let numberOfRetrievedItems = self.numberOfRetrievedItems
+        let numberOfAllItems = self.numberOfAllItems
+        let numberOfItemsToGet = self.numberOfItemsToGetPerPagination
+        let hasntRetrievedItems = numberOfRetrievedItems == 0
+        
+        let numberOfReceivedItemsIsLessThanRequired = numberOfRetrievedItems < numberOfItemsToGet
+        let hasntRetrievedAllItems = numberOfRetrievedItems < numberOfAllItems
+        let retrievedLessItemsThanRequired = numberOfReceivedItemsIsLessThanRequired && hasntRetrievedAllItems
+
+        if hasntRetrievedItems || retrievedLessItemsThanRequired {
+            return true
+        } else {
+            return false
+        }
     }
 }
 
@@ -132,17 +152,17 @@ extension AdditionalPostDataSource {
         let postsWithAdditionalData = try await withThrowingTaskGroup(of: (Int, UserPost).self, returning: [UserPost].self) { group in
             for (index, post) in postsOfMultipleUsers.enumerated() {
                 group.addTask {
-                    var author = try await UserDataService.shared.getUser(for: post.userID)
+                    var author = try await userDataService.getUser(for: post.userID)
                     var postWithAdditionalData = post
                     let postID = postWithAdditionalData.postID
                     let photoURL = postWithAdditionalData.photoURL
                     let profilePhotoURL = author.profilePhotoURL
-                    async let profilePhoto = ImageService.shared.getImage(for: profilePhotoURL)
-                    async let postPhoto = ImageService.shared.getImage(for: photoURL)
-                    async let likesCount = LikeSystemService.shared.getLikesCountForPost(id: postID)
-                    async let commentsCount = CommentSystemService.shared.getCommentsCountForPost(postID: postID)
-                    async let bookmarkState = BookmarksSystemService.shared.checkIfBookmarked(postID: postID)
-                    async let likeState = LikeSystemService.shared.checkIfPostIsLiked(postID: postID)
+                    async let profilePhoto = imageService.getImage(for: profilePhotoURL)
+                    async let postPhoto = imageService.getImage(for: photoURL)
+                    async let likesCount = likeSystemService.getLikesCountForPost(id: postID)
+                    async let commentsCount = commentsService.getCommentsCountForPost(postID: postID)
+                    async let bookmarkState = bookmarksService.checkIfBookmarked(postID: postID)
+                    async let likeState = likeSystemService.checkIfPostIsLiked(postID: postID)
 
                     author.setProfilePhoto(try await profilePhoto)
                     postWithAdditionalData.author = author
@@ -167,9 +187,9 @@ extension AdditionalPostDataSource {
     func getAdditionalPostDataFor(postsOfSingleUser: [UserPost]) async throws -> [UserPost] {
         guard let authorID = postsOfSingleUser.first?.userID else { return [] }
 
-        var author = try await UserDataService.shared.getUser(for: authorID)
+        var author = try await userDataService.getUser(for: authorID)
         if let profilePhotoURL = author.profilePhotoURL {
-            let profilePhoto = try await ImageService.shared.getImage(for: profilePhotoURL)
+            let profilePhoto = try await imageService.getImage(for: profilePhotoURL)
             author.setProfilePhoto(profilePhoto)
         }
 
@@ -180,11 +200,11 @@ extension AdditionalPostDataSource {
                     var postWithAdditionalData = post
                     let postID = postWithAdditionalData.postID
                     let photoURL = postWithAdditionalData.photoURL
-                    async let postPhoto = ImageService.shared.getImage(for: photoURL)
-                    async let likesCount = LikeSystemService.shared.getLikesCountForPost(id: postID)
-                    async let commentsCount = CommentSystemService.shared.getCommentsCountForPost(postID: postID)
-                    async let bookmarkState = BookmarksSystemService.shared.checkIfBookmarked(postID: postID)
-                    async let likeState = LikeSystemService.shared.checkIfPostIsLiked(postID: postID)
+                    async let postPhoto = imageService.getImage(for: photoURL)
+                    async let likesCount = likeSystemService.getLikesCountForPost(id: postID)
+                    async let commentsCount = commentsService.getCommentsCountForPost(postID: postID)
+                    async let bookmarkState = bookmarksService.checkIfBookmarked(postID: postID)
+                    async let likeState = likeSystemService.checkIfPostIsLiked(postID: postID)
 
                     postWithAdditionalData.author = author
                     postWithAdditionalData.image = try await postPhoto
@@ -207,19 +227,19 @@ extension AdditionalPostDataSource {
 
     func getAdditionalPostDataFor(_ post: UserPost) async throws -> UserPost {
         var postWithData = post
-        let author = try await UserDataService.shared.getUser(for: post.userID)
+        let author = try await userDataService.getUser(for: post.userID)
         if let profilePhotoURL = author.profilePhotoURL {
-            let profilePhoto = try await ImageService.shared.getImage(for: profilePhotoURL)
+            let profilePhoto = try await imageService.getImage(for: profilePhotoURL)
             postWithData.author.setProfilePhoto(profilePhoto)
         }
 
         let postID = postWithData.postID
         let photoURL = postWithData.photoURL
-        async let postPhoto = ImageService.shared.getImage(for: photoURL)
-        async let likesCount = LikeSystemService.shared.getLikesCountForPost(id: postID)
-        async let commentsCount = CommentSystemService.shared.getCommentsCountForPost(postID: postID)
-        async let bookmarkState = BookmarksSystemService.shared.checkIfBookmarked(postID: postID)
-        async let likeState = LikeSystemService.shared.checkIfPostIsLiked(postID: postID)
+        async let postPhoto = imageService.getImage(for: photoURL)
+        async let likesCount = likeSystemService.getLikesCountForPost(id: postID)
+        async let commentsCount = commentsService.getCommentsCountForPost(postID: postID)
+        async let bookmarkState = bookmarksService.checkIfBookmarked(postID: postID)
+        async let likeState = likeSystemService.checkIfPostIsLiked(postID: postID)
 
         postWithData.author = author
         postWithData.image = try await postPhoto

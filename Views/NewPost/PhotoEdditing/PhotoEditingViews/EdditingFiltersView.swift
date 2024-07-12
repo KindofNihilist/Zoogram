@@ -20,7 +20,7 @@ class EdditingFiltersView: UIView {
 
     weak var delegate: EddittingFiltersDelegate?
 
-    var edditingFilters = EditingFilters()
+    var editingFilters: EditingFilters
 
     private let scrollView: UIScrollView = {
         let scrollView = UIScrollView()
@@ -103,8 +103,9 @@ class EdditingFiltersView: UIView {
         return button
     }()
 
-    override init(frame: CGRect) {
-        super.init(frame: frame)
+    init(filters: EditingFilters) {
+        self.editingFilters = filters
+        super.init(frame: CGRect.zero)
         backgroundColor = .black
         addSubviews(scrollView)
         scrollView.addSubview(stackView)
@@ -147,44 +148,44 @@ class EdditingFiltersView: UIView {
 
     private func configureButtons() {
         let buttons = [exposureButton, brightnessButton, contrastButton, saturationButton, warmthButton, tintButton, highLightsButton, shadowsButton, vignetteButton]
-        for (index, filter) in edditingFilters.allFilters.enumerated() {
+        for (index, filter) in editingFilters.allFilters.enumerated() {
             buttons[index].configure(effectIcon: filter.filterIcon, effectName: filter.displayName)
         }
     }
 
     @objc private func didSelectExposureSetting(_ button: EdditingFilterButton) {
-        self.delegate?.userHasSelected(button: button, with: edditingFilters.exposureFilter)
+        self.delegate?.userHasSelected(button: button, with: editingFilters.exposureFilter)
     }
 
     @objc private func didSelectBrightnessSetting(_ button: EdditingFilterButton) {
-        self.delegate?.userHasSelected(button: button, with: edditingFilters.brightnessFilter)
+        self.delegate?.userHasSelected(button: button, with: editingFilters.brightnessFilter)
     }
 
     @objc private func didSelectContrastSetting(_ button: EdditingFilterButton) {
-        self.delegate?.userHasSelected(button: button, with: edditingFilters.contrastFilter)
+        self.delegate?.userHasSelected(button: button, with: editingFilters.contrastFilter)
     }
 
     @objc private func didSelectSaturationSetting(_ button: EdditingFilterButton) {
-        self.delegate?.userHasSelected(button: button, with: edditingFilters.saturationFilter)
+        self.delegate?.userHasSelected(button: button, with: editingFilters.saturationFilter)
     }
 
     @objc private func didSelectWarmthSetting(_ button: EdditingFilterButton) {
-        self.delegate?.userHasSelected(button: button, with: edditingFilters.warmthFilter)
+        self.delegate?.userHasSelected(button: button, with: editingFilters.warmthFilter)
     }
 
     @objc private func didSelectTintSetting(_ button: EdditingFilterButton) {
-        self.delegate?.userHasSelected(button: button, with: edditingFilters.tintFilter)
+        self.delegate?.userHasSelected(button: button, with: editingFilters.tintFilter)
     }
 
     @objc private func didSelectHighlightsSetting(_ button: EdditingFilterButton) {
-        self.delegate?.userHasSelected(button: button, with: edditingFilters.highlightsFilter)
+        self.delegate?.userHasSelected(button: button, with: editingFilters.highlightsFilter)
     }
 
     @objc private func didSelectShadowsSetting(_ button: EdditingFilterButton) {
-        self.delegate?.userHasSelected(button: button, with: edditingFilters.shadowsFilter)
+        self.delegate?.userHasSelected(button: button, with: editingFilters.shadowsFilter)
     }
 
     @objc private func didSelectVignetteSetting(_ button: EdditingFilterButton) {
-        self.delegate?.userHasSelected(button: button, with: edditingFilters.vignetteFilter)
+        self.delegate?.userHasSelected(button: button, with: editingFilters.vignetteFilter)
     }
 }

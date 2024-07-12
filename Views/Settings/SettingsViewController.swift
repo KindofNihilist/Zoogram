@@ -82,7 +82,10 @@ final class SettingsViewController: UIViewController {
         let bookmarksAdapter = BookmarkedPostsService(
             bookmarksService: BookmarksSystemService.shared,
             likeSystemService: LikeSystemService.shared,
-            userPostsService: UserPostsService.shared)
+            userPostsService: UserPostsService.shared,
+            userDataService: UserDataService.shared,
+            imageService: ImageService.shared,
+            commentsService: CommentSystemService.shared)
         let bookmarksVC = BookmarksViewController(service: bookmarksAdapter)
         navigationController?.pushViewController(bookmarksVC, animated: true)
     }

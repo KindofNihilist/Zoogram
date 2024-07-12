@@ -16,7 +16,7 @@ class UserProfileViewModel {
     var postsCount: Int?
     var followersCount: Int?
     var followedUsersCount: Int?
-    var posts: Observable = Observable([PostViewModel]())
+    var posts = [PostViewModel]()
 
     private var user: ZoogramUser
 
@@ -58,15 +58,13 @@ class UserProfileViewModel {
     }
 
     func isPaginationAllowed() async -> Bool {
-        let isPaginating = await service.paginationManager.isPaginating()
-        let hasHitTheEndOfPosts = await service.checkIfHasHitEndOfItems()
-        return hasHitTheEndOfPosts == false && isPaginating == false
+        return await service.paginationManager.isPaginationAllowed()
     }
 
     func getPosts() async throws {
         let posts = try await service.getItems()
         if let posts = posts {
-            self.posts.value = posts.compactMap { post in
+            self.posts = posts.compactMap { post in
                 return PostViewModel(post: post)
             }
         }
@@ -78,7 +76,7 @@ class UserProfileViewModel {
             let postViewModels = posts.compactMap { post in
                 return PostViewModel(post: post)
             }
-            self.posts.value.append(contentsOf: postViewModels)
+            self.posts.append(contentsOf: postViewModels)
             return postViewModels
         } else {
             return nil
@@ -117,19 +115,7 @@ class UserProfileViewModel {
         return await service.checkIfHasHitEndOfItems()
     }
 
-    func hasLoadedData() async -> Bool {
-        let numberOfRetrievedItems = await service.paginationManager.getNumberOfRetrievedItems()
-        let numberOfAllItems = await service.paginationManager.getNumberOfAllItems()
-        let numberOfItemsToGet = service.paginationManager.numberOfItemsToGetPerPagination
-        let hasntRetrievedPosts = numberOfRetrievedItems == 0
-        let numberOfReceivedItemsIsLessThanRequired = numberOfRetrievedItems < numberOfItemsToGet
-        let hasntRetrievedAllPosts = numberOfRetrievedItems < numberOfAllItems
-        let retrievedLessPostsThanRequired = numberOfReceivedItemsIsLessThanRequired && hasntRetrievedAllPosts
-
-        if hasntRetrievedPosts || retrievedLessPostsThanRequired {
-            return false
-        } else {
-            return true
-        }
+    func shouldReloadData() async -> Bool {
+        return await service.paginationManager.shouldReloadData()
     }
 }

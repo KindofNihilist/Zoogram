@@ -108,7 +108,7 @@ class FilterValueSliderView: UIView {
             cancelButton.leadingAnchor.constraint(equalTo: self.leadingAnchor),
             cancelButton.trailingAnchor.constraint(equalTo: self.centerXAnchor),
             cancelButton.bottomAnchor.constraint(equalTo: self.safeAreaLayoutGuide.bottomAnchor),
-            cancelButton.heightAnchor.constraint(equalToConstant: 50),
+            cancelButton.heightAnchor.constraint(equalToConstant: 40),
 
             doneButton.leadingAnchor.constraint(equalTo: self.centerXAnchor),
             doneButton.trailingAnchor.constraint(equalTo: self.trailingAnchor),

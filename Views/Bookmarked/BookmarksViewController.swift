@@ -237,7 +237,7 @@ extension BookmarksViewController: PostsTableViewDelegate {
 
     func lastVisibleItem(at indexPath: IndexPath?) {
         guard let indexPath = indexPath else { return }
-        self.collectionView.scrollToItem(at: indexPath, at: .centeredHorizontally, animated: false)
+        self.collectionView.scrollToItem(at: indexPath, at: .centeredVertically, animated: true)
     }
 }
 

@@ -10,7 +10,12 @@ import SDWebImage
 import UIKit.UIImage
 typealias URLString = String
 
-final class ImageService: Sendable {
+protocol ImageServiceProtocol: Sendable {
+    func getImage(for urlString: URLString?) async throws -> UIImage?
+    func getImage(for urlString: URLString?, completion: @escaping (Result<UIImage?, Error>) -> Void)
+}
+
+final class ImageService: ImageServiceProtocol {
 
     static let shared = ImageService()
 

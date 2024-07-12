@@ -9,7 +9,7 @@ import FirebaseAuth
 protocol AuthenticationServiceProtocol: Sendable {
     func createNewUser(email: String, password: String, username: String) async throws -> UserID
     func signInUsing(email: String, password: String) async throws -> ZoogramUser
-    func listenToAuthenticationState(completion: @escaping (User?) -> Void)
+    func listenToAuthenticationState(completion: @escaping (UserID?) -> Void)
     func resetPassword(email: String) async throws
     func checkIfEmailIsAvailable(email: String) async throws -> Bool
     func getCurrentUserUID() throws -> String
@@ -68,9 +68,9 @@ final class AuthenticationService: AuthenticationServiceProtocol {
         }
     }
 
-    func listenToAuthenticationState(completion: @escaping (User?) -> Void) {
+    func listenToAuthenticationState(completion: @escaping (UserID?) -> Void) {
         Auth.auth().addStateDidChangeListener { _, user in
-            completion(user)
+            completion(user?.uid)
         }
     }
 
