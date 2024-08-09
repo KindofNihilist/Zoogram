@@ -7,14 +7,15 @@
 
 import UIKit
 
+@MainActor
 protocol ActivityViewNotificationProtocol: AnyObject {
     func displayUnseenEventsBadge()
     func removeUnseenEventsBadge()
 }
 
-protocol ActivityViewCellActionsDelegate: AnyObject {
+@MainActor
+protocol ActivityViewCellActionsDelegate: AnyObject, UITextViewDelegate {
     func didSelectUser(user: ZoogramUser)
-    func didSelectRelatedPost(post: UserPost, postPhoto: UIImage, shouldFocusOnComment: Bool, commentID: String)
 }
 
 class ActivityViewController: UIViewController {
@@ -31,6 +32,9 @@ class ActivityViewController: UIViewController {
         tableView.rowHeight = UITableView.automaticDimension
         tableView.estimatedRowHeight = UITableView.automaticDimension
         tableView.translatesAutoresizingMaskIntoConstraints = false
+        tableView.backgroundColor = Colors.background
+        tableView.separatorStyle = .none
+        tableView.showsVerticalScrollIndicator = false
         return tableView
     }()
 
@@ -44,34 +48,15 @@ class ActivityViewController: UIViewController {
 
     let activityNavBarlabel: UILabel = {
         let label = UILabel()
-        label.text = "Activity"
+        label.text = String(localized: "Activity")
         label.font = CustomFonts.boldFont(ofSize: 20)
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
 
-    init(service: ActivityService) {
+    init(service: ActivityServiceProtocol) {
         self.viewModel = ActivityViewModel(service: service)
         super.init(nibName: nil, bundle: nil)
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    // MARK: Lifecycle
-    override func viewDidLoad() {
-        view.backgroundColor = .systemBackground
-        tableView.delegate = self
-        tableView.dataSource = self
-        tableView.separatorStyle = .none
-        setupViewsConstraints()
-        navigationItem.leftBarButtonItem = UIBarButtonItem(customView: activityNavBarlabel)
-        viewModel.hasInitialized.bind { hasInitialized in
-            if hasInitialized {
-                self.tableView.reloadData()
-            }
-        }
 
         viewModel.hasUnseenEvents.bind { hasUnseenEvents in
             if hasUnseenEvents {
@@ -82,18 +67,40 @@ class ActivityViewController: UIViewController {
         }
     }
 
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    // MARK: Lifecycle
+    override func viewDidLoad() {
+        view.backgroundColor = Colors.background
+        navigationItem.leftBarButtonItem = UIBarButtonItem(customView: activityNavBarlabel)
+        tableView.delegate = self
+        tableView.dataSource = self
+        setupViewsConstraints()
+        setupPullToRefresh()
+    }
+
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         checkNotificationsAvailability()
     }
 
     override func viewWillAppear(_ animated: Bool) {
-        showRecentNotificationsOnAppear()
+        super.viewWillAppear(animated)
+        self.tableView.reloadData()
+        showRecentNotifications(animated: false)
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        viewModel.updateActivityEventsSeenStatus()
+        Task {
+            do {
+                try await viewModel.updateActivityEventsSeenStatus()
+            } catch {
+                showPopUp(issueText: error.localizedDescription)
+            }
+        }
     }
 
     // MARK: Views setup
@@ -114,16 +121,21 @@ class ActivityViewController: UIViewController {
     }
 
     // MARK: Methods
+    private func setupPullToRefresh() {
+        let refreshControl = UIRefreshControl()
+        refreshControl.addTarget(self, action: #selector(refreshTableView), for: .valueChanged)
+        tableView.refreshControl = refreshControl
+    }
 
-    private func showRecentNotificationsOnAppear() {
+    private func showRecentNotifications(animated: Bool) {
         guard viewModel.hasZeroEvents != true else {
             return
         }
         CATransaction.begin()
         CATransaction.setCompletionBlock {
-            self.tableView.scrollToRow(at: IndexPath(row: 0, section: 0), at: .top, animated: false)
-            self.checkIfCellisFullyVisible()
-            self.markSeenEvents(delay: 0.5)
+            self.tableView.scrollToRow(at: IndexPath(row: 0, section: 0), at: .none, animated: animated)
+            self.markFullyVisibleEventsAsSeen()
+            self.animateSeenEventsStatusChange(delay: 0.5)
         }
         self.tableView.reloadData()
         CATransaction.commit()
@@ -141,7 +153,7 @@ class ActivityViewController: UIViewController {
         }
     }
 
-    private func checkIfCellisFullyVisible(completion: () -> Void = {}) {
+    private func markFullyVisibleEventsAsSeen(completion: () -> Void = {}) {
         let visibleCells = tableView.indexPathsForVisibleRows
 
         visibleCells?.forEach { indexPath in
@@ -158,12 +170,12 @@ class ActivityViewController: UIViewController {
         completion()
     }
 
-    private func markSeenEvents(delay: CFTimeInterval = 0) {
+    private func animateSeenEventsStatusChange(delay: CFTimeInterval = 0) {
         let visibleCells = tableView.indexPathsForVisibleRows
 
         UIView.animate(withDuration: 0.4, delay: delay, options: .allowAnimatedContent) {
             visibleCells?.forEach({ indexPath in
-                self.tableView.cellForRow(at: indexPath)?.contentView.backgroundColor = .systemBackground
+                self.tableView.cellForRow(at: indexPath)?.contentView.backgroundColor = Colors.background
             })
         } completion: { _ in
             self.viewModel.checkIfHasUnseenEvents()
@@ -171,20 +183,34 @@ class ActivityViewController: UIViewController {
     }
 
     private func presentPostWithComments(post: UserPost?, commentIDToFocusOn: String?) {
-        guard let post = post else {
-            return
-        }
-        let service = PostWithCommentsServiceAdapter(
+        guard let post = post else { return }
+        let service = CommentsService(
             postID: post.postID,
             postAuthorID: post.author.userID,
+            userDataService: UserDataService(),
             postsService: UserPostsService.shared,
             commentsService: CommentSystemService.shared,
             likesService: LikeSystemService.shared,
-            bookmarksService: BookmarksService.shared)
+            bookmarksService: BookmarksSystemService.shared)
 
-        let postWithCommentsVC = CommentsViewController(post: post, commentIDToFocusOn: commentIDToFocusOn, shouldShowRelatedPost: true, service: service)
+        let postWithCommentsVC = CommentsViewController(
+            post: post,
+            commentIDToFocusOn: commentIDToFocusOn,
+            shouldShowRelatedPost: true,
+            service: service)
         postWithCommentsVC.hidesBottomBarWhenPushed = true
         self.navigationController?.pushViewController(postWithCommentsVC, animated: true)
+    }
+
+    func observeActivityEvents() {
+        viewModel.observeActivityEvents()
+    }
+
+    @objc private func refreshTableView() {
+        showRecentNotifications(animated: true)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            self.tableView.refreshControl?.endRefreshing()
+        }
     }
 }
 
@@ -201,27 +227,18 @@ extension ActivityViewController: UITableViewDelegate, UITableViewDataSource {
         switch event.eventType {
 
         case .postLiked:
-            guard event.user != nil && event.post != nil else {
-                return UITableViewCell()
-            }
             let cell: PostLikedEventTableViewCell = tableView.dequeue(withIdentifier: PostLikedEventTableViewCell.identifier, for: indexPath)
             cell.configure(with: event)
             cell.delegate = self
             return cell
 
         case .followed:
-            guard event.user != nil else {
-                return UITableViewCell()
-            }
             let cell: FollowEventTableViewCell = tableView.dequeue(withIdentifier: FollowEventTableViewCell.identifier, for: indexPath)
             cell.configure(with: event)
             cell.delegate = self
             return cell
 
         case .postCommented:
-            guard event.text != nil && event.user != nil && event.post != nil else {
-                return UITableViewCell()
-            }
             let cell: PostCommentedEventTableViewCell = tableView.dequeue(withIdentifier: PostCommentedEventTableViewCell.identifier, for: indexPath)
             cell.configure(with: event)
             cell.delegate = self
@@ -230,28 +247,28 @@ extension ActivityViewController: UITableViewDelegate, UITableViewDataSource {
     }
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        let model = viewModel.getEvent(for: indexPath)
+        let event = viewModel.getEvent(for: indexPath)
 
-        switch model.eventType {
+        switch event.eventType {
 
         case .postLiked:
-            presentPostWithComments(post: model.post, commentIDToFocusOn: model.commentID)
-
+            presentPostWithComments(post: event.post, commentIDToFocusOn: event.commentID)
         case .followed:
-            let service = createUserProfileDefaultServiceFor(userID: model.userID)
-            let userProfileVC = UserProfileViewController(service: service, user: model.user, isTabBarItem: false)
-
+            guard let user = event.user else {
+                return
+            }
+            showProfile(of: user)
         case .postCommented:
-            presentPostWithComments(post: model.post, commentIDToFocusOn: model.commentID)
+            presentPostWithComments(post: event.post, commentIDToFocusOn: event.commentID)
         }
     }
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        checkIfCellisFullyVisible()
+        markFullyVisibleEventsAsSeen()
     }
 
     func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
-        markSeenEvents()
+        animateSeenEventsStatusChange()
     }
 
 }
@@ -259,39 +276,35 @@ extension ActivityViewController: UITableViewDelegate, UITableViewDataSource {
 // MARK: Cell actions Delegate
 extension ActivityViewController: ActivityViewCellActionsDelegate {
     func didSelectUser(user: ZoogramUser) {
-        let service = UserProfileServiceAPIAdapter(userID: user.userID,
-                                                   followService: FollowSystemService.shared,
-                                                   userPostsService: UserPostsService.shared,
-                                                   userService: UserService.shared,
-                                                   likeSystemService: LikeSystemService.shared,
-                                                   bookmarksService: BookmarksService.shared)
-        let userProfileViewController = UserProfileViewController(service: service, user: user, isTabBarItem: false)
-        userProfileViewController.title = user.username
-        userProfileViewController.hidesBottomBarWhenPushed = true
-        self.navigationController?.pushViewController(userProfileViewController, animated: true)
-//        self.activityNavBarlabel.isHidden = true
+        showProfile(of: user)
     }
 
-    func didSelectRelatedPost(post: UserPost, postPhoto: UIImage, shouldFocusOnComment: Bool = false, commentID: String = "") {
-//        let vc = PostViewController(posts: [post])
-//        vc.hidesBottomBarWhenPushed = true
-//        self.navigationController?.pushViewController(vc, animated: true)
-//        self.activityNavBarlabel.isHidden = true
+    func textView(_ textView: UITextView, shouldInteractWith URL: URL, in characterRange: NSRange, interaction: UITextItemInteraction) -> Bool {
+        let userID = URL.absoluteString
+        let user = ZoogramUser(userID)
+        showProfile(of: user)
+        return true
     }
-
 }
 
 extension ActivityViewController: FollowEventTableViewCellDelegate {
-    func followUserTapped(user: ZoogramUser, followCompletion: @escaping (FollowStatus) -> Void) {
-        FollowSystemService.shared.followUser(uid: user.userID) { followStatus in
-            followCompletion(followStatus)
+    func followUserTapped(user: ZoogramUser) {
+        Task {
+            do {
+                try await FollowSystemService.shared.followUser(uid: user.userID)
+            } catch {
+                self.showPopUp(issueText: error.localizedDescription)
+            }
         }
     }
 
-    func unfollowUserTapped(user: ZoogramUser, unfollowCompletion: @escaping (FollowStatus) -> Void) {
-        FollowSystemService.shared.unfollowUser(uid: user.userID) { followSatus in
-            ActivitySystemService.shared.removeFollowEventForUser(userID: user.userID)
-            unfollowCompletion(followSatus)
+    func unfollowUserTapped(user: ZoogramUser) {
+        Task {
+            do {
+                try await FollowSystemService.shared.unfollowUser(uid: user.userID)
+            } catch {
+                self.showPopUp(issueText: error.localizedDescription)
+            }
         }
     }
 }

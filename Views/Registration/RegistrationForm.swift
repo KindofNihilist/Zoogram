@@ -7,29 +7,48 @@
 
 import UIKit
 
+@MainActor protocol TextFieldResponder {
+    func becomeResponder()
+    func resignResponder()
+}
+
 class RegistrationForm: UIView {
+
+    var textFieldKeyboardType: UIKeyboardType = .default {
+        didSet {
+            self.textField.keyboardType = textFieldKeyboardType
+        }
+    }
+
+    var contentType: UITextContentType? = nil {
+        didSet {
+            self.textField.textContentType = contentType
+        }
+    }
+
+    weak var delegate: UITextFieldDelegate? {
+        didSet {
+            textField.delegate = self.delegate
+        }
+    }
 
     private let descriptionLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
-        label.textColor = .label
+        label.textColor = Colors.label
         label.textAlignment = .center
-        label.font = CustomFonts.boldFont(ofSize: 35)
+        label.font = CustomFonts.boldFont(ofSize: 30)
+        label.numberOfLines = 0
+        label.textAlignment = .center
         label.sizeToFit()
         return label
     }()
 
-    private let textField: UITextField = {
-        let field = UITextField()
-        field.returnKeyType = .next
-        field.leftViewMode = .always
-        field.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 10, height: 0))
-        field.autocapitalizationType = .none
-        field.autocorrectionType = .no
-        field.layer.masksToBounds = true
-        field.layer.cornerRadius = 11
-        field.backgroundColor = .secondarySystemBackground
+    private let textField: CustomTextField = {
+        let field = CustomTextField()
         field.translatesAutoresizingMaskIntoConstraints = false
+        field.returnKeyType = .next
+        field.backgroundColor = Colors.backgroundTertiary
         return field
     }()
 
@@ -38,6 +57,7 @@ class RegistrationForm: UIView {
         label.translatesAutoresizingMaskIntoConstraints = false
         label.textColor = .systemRed
         label.font = CustomFonts.boldFont(ofSize: 14)
+        label.numberOfLines = 0
         label.sizeToFit()
         return label
     }()
@@ -46,7 +66,7 @@ class RegistrationForm: UIView {
         super.init(frame: CGRect())
         self.descriptionLabel.text = descriptionText
         self.textField.placeholder = textFieldPlaceholder
-        self.addSubviews(descriptionLabel, textField)
+        self.addSubviews(descriptionLabel, textField, errorNotificationView)
         if isPasswordForm {
             textField.isSecureTextEntry = true
         }
@@ -57,17 +77,22 @@ class RegistrationForm: UIView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    func setupConstraints() {
+    private func setupConstraints() {
         NSLayoutConstraint.activate([
             descriptionLabel.topAnchor.constraint(equalTo: self.topAnchor, constant: 25),
             descriptionLabel.centerXAnchor.constraint(equalTo: self.centerXAnchor),
-            descriptionLabel.leadingAnchor.constraint(lessThanOrEqualTo: self.leadingAnchor, constant: 10),
-            descriptionLabel.trailingAnchor.constraint(lessThanOrEqualTo: self.trailingAnchor, constant: 10),
+            descriptionLabel.leadingAnchor.constraint(greaterThanOrEqualTo: self.leadingAnchor, constant: 15),
+            descriptionLabel.trailingAnchor.constraint(lessThanOrEqualTo: self.trailingAnchor, constant: -15),
 
             textField.topAnchor.constraint(equalTo: descriptionLabel.bottomAnchor, constant: 45),
             textField.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: 20),
             textField.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -20),
-            textField.heightAnchor.constraint(equalToConstant: 50)
+            textField.heightAnchor.constraint(equalToConstant: 50),
+
+            errorNotificationView.topAnchor.constraint(equalTo: textField.bottomAnchor, constant: 15),
+            errorNotificationView.leadingAnchor.constraint(equalTo: textField.leadingAnchor, constant: 10),
+            errorNotificationView.trailingAnchor.constraint(equalTo: textField.trailingAnchor, constant: -10),
+            errorNotificationView.bottomAnchor.constraint(equalTo: self.bottomAnchor, constant: -15)
         ])
     }
 
@@ -75,13 +100,28 @@ class RegistrationForm: UIView {
         return textField.text!
     }
 
+    func removeErrorNotification() {
+        errorNotificationView.text?.removeAll()
+        UIView.animate(withDuration: 0.5) {
+            self.superview?.layoutIfNeeded()
+        }
+    }
+
     func showErrorNotification(error: String) {
         errorNotificationView.text = error
-        self.addSubview(errorNotificationView)
+        errorNotificationView.shakeByX(offset: 5.0, repeatCount: 2, durationOfOneCycle: 0.07)
+        UIView.animate(withDuration: 0.5) {
+            self.superview?.layoutIfNeeded()
+        }
+    }
+}
 
-        NSLayoutConstraint.activate([
-            errorNotificationView.topAnchor.constraint(equalTo: textField.bottomAnchor, constant: 10),
-            errorNotificationView.leadingAnchor.constraint(equalTo: textField.leadingAnchor, constant: 10)
-        ])
+extension RegistrationForm: TextFieldResponder {
+    func becomeResponder() {
+        self.textField.becomeFirstResponder()
+    }
+
+    func resignResponder() {
+        self.textField.resignFirstResponder()
     }
 }

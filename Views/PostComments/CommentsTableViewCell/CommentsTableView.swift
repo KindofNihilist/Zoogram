@@ -61,7 +61,7 @@ class CommentsTableView: UITableView {
             self.keyboardAccessoryView.intrinsicHeight = keyboardAccessoryView.accessoryViewHeight
             scrollToTheLastRow()
         }
-    }  
+    }
 
     @objc func keyboardWillDisappear() {
         print("keyboardWillDisappear triggered")

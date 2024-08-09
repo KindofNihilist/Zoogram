@@ -7,36 +7,59 @@
 
 import Foundation
 
+actor EventLogger {
+    private var events = [ActivityEvent]()
+
+    func checkIfHasUnseenEvents() -> Bool {
+        if events.filter({$0.seen == false}).count != 0 {
+            return true
+        } else {
+            return false
+        }
+    }
+
+    func setEvents(_ events: [ActivityEvent]) {
+        self.events = events
+    }
+}
+
+@MainActor
 class ActivityViewModel {
 
-    let service: ActivityService
+    let service: ActivityServiceProtocol
 
     private var events = [ActivityEvent]() {
         didSet {
             checkIfHasUnseenEvents()
         }
     }
+
     private var seenEvents = Set<ActivityEvent>()
 
     var eventsCount: Int {
         return events.count
     }
 
-    var hasInitialized = Observable(false)
     var hasUnseenEvents = Observable(false)
     var hasZeroEvents: Bool {
         return events.isEmpty
     }
 
-    init(service: ActivityService) {
+    init(service: ActivityServiceProtocol) {
         self.service = service
-        fetchActivityDataOnInit()
+        observeActivityEvents()
     }
 
-    private func fetchActivityDataOnInit() {
-        service.observeActivityEvents { events in
-            self.events = events
-            self.hasInitialized.value = true
+    func observeActivityEvents() {
+        Task {
+            do {
+                for try await events in service.observeActivityEvents() {
+                    let eventsWithAdditionalData = try await service.getAdditionalDataFor(events: events)
+                    self.events = eventsWithAdditionalData.reversed()
+                }
+            } catch {
+                print(error.localizedDescription)
+            }
         }
     }
 
@@ -56,10 +79,9 @@ class ActivityViewModel {
         return events[indexPath.row].seen
     }
 
-    func updateActivityEventsSeenStatus() {
-        service.updateActivityEventsSeenStatus(events: seenEvents) {
-            self.seenEvents = Set<ActivityEvent>()
-        }
+    func updateActivityEventsSeenStatus() async throws {
+        try await service.updateActivityEventsSeenStatus(events: seenEvents)
+        self.seenEvents = Set<ActivityEvent>()
     }
 
     func markEventAsSeen(at indexPath: IndexPath) {

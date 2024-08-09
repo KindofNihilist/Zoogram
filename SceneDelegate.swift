@@ -11,25 +11,84 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     var window: UIWindow?
 
+    private var shouldListenToAuthenticationStateChanges: Bool = true
+    private var tabBarController: TabBarController?
+
+    private func logOut() {
+        do {
+            try AuthenticationService.shared.signOut()
+        } catch {
+            print(error)
+        }
+    }
+
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
 
         guard let windowScene = (scene as? UIWindowScene) else { return }
         window = UIWindow(frame: UIScreen.main.bounds)
-        window?.backgroundColor = .systemBackground
-        if Auth.auth().currentUser == nil {
-            let navigationController = UINavigationController(rootViewController: LoginViewController())
-            navigationController.navigationBar.backgroundColor = .systemBackground
-            navigationController.navigationBar.isTranslucent = false
-            navigationController.tabBarController?.tabBar.isTranslucent = false
-            navigationController.tabBarController?.tabBar.backgroundColor = .systemBackground
-            window?.rootViewController = navigationController
-        } else {
-            UserService.shared.getCurrentUser {
-                self.window?.rootViewController = TabBarController()
+        window?.backgroundColor = Colors.background
+//        window?.layer.speed = 0.6
+
+//        logOut()
+        setupShouldListenToAuthenticationStateObserver()
+        AuthenticationService.shared.listenToAuthenticationState { userID in
+            guard self.shouldListenToAuthenticationStateChanges else { return }
+            guard let unwrappedID = userID else {
+                self.hideCurrentRootViewControllerIfNeeded {
+                    self.showLoginView(for: windowScene)
+                }
+                return
             }
+            Task {
+                await UserManager.shared.setUserID(uid: unwrappedID)
+            }
+            let zoogramUser = ZoogramUser(unwrappedID)
+            self.tabBarController = TabBarController(for: zoogramUser, showAppearAnimation: false)
+            self.window?.windowScene = windowScene
+            self.window?.rootViewController = self.tabBarController
+            self.window?.makeKeyAndVisible()
         }
-        window?.makeKeyAndVisible()
-        window?.windowScene = windowScene
+    }
+
+    private func setupShouldListenToAuthenticationStateObserver() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(changeShouldListenToAuthenticationState),
+            name: .shouldListenToAuthenticationState,
+            object: nil)
+    }
+
+    @objc private func changeShouldListenToAuthenticationState(_ notification: Notification) {
+        guard let shouldListen = notification.userInfo?["shouldListen"] as? Bool else { return }
+        self.shouldListenToAuthenticationStateChanges = shouldListen
+    }
+
+    private func hideCurrentRootViewControllerIfNeeded(completion: @escaping () -> Void) {
+        if let rootViewController = window?.rootViewController {
+            rootViewController.hideUIElements(animate: true) {
+                completion()
+            }
+        } else {
+            completion()
+        }
+    }
+
+    private func showLoginView(for windowScene: UIWindowScene, error: Error? = nil) {
+        let service = LoginService()
+        let loginViewController = LoginViewController(service: service)
+        loginViewController.shouldShowOnAppearAnimation = true
+        self.shouldListenToAuthenticationStateChanges = false
+        let navigationController = UINavigationController(rootViewController: loginViewController)
+        navigationController.navigationBar.backgroundColor = Colors.background
+        navigationController.navigationBar.isTranslucent = false
+        navigationController.tabBarController?.tabBar.isTranslucent = false
+        navigationController.tabBarController?.tabBar.backgroundColor = Colors.background
+        window?.rootViewController = navigationController
+        self.window?.makeKeyAndVisible()
+        self.window?.windowScene = windowScene
+        if let error = error {
+            navigationController.show(error: error)
+        }
     }
 
     func sceneDidDisconnect(_ scene: UIScene) {

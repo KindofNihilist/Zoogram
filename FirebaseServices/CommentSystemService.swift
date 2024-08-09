@@ -6,9 +6,19 @@
 //
 
 import Foundation
-import FirebaseDatabase
+@preconcurrency import FirebaseDatabase
 
-class CommentSystemService {
+protocol CommentSystemServiceProtocol: Sendable {
+    typealias CommentsCount = Int
+
+    func createCommentUID() -> String
+    func postComment(for postID: String, comment: PostComment) async throws
+    func deleteComment(postID: String, commentID: String) async throws
+    func getCommentsForPost(postID: String) async throws -> [PostComment]
+    func getCommentsCountForPost(postID: String) async throws -> Int
+}
+
+final class CommentSystemService: CommentSystemServiceProtocol {
 
     static let shared = CommentSystemService()
 
@@ -20,77 +30,63 @@ class CommentSystemService {
         return databaseRef.child("PostComments").childByAutoId().key!
     }
 
-    func postComment(for postID: String, comment: PostComment, completion: @escaping () -> Void) {
+    func postComment(for postID: String, comment: PostComment) async throws {
         let databaseKey = "PostComments/\(postID)/\(comment.commentID)"
-
         let commentDictionary = comment.dictionary
-
-        databaseRef.child(databaseKey).setValue(commentDictionary) { error, _ in
-            if error == nil {
-                completion()
-                print("Succesfully posted a comment")
-            } else {
-                print("There was an error posting a comment")
-            }
+        do {
+            let task = try await databaseRef.child(databaseKey).setValue(commentDictionary)
+        } catch {
+            throw ServiceError.couldntPostAComment
         }
-
     }
 
-    func deleteComment(postID: String, commentID: String, completion: @escaping () -> Void) {
+    func deleteComment(postID: String, commentID: String) async throws {
         let databaseKey = "PostComments/\(postID)/\(commentID)"
 
-        databaseRef.child(databaseKey).removeValue { error, _ in
-            if error == nil {
-                completion()
-            } else {
-                print(error?.localizedDescription as Any)
-            }
+        do {
+            try await databaseRef.child(databaseKey).removeValue()
+        } catch {
+            throw ServiceError.couldntDeleteAComment
         }
     }
 
-    func getCommentsForPost(postID: String, completion: @escaping ([PostComment]) -> Void) {
+    func getCommentsForPost(postID: String) async throws -> [PostComment] {
         let databaseKey = "PostComments/\(postID)"
-        let dispatchGroup = DispatchGroup()
         var comments = [PostComment]()
 
-        databaseRef.child(databaseKey).queryOrderedByKey().observeSingleEvent(of: .value) { snapshot in
-//            print(snapshot)
+        let query = databaseRef.child(databaseKey).queryOrderedByKey()
 
-            for (index, snapshotChild) in snapshot.children.enumerated() {
+        do {
+            let data = try await query.getData()
 
+            for snapshotChild in data.children {
                 guard let commentSnapshot = snapshotChild as? DataSnapshot,
                       let commentDictionary = commentSnapshot.value as? [String: Any]
                 else {
-                    return
+                    throw ServiceError.snapshotCastingError
                 }
-                dispatchGroup.enter()
-                do {
-                    let jsonData = try JSONSerialization.data(withJSONObject: commentDictionary as Any)
-                    let decodedComment = try JSONDecoder().decode(PostComment.self, from: jsonData)
-                    comments.append(decodedComment)
-                    UserService.shared.getUser(for: decodedComment.authorID) { commentAuthor in
-                        comments[index].author = commentAuthor
-                        dispatchGroup.leave()
-                    }
-                } catch {
-                    print("Error encountered while decoding post comment")
-                }
+                let jsonData = try JSONSerialization.data(withJSONObject: commentDictionary as Any)
+                let decodedComment = try JSONDecoder().decode(PostComment.self, from: jsonData)
+                comments.append(decodedComment)
             }
-            dispatchGroup.notify(queue: .main) {
-//                print("\n")
-//                for comment in comments {
-//                    print(comment.commentText)
-//                }
-                completion(comments)
-            }
+            return comments
+        } catch {
+            throw ServiceError.couldntLoadComments
         }
     }
 
-    func getCommentsCountForPost(postID: String, completion: @escaping(CommentsCount) -> Void) {
+    func getCommentsCountForPost(postID: String) async throws -> Int {
         let databaseKey = "PostComments/\(postID)"
 
-        databaseRef.child(databaseKey).observeSingleEvent(of: .value) { snapshot in
-            completion(Int(snapshot.childrenCount))
+        do {
+            let data = try await databaseRef.child(databaseKey).getData()
+            return Int(data.childrenCount)
+        } catch {
+            throw ServiceError.couldntLoadData
         }
+    }
+
+    func cancelWriteTasks() async throws {
+        
     }
 }

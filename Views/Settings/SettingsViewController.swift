@@ -15,148 +15,128 @@ struct SettingsCellModel {
 }
 
 final class SettingsViewController: UIViewController {
-    
+
     private var data = [[SettingsCellModel]]()
-    
-    
+
     private let tableView: UITableView = {
         let tableView = UITableView(frame: .zero, style: .insetGrouped)
+        tableView.translatesAutoresizingMaskIntoConstraints = false
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
+        tableView.backgroundColor = Colors.naturalSecondaryBackground
         return tableView
     }()
-    
+
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = Colors.naturalSecondaryBackground
         configureModels()
+        setupTableView()
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        navigationController?.navigationBar.configureNavigationBarColor(with: Colors.naturalSecondaryBackground)
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        navigationController?.navigationBar.configureNavigationBarColor(with: Colors.background)
+    }
+
+    private func setupTableView() {
         tableView.delegate = self
         tableView.dataSource = self
-        view = tableView
+        view.addSubview(tableView)
+
+        NSLayoutConstraint.activate([
+            tableView.topAnchor.constraint(equalTo: view.topAnchor),
+            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+        ])
     }
-    
+
     private func configureModels() {
-        
+        let editProfileLocalizedTitle = String(localized: "Edit Profile")
+        let bookmarksLocalizedTitile = String(localized: "Bookmarks")
+        let logoutLocalizedTitle = String(localized: "Log Out")
         data.append([
-            SettingsCellModel(title: "Edit Profile", color: .label) { [weak self] in
+            SettingsCellModel(title: editProfileLocalizedTitle, color: Colors.label) { [weak self] in
                 self?.didTapEditProfile()
             },
-            SettingsCellModel(title: "Bookmarks", color: .label, handler: {
+            SettingsCellModel(title: bookmarksLocalizedTitile, color: Colors.label, handler: {
                 self.didTapBookmarks()
-            }),
-            SettingsCellModel(title: "Invite Friends", color: .label) { [weak self] in
-                self?.didTapInviteFriends()
-            },
-            SettingsCellModel(title: "Download Original Posts", color: .label) { [weak self] in
-                self?.didTapDownloadPosts()
-            }
+            })
         ])
-        
-        data.append([
-            SettingsCellModel(title: "Terms of Service", color: .label) { [weak self] in
-                self?.didTapTermsofService()
-            },
-            SettingsCellModel(title: "Privacy Policy", color: .label) { [weak self] in
-                self?.didTapPrivacyPolicy()
-            },
-            SettingsCellModel(title: "Help & Feedback", color: .label) { [weak self] in
-                self?.didTapHelpandFeedback()
-            }
-        ])
-        
-        data.append([SettingsCellModel(title: "Log Out", color: .systemRed) { [weak self] in
+        data.append([SettingsCellModel(title: logoutLocalizedTitle, color: .systemRed) { [weak self] in
             self?.didTapLogOut()
             }
         ])
     }
-    
+
     private func didTapEditProfile() {
-//        let navVC = UINavigationController(rootViewController: ProfileEdditingViewController())
-//        navVC.modalPresentationStyle = .fullScreen
-//        present(navVC, animated: true)
+        showProfileSettings()
     }
-    
+
     private func didTapBookmarks() {
-        let bookmarksVC = BookmarkedTableViewController()
+        let bookmarksAdapter = BookmarkedPostsService(
+            bookmarksService: BookmarksSystemService.shared,
+            likeSystemService: LikeSystemService.shared,
+            userPostsService: UserPostsService.shared,
+            userDataService: UserDataService.shared,
+            imageService: ImageService.shared,
+            commentsService: CommentSystemService.shared)
+        let bookmarksVC = BookmarksViewController(service: bookmarksAdapter)
         navigationController?.pushViewController(bookmarksVC, animated: true)
     }
-    
-    private func didTapInviteFriends() {
-        
-    }
-    
-    private func didTapDownloadPosts() {
-        
-    }
-    
-    private func didTapTermsofService() {
-        
-    }
-    
-    private func didTapPrivacyPolicy() {
-        
-    }
-    
-    private func didTapHelpandFeedback() {
-        
-    }
-    
+
     private func didTapLogOut() {
-        let logoutAlert = UIAlertController(title: "Log Out", message: "Are you sure you want to log out?", preferredStyle: .alert)
-        let cancelAction = UIAlertAction(title: "Cancel", style: .cancel)
-        let logOutAction = UIAlertAction(title: "Log Out", style: .destructive) { _ in
-            AuthenticationManager.shared.signOut { success in
-                if success {
-                    
-                    UIView.animateKeyframes(withDuration: 0.5, delay: 0) {
-                        UIView.addKeyframe(withRelativeStartTime: 0.0, relativeDuration: 0.5) {
-                            self.view.alpha = 0
-                            self.view.transform = CGAffineTransform(scaleX: 0.2, y: 0.2)
-                        }
-                        UIView.addKeyframe(withRelativeStartTime: 0.5, relativeDuration: 0.5) {
-                            if let sceneDelegate = UIApplication.shared.connectedScenes.first?.delegate as? SceneDelegate {
-                
-                                sceneDelegate.window?.rootViewController = UINavigationController(rootViewController: LoginViewController())
-                            }
-                        }
-                    } completion: { _ in
-                        
-                    }
-                } else {
-                    fatalError("Could not log out user")
-                    // error occured
-                }
+        let logoutTitle = String(localized: "Log Out")
+        let cancelTitle = String(localized: "Cancel")
+        let localizedMessage = String(localized: "Are you sure you want to log out?")
+
+        let logoutAlert = UIAlertController(title: logoutTitle, message: localizedMessage, preferredStyle: .alert)
+        let cancelAction = UIAlertAction(title: cancelTitle, style: .cancel)
+        let logOutAction = UIAlertAction(title: logoutTitle, style: .destructive) { _ in
+            do {
+                try AuthenticationService.shared.signOut()
+            } catch {
+                self.show(error: error)
             }
         }
         logoutAlert.addAction(logOutAction)
         logoutAlert.addAction(cancelAction)
         present(logoutAlert, animated: true)
     }
-    
+
 }
 
 extension SettingsViewController: UITableViewDelegate, UITableViewDataSource {
-    
+
     func numberOfSections(in tableView: UITableView) -> Int {
         return data.count
     }
-    
+
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return data[section].count
     }
-    
+
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let settingsCell = data[indexPath.section][indexPath.row]
         let cell = tableView.dequeueReusableCell(withIdentifier: "cell", for: indexPath)
         var content = cell.defaultContentConfiguration()
         content.text = settingsCell.title
         content.textProperties.color = settingsCell.color
+        content.textProperties.font = CustomFonts.regularFont(ofSize: 16)
         cell.contentConfiguration = content
         cell.accessoryType = .disclosureIndicator
+        cell.backgroundColor = Colors.naturalBackground
         return cell
     }
-    
+
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let model = data[indexPath.section][indexPath.row]
         model.handler()
+        tableView.deselectRow(at: indexPath, animated: true)
     }
 }

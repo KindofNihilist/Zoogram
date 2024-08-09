@@ -7,15 +7,21 @@
 
 import Foundation
 
+@MainActor
 final class LoginViewModel {
 
-    func loginUser(with email: String, password: String, completion: @escaping (Bool, String) -> Void) {
-        AuthenticationManager.shared.signInUsing(email: email, password: password) { isSuccessful, resultDescription in
-            if isSuccessful {
-                completion(true, resultDescription)
-            } else {
-                completion(false, resultDescription)
-            }
-        }
+    private var service: LoginServiceProtocol
+
+    init(service: LoginServiceProtocol) {
+        self.service = service
+    }
+
+    func loginUser(with email: String, password: String) async throws {
+        let loggedInUser = try await service.loginUser(with: email, password: password)
+        await UserManager.shared.setDefaultsForUser(loggedInUser)
+    }
+
+    func resetPassword(for email: String) async throws {
+        try await service.resetPassword(for: email)
     }
 }

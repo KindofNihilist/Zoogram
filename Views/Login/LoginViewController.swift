@@ -4,86 +4,67 @@
 //
 //  Created by Artem Dolbiev on 17.01.2022.
 //
-//import FirebaseAuth
 import UIKit
-import SwiftUI
 
 class LoginViewController: UIViewController {
 
-    let viewModel = LoginViewModel()
+    private let viewModel: LoginViewModel
+    private var task: Task<Void, Error>?
+    var shouldShowOnAppearAnimation: Bool = false
 
-    private let headerView: UIView = {
-        let header = UIView()
-        header.clipsToBounds = true
-        header.backgroundColor = ColorScheme.lightYellowBackground
-        header.translatesAutoresizingMaskIntoConstraints = false
-        return header
-    }()
-
-    private let logo: UILabel = {
-        let label = UILabel()
-        label.text = "Zoogram"
-        label.textColor = .black
-        label.font = CustomFonts.logoFont(ofSize: 45)
-        label.translatesAutoresizingMaskIntoConstraints = false
-        return label
-    }()
+    private var isKeyboardVisible: Bool = false
 
     private let logoImage: UIImageView = {
         let imageView = UIImageView()
-        imageView.image = UIImage(named: "paw")
+        imageView.image = UIImage(named: "ZoogramGraphicLogo")
+        imageView.contentMode = .scaleAspectFit
         imageView.translatesAutoresizingMaskIntoConstraints = false
         return imageView
     }()
 
-    private let usernameEmailField: UITextField = {
-        let field = UITextField()
-        field.placeholder = "Email"
+    private let emailField: CustomTextField = {
+        let field = CustomTextField()
+        let placeholder = String(localized: "Email")
+        field.translatesAutoresizingMaskIntoConstraints = false
+        field.placeholder = placeholder
+        field.keyboardType = .emailAddress
+//        I had to change autocorrectionType and textContentType, because of the bug in iOS 17 with isSecureTextEntry fields and autofill bar,
+//        which caused the keyboard flickering and views jumping.
+        field.autocorrectionType = .no
+        field.textContentType = .emailAddress
+        field.backgroundColor = Colors.backgroundSecondary
         field.returnKeyType = .next
-        field.leftViewMode = .always
-        field.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 10, height: 0))
-        field.autocapitalizationType = .none
-        field.autocorrectionType = .no
-        field.layer.masksToBounds = true
-        field.layer.cornerRadius = 11
-        field.backgroundColor = .secondarySystemBackground
-        field.translatesAutoresizingMaskIntoConstraints = false
         return field
     }()
 
-    private let passwordField: UITextField = {
-        let field = UITextField()
+    private let passwordField: CustomTextField = {
+        let field = CustomTextField()
+        let placeholder = String(localized: "Password")
+        field.translatesAutoresizingMaskIntoConstraints = false
         field.isSecureTextEntry = true
-        field.placeholder = "Password"
+        field.placeholder = placeholder
         field.returnKeyType = .continue
-        field.leftViewMode = .always
-        field.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 10, height: 0))
-        field.autocapitalizationType = .none
+        field.textContentType = .password
         field.autocorrectionType = .no
-        field.layer.masksToBounds = true
-        field.layer.cornerRadius = 11
-        field.backgroundColor = .secondarySystemBackground
-        field.translatesAutoresizingMaskIntoConstraints = false
+        field.backgroundColor = Colors.backgroundSecondary
         return field
     }()
 
-    private let forgottenPasswordButton: UIButton = {
+    private lazy var forgottenPasswordButton: UIButton = {
         let button = UIButton()
-        button.setTitle("Forgot password?", for: .normal)
+        let title = String(localized: "Forgot password?")
+        button.setTitle(title, for: .normal)
         button.setTitleColor(.systemGray, for: .normal)
         button.titleLabel?.font = CustomFonts.regularFont(ofSize: 16)
         button.translatesAutoresizingMaskIntoConstraints = false
-        button.sizeToFit()
+        button.addTarget(self, action: #selector(didTapForgotPassword), for: .touchUpInside)
         return button
     }()
 
     private lazy var loginButton: CustomButton = {
         let button = CustomButton()
-        button.setTitle("Log In", for: .normal)
-        button.layer.masksToBounds = true
-        button.layer.cornerRadius = 11
-        button.backgroundColor = .systemBlue
-        button.setTitleColor(.white, for: .normal)
+        let title = String(localized: "Log In")
+        button.setTitle(title, for: .normal)
         button.addTarget(self, action: #selector(didTapLoginButton), for: .touchUpInside)
         button.translatesAutoresizingMaskIntoConstraints = false
         return button
@@ -91,161 +72,215 @@ class LoginViewController: UIViewController {
 
     private lazy var createAccountButton: UIButton = {
         let button = UIButton()
-        button.setTitleColor(.label, for: .normal)
-        button.setTitle("Create an account", for: .normal)
+        let title = String(localized: "Create an account")
+        button.setTitleColor(Colors.label, for: .normal)
+        button.setTitle(title, for: .normal)
+        button.titleLabel?.font = CustomFonts.regularFont(ofSize: 17)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.addTarget(self, action: #selector(didTapCreateAccountButton), for: .touchUpInside)
         return button
     }()
 
-    private lazy var termsButton: UIButton = {
-        let button = UIButton()
-        button.setTitle("Terms of Service", for: .normal)
-        button.setTitleColor(.secondaryLabel, for: .normal)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        button.addTarget(self, action: #selector(didTapTermsButton), for: .touchUpInside)
-        return button
-    }()
+    init(service: LoginServiceProtocol) {
+        self.viewModel = LoginViewModel(service: service)
+        super.init(nibName: nil, bundle: nil)
+    }
 
-    private lazy var privacyButton: UIButton = {
-        let button = UIButton()
-        button.setTitle("Privacy Policy", for: .normal)
-        button.setTitleColor(.secondaryLabel, for: .normal)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        button.addTarget(self, action: #selector(didTapPrivacyButton), for: .touchUpInside)
-        return button
-    }()
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        usernameEmailField.delegate = self
+        emailField.delegate = self
         passwordField.delegate = self
-        view.backgroundColor = .systemBackground
-        view.addSubviews(headerView, usernameEmailField, passwordField, forgottenPasswordButton, loginButton, createAccountButton, termsButton, privacyButton)
-        headerView.addSubviews(logo, logoImage)
+        view.backgroundColor = Colors.background
+        view.addSubviews(logoImage, emailField, passwordField, forgottenPasswordButton, loginButton, createAccountButton)
+        self.navigationController?.isNavigationBarHidden = true
         setNavigationBarAppearence()
         setupConstraints()
+        setupEdditingInteruptionGestures(delegate: self)
+        setupKeyboardEventsObservers()
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        if shouldShowOnAppearAnimation {
+            hideUIElements(animate: false)
+        }
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        if shouldShowOnAppearAnimation {
+            self.onAppearAnimation()
+            self.shouldShowOnAppearAnimation = false
+        }
+    }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        task?.cancel()
+    }
+
+    private func setupKeyboardEventsObservers() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardWillHide),
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil)
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(self.keyboardWillShow),
+            name: UIResponder.keyboardWillShowNotification,
+            object: nil)
+    }
+
+    @objc private func keyboardWillHide() {
+        self.isKeyboardVisible = false
+    }
+
+    @objc private func keyboardWillShow() {
+        self.isKeyboardVisible = true
     }
 
     func setNavigationBarAppearence() {
         let navBarAppearance = UINavigationBarAppearance()
         navBarAppearance.configureWithOpaqueBackground()
-        navBarAppearance.titleTextAttributes = [.foregroundColor: UIColor.label]
-        navBarAppearance.largeTitleTextAttributes = [.foregroundColor: UIColor.label]
-        navBarAppearance.backgroundColor = ColorScheme.lightYellowBackground
+        navBarAppearance.titleTextAttributes = [.foregroundColor: Colors.label]
+        navBarAppearance.largeTitleTextAttributes = [.foregroundColor: Colors.label]
+        navBarAppearance.backgroundColor = Colors.backgroundSecondary
         navBarAppearance.shadowColor = .clear
         self.navigationController?.navigationBar.standardAppearance = navBarAppearance
         self.navigationController?.navigationBar.scrollEdgeAppearance = navBarAppearance
-        self.navigationController?.navigationBar.tintColor = .label
+        self.navigationController?.navigationBar.tintColor = Colors.label
     }
 
     func setupConstraints() {
         NSLayoutConstraint.activate([
-            headerView.topAnchor.constraint(equalTo: view.topAnchor),
-            headerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            headerView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            headerView.heightAnchor.constraint(equalToConstant: 200),
+            logoImage.topAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.topAnchor, constant: 75),
+            logoImage.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            logoImage.widthAnchor.constraint(equalToConstant: 85),
+            logoImage.heightAnchor.constraint(equalToConstant: 85),
 
-            logo.centerXAnchor.constraint(equalTo: headerView.centerXAnchor, constant: -10),
-            logo.centerYAnchor.constraint(equalTo: headerView.centerYAnchor, constant: 10),
-            logo.widthAnchor.constraint(equalToConstant: 183),
-            logo.heightAnchor.constraint(equalToConstant: 75),
+            emailField.topAnchor.constraint(equalTo: logoImage.bottomAnchor, constant: 70),
+            emailField.widthAnchor.constraint(equalTo: view.widthAnchor, constant: -40),
+            emailField.heightAnchor.constraint(equalToConstant: 50),
+            emailField.centerXAnchor.constraint(equalTo: view.centerXAnchor),
 
-            logoImage.leadingAnchor.constraint(equalTo: logo.trailingAnchor),
-            logoImage.centerYAnchor.constraint(equalTo: logo.centerYAnchor, constant: 4),
-            logoImage.heightAnchor.constraint(equalToConstant: 30),
-            logoImage.widthAnchor.constraint(equalToConstant: 30),
-
-            usernameEmailField.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: 35),
-            usernameEmailField.widthAnchor.constraint(equalTo: view.widthAnchor, constant: -40),
-            usernameEmailField.heightAnchor.constraint(equalToConstant: 50),
-            usernameEmailField.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-
-            passwordField.topAnchor.constraint(equalTo: usernameEmailField.bottomAnchor, constant: 15),
-            passwordField.widthAnchor.constraint(equalTo: usernameEmailField.widthAnchor),
-            passwordField.heightAnchor.constraint(equalTo: usernameEmailField.heightAnchor),
+            passwordField.topAnchor.constraint(equalTo: emailField.bottomAnchor, constant: 15),
+            passwordField.widthAnchor.constraint(equalTo: emailField.widthAnchor),
+            passwordField.heightAnchor.constraint(equalTo: emailField.heightAnchor),
             passwordField.centerXAnchor.constraint(equalTo: view.centerXAnchor),
 
-            forgottenPasswordButton.topAnchor.constraint(equalTo: passwordField.bottomAnchor, constant: 5),
-            forgottenPasswordButton.trailingAnchor.constraint(equalTo: passwordField.trailingAnchor),
-
-            loginButton.topAnchor.constraint(equalTo: forgottenPasswordButton.bottomAnchor, constant: 20),
-            loginButton.widthAnchor.constraint(equalTo: view.widthAnchor, constant: -40),
-            loginButton.heightAnchor.constraint(equalToConstant: 50),
+            loginButton.topAnchor.constraint(equalTo: passwordField.bottomAnchor, constant: 20),
+            loginButton.widthAnchor.constraint(equalTo: emailField.widthAnchor),
+            loginButton.heightAnchor.constraint(equalTo: emailField.heightAnchor),
             loginButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
 
-            createAccountButton.topAnchor.constraint(equalTo: loginButton.bottomAnchor, constant: 10),
-            createAccountButton.widthAnchor.constraint(equalTo: loginButton.widthAnchor),
+            forgottenPasswordButton.topAnchor.constraint(equalTo: loginButton.bottomAnchor, constant: 20),
+            forgottenPasswordButton.centerXAnchor.constraint(equalTo: loginButton.centerXAnchor),
+            forgottenPasswordButton.heightAnchor.constraint(equalToConstant: 25),
+
+            createAccountButton.topAnchor.constraint(greaterThanOrEqualTo: forgottenPasswordButton.bottomAnchor, constant: 15),
+            createAccountButton.leadingAnchor.constraint(greaterThanOrEqualTo: view.leadingAnchor),
+            createAccountButton.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor),
             createAccountButton.heightAnchor.constraint(equalTo: loginButton.heightAnchor),
             createAccountButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-
-            privacyButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
-            privacyButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            privacyButton.heightAnchor.constraint(equalToConstant: 20),
-            privacyButton.widthAnchor.constraint(equalToConstant: 150),
-
-            termsButton.bottomAnchor.constraint(equalTo: privacyButton.topAnchor, constant: -15),
-            termsButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            termsButton.heightAnchor.constraint(equalToConstant: 20),
-            termsButton.widthAnchor.constraint(equalToConstant: 150)
+            createAccountButton.bottomAnchor.constraint(lessThanOrEqualTo: view.keyboardLayoutGuide.topAnchor, constant: -15)
         ])
     }
 
-    @objc func didTapLoginButton() {
-        passwordField.resignFirstResponder()
-        usernameEmailField.resignFirstResponder()
-
-        guard let usernameEmail = usernameEmailField.text, !usernameEmail.isEmpty, let password = passwordField.text, !password.isEmpty, password.count >= 8 else {
-
-            return
+    private func onAppearAnimation() {
+        self.logoImage.transform = CGAffineTransform(translationX: 0, y: -(self.view.frame.height - self.logoImage.frame.height))
+        self.loginButton.transform = CGAffineTransform(translationX: 0, y: 300)
+        self.createAccountButton.transform = CGAffineTransform(translationX: 0, y: 300)
+        self.forgottenPasswordButton.transform = CGAffineTransform(translationX: 0, y: 300)
+        UIView.animate(withDuration: 0.5) {
+            self.logoImage.transform = .identity
+            self.loginButton.transform = .identity
+            self.createAccountButton.transform = .identity
+            self.forgottenPasswordButton.transform = .identity
+            self.view.alpha = 1
+            self.navigationController?.navigationBar.alpha = 1
         }
-
-        viewModel.loginUser(with: usernameEmail, password: password) { [weak self] isSuccessfull, description in
-
-            switch isSuccessfull {
-
-            case true: self?.view.window?.rootViewController = TabBarController()
-
-            case false: self?.showAlert(with: description)
-
-            }
-        }
-
     }
 
-    private func showAlert(with message: String) {
-        let alert = UIAlertController(title: "Could not log you in", message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "Try again", style: .cancel))
-        alert.view.backgroundColor = .secondarySystemBackground
-        alert.view.layer.cornerRadius = 10
-        self.present(alert, animated: true)
+    private func showMainScreen(for user: ZoogramUser) {
+        UIView.animate(withDuration: 1.0) {
+            self.logoImage.transform = CGAffineTransform(translationX: 0, y: -(self.view.frame.height - self.logoImage.frame.height))
+            self.loginButton.transform = CGAffineTransform(translationX: 0, y: 300)
+            self.createAccountButton.transform = CGAffineTransform(translationX: 0, y: 300)
+            self.forgottenPasswordButton.transform = CGAffineTransform(translationX: 0, y: 300)
+            self.view.alpha = 0
+        } completion: { _ in
+            NotificationCenter.default.post(name: .shouldListenToAuthenticationState, object: nil, userInfo: ["shouldListen": true])
+            self.view.window?.rootViewController = TabBarController(for: user, showAppearAnimation: true)
+        }
+    }
+
+    @objc func didTapLoginButton() {
+        guard let usernameEmail = emailField.text,
+              let password = passwordField.text
+        else {
+            return
+        }
+        task = Task {
+            do {
+                try await viewModel.loginUser(with: usernameEmail, password: password)
+                let loggedInUser = await UserManager.shared.getCurrentUser()
+                self.showMainScreen(for: loggedInUser)
+            } catch {
+                self.showPopUp(issueText: error.localizedDescription)
+            }
+        }
     }
 
     @objc func didTapCreateAccountButton() {
-        let registrationVC = RegistrationVC()
+        let service = RegistrationService(
+            authenticationService: AuthenticationService.shared,
+            userDataService: UserDataService.shared)
+        let registrationVC = RegistrationViewController(service: service)
+        registrationVC.shouldKeepKeyboardFromPreviousVC = self.isKeyboardVisible
         navigationController?.pushViewController(registrationVC, animated: true)
-//        let vc = UINavigationController(rootViewController: RegistrationViewController())
-//        vc.modalPresentationStyle = .fullScreen
-//        present(vc, animated: true)
     }
 
-    @objc func didTapTermsButton() {
-
+    @objc func didTapForgotPassword() {
+        guard let email = emailField.text else {
+            return
+        }
+        task = Task {
+            do {
+                try await viewModel.resetPassword(for: email)
+                let notificationText = String(localized: "Please check your email for password reset link and follow the instructions")
+                self.displayNotificationToUser(title: "", text: notificationText, prefferedStyle: .alert, action: nil)
+            } catch {
+                self.showPopUp(issueText: error.localizedDescription)
+            }
+        }
     }
-
-    @objc func didTapPrivacyButton() {
-
-    }
-
 }
 
 extension LoginViewController: UITextFieldDelegate {
+
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
-        if textField == usernameEmailField {
+        if textField == emailField {
             passwordField.becomeFirstResponder()
         } else if textField == passwordField {
             didTapLoginButton()
         }
         return true
+    }
+}
+
+extension LoginViewController: UIGestureRecognizerDelegate {
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        guard let view = touch.view else { return false }
+        if view.isKind(of: UIButton.self) {
+            return false
+        } else {
+            return true
+        }
     }
 }

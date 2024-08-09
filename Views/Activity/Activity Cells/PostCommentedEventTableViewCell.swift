@@ -14,18 +14,13 @@ class PostCommentedEventTableViewCell: UITableViewCell {
 
     weak var delegate: ActivityViewCellActionsDelegate?
 
-    var userProfileGestureRecognizer = UITapGestureRecognizer()
-
     private var event: ActivityEvent?
 
     private let profileImageViewSize: CGFloat = 45
 
-    private let profileImageView: UIImageView = {
-        let imageView = UIImageView()
+    private let profileImageView: ProfilePictureImageView = {
+        let imageView = ProfilePictureImageView()
         imageView.translatesAutoresizingMaskIntoConstraints = false
-        imageView.layer.masksToBounds = true
-        imageView.contentMode = .scaleAspectFit
-        imageView.backgroundColor = .secondarySystemBackground
         imageView.isUserInteractionEnabled = true
         return imageView
     }()
@@ -34,6 +29,7 @@ class PostCommentedEventTableViewCell: UITableViewCell {
         let label = UILabel()
         label.numberOfLines = 0
         label.translatesAutoresizingMaskIntoConstraints = false
+        label.isUserInteractionEnabled = true
         return label
     }()
 
@@ -50,8 +46,8 @@ class PostCommentedEventTableViewCell: UITableViewCell {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         selectionStyle = .none
         setupViewsAndConstraints()
-        self.userProfileGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(didSelectUser))
-        profileImageView.addGestureRecognizer(userProfileGestureRecognizer)
+        let userProfileImageGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(didSelectUser))
+        profileImageView.addGestureRecognizer(userProfileImageGestureRecognizer)
     }
 
     required init?(coder: NSCoder) {
@@ -59,16 +55,35 @@ class PostCommentedEventTableViewCell: UITableViewCell {
     }
 
     func configure(with event: ActivityEvent) {
-        guard let comment = event.text else {
-            return
-        }
         self.event = event
         self.postPhotoImageView.image = event.post?.image
+        let attributedString = createAttributedString(for: event)
+        profileImageView.image = event.user?.getProfilePhoto() ?? UIImage.profilePicturePlaceholder
+        activityMessageLabel.attributedText = attributedString
+        if event.seen == false {
+            self.contentView.backgroundColor = Colors.unseenBlue
+        } else {
+            self.contentView.backgroundColor = Colors.background
+        }
+    }
 
-        let attributedUsername = NSAttributedString(string: "\(event.user!.username) ", attributes: [NSAttributedString.Key.font: CustomFonts.boldFont(ofSize: 14), NSAttributedString.Key.foregroundColor: UIColor.label])
-        let attributedEventMessage = NSAttributedString(string: "commented: \n\(comment) ", attributes: [NSAttributedString.Key.font: CustomFonts.regularFont(ofSize: 14), .foregroundColor: UIColor.label])
-        let attributedTimeStamp = NSAttributedString(string: event.date.timeAgoDisplay(),
-                                                     attributes: [.font: CustomFonts.regularFont(ofSize: 14), .foregroundColor: UIColor.secondaryLabel])
+    private func createAttributedString(for event: ActivityEvent) -> NSAttributedString {
+        guard let comment = event.text else {
+            return NSAttributedString()
+        }
+        let attributedUsername = NSAttributedString(
+            string: "\(event.user!.username) ",
+            attributes: [.font: CustomFonts.boldFont(ofSize: 14),
+                         .foregroundColor: Colors.label])
+        let localizedMessage = String(localized: "commented: \n\(comment) ")
+        let attributedEventMessage = NSAttributedString(
+            string: localizedMessage,
+            attributes: [.font: CustomFonts.regularFont(ofSize: 14),
+                         .foregroundColor: Colors.label])
+        let attributedTimeStamp = NSAttributedString(
+            string: event.timestamp.timeAgoDisplay(),
+            attributes: [.font: CustomFonts.regularFont(ofSize: 14),
+                         .foregroundColor: UIColor.secondaryLabel])
 
         let wholeMessage = NSMutableAttributedString()
         wholeMessage.append(attributedUsername)
@@ -79,18 +94,10 @@ class PostCommentedEventTableViewCell: UITableViewCell {
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.lineSpacing = 2
         paragraphStyle.lineBreakStrategy = .pushOut
-        wholeMessage.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSMakeRange(0, wholeMessage.length))
-
-        let url = URL(string: event.user!.profilePhotoURL)
-        profileImageView.sd_setImage(with: url, completed: nil)
-
-        activityMessageLabel.attributedText = wholeMessage
-
-        if event.seen == false {
-            self.contentView.backgroundColor = ColorScheme.unseenEventLightBlue
-        } else {
-            self.contentView.backgroundColor = .systemBackground
-        }
+        wholeMessage.addAttribute(.paragraphStyle,
+                                  value: paragraphStyle,
+                                  range: NSRange(location: 0, length: wholeMessage.length))
+        return wholeMessage
     }
 
     private func setupViewsAndConstraints() {
@@ -101,11 +108,11 @@ class PostCommentedEventTableViewCell: UITableViewCell {
             profileImageView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 15),
             profileImageView.heightAnchor.constraint(equalToConstant: profileImageViewSize),
             profileImageView.widthAnchor.constraint(equalToConstant: profileImageViewSize),
-            profileImageView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+            profileImageView.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant: -10),
 
             activityMessageLabel.leadingAnchor.constraint(equalTo: profileImageView.trailingAnchor, constant: 15),
             activityMessageLabel.trailingAnchor.constraint(equalTo: postPhotoImageView.leadingAnchor, constant: -10),
-            activityMessageLabel.topAnchor.constraint(equalTo: postPhotoImageView.topAnchor, constant: 5),
+            activityMessageLabel.topAnchor.constraint(equalTo: postPhotoImageView.topAnchor, constant: 2),
             activityMessageLabel.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant: -10),
 
             postPhotoImageView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -15),
@@ -118,11 +125,9 @@ class PostCommentedEventTableViewCell: UITableViewCell {
     }
 
     @objc func didSelectUser() {
-        print("did select user")
         guard let user = event?.user else {
             return
         }
-        print("inside guard did select user")
         delegate?.didSelectUser(user: user)
     }
 }

@@ -10,10 +10,9 @@ import UIKit
 class BookmarkButton: UIButton {
 
     var buttonState: BookmarkState = .notBookmarked
-//    var unbookmarkedStateImage = UIImage(systemName: "bookmarkIcon", withConfiguration: UIImage.SymbolConfiguration(pointSize: 28))
+    var generator = UIImpactFeedbackGenerator(style: .medium)
     var unbookmarkedStateImage = UIImage(named: "unbookmarkedIcon")
     var bookmarkedStateImage = UIImage(named: "bookmarkedIcon")
-//    var bookmarkedStateImage = UIImage(systemName: "bookmark.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 28))
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -22,12 +21,20 @@ class BookmarkButton: UIButton {
         self.contentHorizontalAlignment = .fill
         self.contentVerticalAlignment = .fill
         self.isOpaque = true
-        self.backgroundColor = .systemBackground
-        self.tintColor = .label
+        self.backgroundColor = Colors.background
+        self.tintColor = Colors.label
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        super.touchesEnded(touches, with: event)
+        if buttonState == .bookmarked {
+            generator.prepare()
+            generator.impactOccurred()
+        }
     }
 
     func setBookmarkButtonState(state: BookmarkState, animated: Bool) {
@@ -51,13 +58,16 @@ class BookmarkButton: UIButton {
                 setUnmarkedState()
             }
         }
+        self.buttonState = state
     }
 
     func setBookmarkedState() {
         self.setImage(bookmarkedStateImage, for: .normal)
+        self.tintColor = Colors.bookmarked
     }
 
     func setUnmarkedState() {
         self.setImage(unbookmarkedStateImage, for: .normal)
+        self.tintColor = Colors.unbookmarked
     }
 }

@@ -18,28 +18,24 @@ extension Date {
         let month = 4 * week
 
         let quotient: Int
-        let unit: String
         if secondsAgo < minute {
             quotient = secondsAgo
-            unit = "second"
+            return String(localized: "\(quotient) second ago")
         } else if secondsAgo < hour {
             quotient = secondsAgo / minute
-            unit = "min"
+            return String(localized: "\(quotient) min ago")
         } else if secondsAgo < day {
             quotient = secondsAgo / hour
-            unit = "hour"
+            return String(localized: "\(quotient) hour ago")
         } else if secondsAgo < week {
             quotient = secondsAgo / day
-            unit = "day"
+            return String(localized: "\(quotient) day ago")
         } else if secondsAgo < month {
             quotient = secondsAgo / week
-            unit = "week"
+            return String(localized: "\(quotient) week ago")
         } else {
             quotient = secondsAgo / month
-            unit = "month"
+            return String(localized: "\(quotient) month ago")
         }
-
-        return "\(quotient) \(unit)\(quotient == 1 ? "" : "s")"
-
     }
 }

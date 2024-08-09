@@ -6,102 +6,108 @@
 //
 
 import Foundation
-import FirebaseDatabase
+@preconcurrency import FirebaseDatabase
 
-typealias CompletionBlockWithPosts = ([UserPost], LastRetrievedPostKey) -> Void
+protocol FeedServiceProtocol: Sendable {
+    func getFeedPostsCount() async throws -> PostCount
+    func getPostsForTimeline(quantity: UInt) async throws -> PaginatedItems<UserPost>
+    func getMorePostsForTimeline(quantity: UInt, after lastSeenPostKey: String) async throws -> PaginatedItems<UserPost>
+}
 
-class FeedService {
+final class FeedService: FeedServiceProtocol {
 
     static let shared = FeedService()
 
     private let databaseRef = Database.database(url: "https://catogram-58487-default-rtdb.europe-west1.firebasedatabase.app").reference()
 
-    func getPostsForTimeline(quantity: UInt, completion: @escaping CompletionBlockWithPosts) {
+    func getFeedPostsCount() async throws -> PostCount {
+        let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
+        let databaseKey = "Timelines/\(currentUserID)/"
+        let query = databaseRef.child(databaseKey)
 
-        let currentUserID = AuthenticationManager.shared.getCurrentUserUID()
-        print("inside getPosts for timeline")
-
-        databaseRef.child("Timelines/\(currentUserID)").queryOrderedByKey().queryLimited(toLast: quantity).observeSingleEvent(of: .value) { snapshot in
-
-            var retrievedPosts = [UserPost]()
-            var lastReceivedPost = ""
-            let dispatchGroup = DispatchGroup()
-
-            for snapshotChild in snapshot.children.reversed() {
-
-                guard let postSnapshot = snapshotChild as? DataSnapshot,
-                      let postDictionary = postSnapshot.value as? [String: Any]
-                else {
-                    print("Error while creating post dictionary from snapshot")
-                    return
-                }
-                lastReceivedPost = postSnapshot.key
-                do {
-                    let jsonData = try JSONSerialization.data(withJSONObject: postDictionary as Any)
-                    let userPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
-                    retrievedPosts.append(userPost)
-                } catch {
-                    print("Couldn't create post object from dictionary")
-                }
-            }
-
-            retrievedPosts = retrievedPosts.map { userPost in
-                dispatchGroup.enter()
-                UserService.shared.getUser(for: userPost.userID) { postAuthor in
-                    userPost.author = postAuthor
-                    dispatchGroup.leave()
-                }
-                return userPost
-            }
-
-            dispatchGroup.notify(queue: .main) {
-                completion(retrievedPosts, lastReceivedPost)
-            }
+        do {
+            let data = try await query.getData()
+            return Int(data.childrenCount)
+        } catch {
+            throw ServiceError.couldntLoadPosts
         }
     }
 
-    func getMorePostsForTimeline(quantity: UInt, after lastSeenPostKey: String, completion: @escaping CompletionBlockWithPosts) {
+    func getPostsForTimeline(quantity: UInt) async throws -> PaginatedItems<UserPost> {
+        let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
+        let path = DatabaseKeys.timelines + currentUserID
+        let query = databaseRef.child(path).queryOrderedByKey().queryLimited(toLast: quantity)
 
-        let currentUserID = AuthenticationManager.shared.getCurrentUserUID()
+        do {
+            let posts = try await withThrowingTaskGroup(of: (Int, UserPost).self, returning: (LastRetrievedPostKey, [UserPost]).self) { group in
+                let data = try await query.getData()
 
-        databaseRef.child("Timelines/\(currentUserID)").queryOrderedByKey().queryEnding(beforeValue: lastSeenPostKey).queryLimited(toLast: quantity).observeSingleEvent(of: .value) { snapshot in
+                var retrievedPosts = [UserPost?](repeating: nil, count: Int(data.childrenCount))
+                var lastReceivedPostKey = ""
 
-            var retrievedPosts = [UserPost]()
-            var lastReceivedPost = ""
-            let dispatchGroup = DispatchGroup()
+                for (index, snapshotChild) in data.children.reversed().enumerated() {
+                    guard let postSnapshot = snapshotChild as? DataSnapshot,
+                          let postDictionary = postSnapshot.value as? [String: Sendable]
+                    else {
+                        throw ServiceError.snapshotCastingError
+                    }
+                    lastReceivedPostKey = postSnapshot.key
 
-            for snapshotChild in snapshot.children.reversed() {
-
-                guard let postSnapshot = snapshotChild as? DataSnapshot,
-                      let postDictionary = postSnapshot.value as? [String: Any]
-                else {
-                    print("Error while creating post dictionary from snapshot")
-                    return
+                    group.addTask {
+                        do {
+                            let jsonData = try JSONSerialization.data(withJSONObject: postDictionary as Any)
+                            var userPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
+                            userPost.author = try await UserDataService().getUser(for: userPost.userID)
+                            return (index, userPost)
+                        } catch {
+                            throw error
+                        }
+                    }
                 }
-                lastReceivedPost = postSnapshot.key
 
-                do {
-                    let jsonData = try JSONSerialization.data(withJSONObject: postDictionary as Any)
-                    let userPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
-                    retrievedPosts.append(userPost)
-                } catch {
-                    print("Couldn't create post object from dictionary")
+                for try await (index, post) in group {
+                    retrievedPosts[index] = post
                 }
+                let compactMappedPosts = retrievedPosts.compactMap { $0 }
+                return (lastReceivedPostKey, compactMappedPosts)
             }
-
-            retrievedPosts = retrievedPosts.map({ userPost in
-                dispatchGroup.enter()
-                UserService.shared.getUser(for: userPost.userID) { postAuthor in
-                    userPost.author = postAuthor
-                    dispatchGroup.leave()
-                }
-                return userPost
-            })
-
-            dispatchGroup.notify(queue: .main) {
-                completion(retrievedPosts, lastReceivedPost)
-            }
+            return PaginatedItems(items: posts.1, lastRetrievedItemKey: posts.0)
+        } catch {
+            throw ServiceError.couldntLoadPosts
         }
     }
 
+    func getMorePostsForTimeline(quantity: UInt, after lastSeenPostKey: String) async throws -> PaginatedItems<UserPost> {
+        let currentUserID = try AuthenticationService.shared.getCurrentUserUID()
+        let databaseKey = "Timelines/\(currentUserID)"
+        let query = databaseRef.child(databaseKey).queryOrderedByKey().queryEnding(beforeValue: lastSeenPostKey).queryLimited(toLast: quantity)
+
+        do {
+            let data = try await query.getData()
+
+            var retrievedPosts = [UserPost]()
+            var lastReceivedPostKey = ""
+
+            for snapshot in data.children.reversed() {
+                guard let postSnapshot = snapshot as? DataSnapshot,
+                      let postDictionary = postSnapshot.value as? [String: Any]
+                else {
+                    throw ServiceError.snapshotCastingError
+                }
+                lastReceivedPostKey = postSnapshot.key
+
+                do {
+                    let jsonData = try JSONSerialization.data(withJSONObject: postDictionary as Any)
+                    var userPost = try JSONDecoder().decode(UserPost.self, from: jsonData)
+                    userPost.author = try await UserDataService().getUser(for: userPost.userID)
+                    retrievedPosts.append(userPost)
+                } catch {
+                    throw error
+                }
+            }
+            return PaginatedItems(items: retrievedPosts, lastRetrievedItemKey: lastReceivedPostKey)
+        } catch {
+            throw ServiceError.couldntLoadPosts
+        }
+    }
 }

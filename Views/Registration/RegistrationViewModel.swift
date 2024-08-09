@@ -8,79 +8,87 @@
 import Foundation
 import UIKit
 
+@MainActor
 class RegistrationViewModel {
 
-    private var newUser: ZoogramUser!
+    private let service: RegistrationServiceProtocol
 
-    func fillInBasicZoogramUserModel(userID: String, email: String, username: String) {
-        newUser = ZoogramUser(userID: userID,
-                              profilePhotoURL: "",
-                              email: email,
-                              username: username,
-                              name: "",
-                              birthday: "",
-                              posts: 0,
-                              joinDate: Date().timeIntervalSince1970)
+    var email: String?
+    var username: String?
+    var password: String?
+    var name: String?
+    var bio: String?
+    var profilePicture: UIImage?
+    var dateOfBirth: String?
+    var gender: String?
+
+    init(service: RegistrationServiceProtocol) {
+        self.service = service
     }
 
-    func registerNewUserWith(email: String, username: String, password: String, completion: @escaping (Bool, String) -> Void) {
-
-        AuthenticationManager.shared.createNewUser(email: email, password: password) { [weak self, newUser] success, userID, errorDescription in
-            if success {
-                self?.fillInBasicZoogramUserModel(userID: userID, email: email, username: username)
-
-                UserService.shared.insertNewUser(with: newUser!) { success in
-                    if success {
-                        completion(true, "")
-                    } else {
-                        completion(false, "Firebase user insertion error")
-                    }
-                }
-            } else {
-                completion(false, errorDescription)
-            }
+    private func createZoogramUserModel() -> ZoogramUser? {
+        guard let email = self.email,
+              let username = self.username,
+              let name = self.name,
+              let birthday = self.dateOfBirth,
+              let gender = self.gender
+        else {
+            return nil
         }
+
+        return ZoogramUser(
+            userID: "",
+            profilePhotoURL: nil,
+            email: email,
+            username: username,
+            name: name,
+            bio: self.bio,
+            birthday: birthday,
+            gender: gender,
+            posts: 0,
+            joinDate: Date().timeIntervalSince1970)
     }
 
-    func addUserInfo(name: String, bio: String, profilePic: UIImage?, completion: @escaping () -> Void) {
-        let dict = ["name": name, "bio": bio]
-
-        if let image = profilePic {
-            UserService.shared.updateUserProfilePicture(newProfilePic: image)
+    func registerNewUser() async throws -> ZoogramUser {
+        guard var userModel = createZoogramUserModel(),
+              let password = self.password
+        else {
+            throw RegistrationError.dataMissing
         }
-
-        UserService.shared.updateUserProfile(with: dict) {
-            completion()
-        }
+        userModel.setProfilePhoto(self.profilePicture)
+        let registeredUser = try await service.registerNewUser(for: userModel, password: password)
+        await UserManager.shared.setDefaultsForUser(registeredUser)
+        return registeredUser
     }
 
-    func finishSignUp(dateOfBirth: String, gender: String, completion: @escaping () -> Void) {
-        let dict = ["gender": gender, "birthday": dateOfBirth]
-        UserService.shared.updateUserProfile(with: dict) {
-            completion()
-        }
+    func checkIfEmailIsAvailable(email: String) async throws -> Bool {
+        try await service.checkIfEmailIsAvailable(email: email)
     }
 
-    func checkIfEmailIsAvailable(email: String, completion: @escaping (Bool, String) -> Void) {
-        AuthenticationManager.shared.checkIfEmailIsAvailable(email: email) { isAvailable, description in
-            switch isAvailable {
-            case true: completion(true, description)
-            case false: completion(false, description)
-            }
-        }
+    func checkIfUsernameIsAvailable(username: String) async throws -> Bool {
+        try await service.checkIfUsernameIsAvailable(username: username)
     }
 
-    func checkIfUsernameIsAvailable(username: String, completion: @escaping (Bool) -> Void) {
-        UserService.shared.checkIfUsernameIsAvailable(username: username) { isAvailable in
-            completion(isAvailable)
-        }
+    func checkIfUsernameIsValid(username: String) throws {
+        try service.checkIfUsernameIsValid(username: username)
+    }
+
+    func checkIfPasswordIsValid(password: String) throws {
+        try service.checkIfPasswordIsValid(password: password)
     }
 
     func isValidEmail(email: String) -> Bool {
-        let emailRegEx = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
-
-        let emailPred = NSPredicate(format: "SELF MATCHES %@", emailRegEx)
-        return emailPred.evaluate(with: email)
+        service.checkIfEmailIsValid(email: email)
     }
+}
 
+enum RegistrationError: LocalizedError {
+    case dataMissing
+
+    var errorDescription: String? {
+        switch self {
+        case .dataMissing:
+            return String(localized: "Data required for registration is missing, try again.")
+        }
+    }
 }

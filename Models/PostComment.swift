@@ -7,37 +7,40 @@
 
 import Foundation
 
-class PostComment: Codable {
+struct PostComment: Sendable, Codable {
     let commentID: String
     let authorID: String
     let commentText: String
     let datePosted: Date
+    let dateTitle: String
     var author: ZoogramUser!
+    var canBeEdited: Bool = false
+    var shouldBeMarkedUnseen: Bool = false
+    var hasBeenPosted: Bool = true
 
-    init(commentID: String, authorID: String, commentText: String, datePosted: Date) {
+    init(commentID: String, authorID: String, commentText: String, datePosted: Date, author: ZoogramUser? = nil) {
         self.commentID = commentID
         self.authorID = authorID
         self.commentText = commentText.trimmingCharacters(in: NSCharacterSet.whitespacesAndNewlines)
         self.datePosted = datePosted
+        self.author = author
+        self.dateTitle = datePosted.timeAgoDisplay()
     }
 
-    required init(from decoder: Decoder) throws {
+    init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let commentText = try container.decode(String.self, forKey: .commentText)
         self.commentID = try container.decode(String.self, forKey: .commentID)
         self.authorID = try container.decode(String.self, forKey: .authorID)
         self.commentText = commentText.trimmingCharacters(in: NSCharacterSet.whitespacesAndNewlines)
         self.datePosted = try container.decode(Date.self, forKey: .datePosted)
+        self.dateTitle = datePosted.timeAgoDisplay()
     }
 
-    static func createPostComment(text: String) -> PostComment {
-        let commentUID = CommentSystemService.shared.createCommentUID()
-        let currentUserID = AuthenticationManager.shared.getCurrentUserUID()
-        let formattedText = text.trimmingCharacters(in: NSCharacterSet.whitespacesAndNewlines)
-        let postComent = PostComment(commentID: commentUID,
-                                     authorID: currentUserID,
-                                     commentText: formattedText,
-                                     datePosted: Date())
-        return postComent
+    enum CodingKeys: CodingKey {
+        case commentID
+        case authorID
+        case commentText
+        case datePosted
     }
 }

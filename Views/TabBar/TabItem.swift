@@ -7,13 +7,13 @@
 
 import UIKit
 
-enum TabItem: String, CaseIterable {
+enum TabItem: CaseIterable {
 
-    case home = "home"
-    case discover = "discover"
-    case makeAPost = "makeAPost"
-    case activity = "activity"
-    case myProfile = "myProfile"
+    case home
+    case discover
+    case makeAPost
+    case activity
+    case myProfile
 
     var icon: UIImage {
         switch self {

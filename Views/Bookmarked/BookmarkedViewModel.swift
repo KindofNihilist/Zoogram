@@ -7,15 +7,45 @@
 
 import Foundation
 
-class BookmarkedViewModel {
-    
-    var posts = [UserPost]()
-    
-//    func getBookmarkedPosts(completion: @escaping () -> Void) {
-//        BookmarksService.shared.getBookmarkedPosts { bookmarkedPosts in
-//            self.posts = bookmarkedPosts
-//            print(bookmarkedPosts)
-//            completion()
-//        }
-//    }
+@MainActor
+class BookmarksViewModel {
+
+    private var service: any BookmarkedPostsServiceProtocol
+
+    var bookmarks = [Bookmark]()
+
+    init(service: any BookmarkedPostsServiceProtocol) {
+        self.service = service
+    }
+
+    func isPaginationAllowed() async -> Bool {
+        return await service.paginationManager.isPaginationAllowed()
+    }
+
+    func getBookmarks() async throws -> [Bookmark]? {
+        let receivedBookmarks = try await service.getItems()
+        if let receivedBookmarks = receivedBookmarks {
+            self.bookmarks = receivedBookmarks
+        }
+        return bookmarks
+    }
+
+    func getMoreBookmarks() async throws -> [Bookmark]? {
+        let paginatedBookmarks = try await service.getMoreItems()
+        if let paginatedBookmarks = paginatedBookmarks {
+            self.bookmarks.append(contentsOf: paginatedBookmarks)
+            return paginatedBookmarks
+        } else {
+            return nil
+        }
+    }
+
+    func hasHitTheEndOfBookmarks() async -> Bool {
+        return await service.checkIfHasHitEndOfItems()
+    }
+
+    func checkIfHasLoadedData() async -> Bool {
+        let numberOfRetrievedItems = await service.paginationManager.getNumberOfRetrievedItems()
+        return numberOfRetrievedItems > 0
+    }
 }

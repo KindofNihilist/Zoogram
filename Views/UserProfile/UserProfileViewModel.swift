@@ -8,46 +8,114 @@
 import Foundation
 import SDWebImage
 
+@MainActor
 class UserProfileViewModel {
 
-    var user: ZoogramUser
-    var isCurrentUserProfile: Bool = false
+    let service: any UserProfileServiceProtocol
 
     var postsCount: Int?
     var followersCount: Int?
-    var followingCount: Int?
+    var followedUsersCount: Int?
+    var posts = [PostViewModel]()
 
-    var posts: Observable = Observable([PostViewModel]())
+    private var user: ZoogramUser
 
-    init(user: ZoogramUser, postsCount: Int, followersCount: Int, followingCount: Int) {
-        self.user = user
-        self.postsCount = postsCount
-        self.followersCount = followersCount
-        self.followingCount = followingCount
-        self.isCurrentUserProfile = user.isCurrentUserProfile
+    var userID: String {
+        return user.userID
     }
 
-    init() {
-        self.user = ZoogramUser()
+    var bio: String? {
+        return user.bio
+    }
+
+    var name: String {
+        return user.name
+    }
+
+    var username: String {
+        return user.username
+    }
+
+    var profileImage: UIImage {
+        return user.getProfilePhoto() ?? UIImage.profilePicturePlaceholder
+    }
+
+    var isCurrentUserProfile: Bool {
+        return user.isCurrentUserProfile
+    }
+
+    var followStatus: FollowStatus? {
+        return user.followStatus
+    }
+
+    init(service: any UserProfileServiceProtocol, user: ZoogramUser) {
+        self.user = user
+        self.service = service
+        self.user = ZoogramUser(service.userID)
         self.postsCount = nil
         self.followersCount = nil
-        self.followingCount = nil
-        self.isCurrentUserProfile = false
+        self.followedUsersCount = nil
     }
 
-    func insertUserIfPreviouslyObtained(user: ZoogramUser?) {
-        guard let obtainedUser = user else {
-            return
+    func isPaginationAllowed() async -> Bool {
+        return await service.paginationManager.isPaginationAllowed()
+    }
+
+    func getPosts() async throws {
+        let posts = try await service.getItems()
+        if let posts = posts {
+            self.posts = posts.compactMap { post in
+                return PostViewModel(post: post)
+            }
         }
-        self.user = obtainedUser
-        self.isCurrentUserProfile = obtainedUser.isCurrentUserProfile
     }
 
-    func updateValuesWithViewModel(_ viewModel: UserProfileViewModel) {
-        self.user = viewModel.user
-        self.followersCount = viewModel.followersCount
-        self.followingCount = viewModel.followingCount
-        self.postsCount = viewModel.postsCount
-        self.isCurrentUserProfile = viewModel.isCurrentUserProfile
+    func getMorePosts() async throws -> [PostViewModel]? {
+        let posts = try await service.getMoreItems()
+        if let posts = posts {
+            let postViewModels = posts.compactMap { post in
+                return PostViewModel(post: post)
+            }
+            self.posts.append(contentsOf: postViewModels)
+            return postViewModels
+        } else {
+            return nil
+        }
+    }
+
+    func getUserProfileData() async throws {
+        async let user = service.getUserData()
+        async let followersCount = service.getFollowersCount()
+        async let followedUsersCount = service.getFollowingCount()
+        async let postsCount = service.getNumberOfItems()
+
+        self.user = try await user
+        self.followersCount = try await followersCount
+        self.followedUsersCount = try await followedUsersCount
+        self.postsCount = try await postsCount
+    }
+
+    func updateCurrentUserModel() async {
+        guard isCurrentUserProfile else { return }
+        let userModel = await UserManager.shared.getCurrentUser()
+        self.user = userModel
+    }
+
+    func followUser() async throws {
+        try await service.followUser()
+        self.user.followStatus = .following
+    }
+
+    func unfollowUser() async throws {
+        try await service.unfollowUser()
+        self.user.followStatus = .notFollowing
+    }
+
+    func hasHitTheEndOfPosts() async -> Bool {
+        return await service.checkIfHasHitEndOfItems()
+    }
+
+    func shouldReloadData() async -> Bool {
+        return await service.paginationManager.shouldReloadData()
     }
 }

@@ -7,34 +7,51 @@
 
 import UIKit
 
-class FollowUnfollowButton: UIButton {
+class FollowUnfollowButton: HapticButton {
 
-    override init(frame: CGRect) {
-        super.init(frame: frame)
+    var followStatus: FollowStatus {
+        didSet {
+            self.switchFollowStatus(status: followStatus)
+        }
+    }
+
+    init(followStatus: FollowStatus) {
+        self.followStatus = followStatus
+        super.init(frame: CGRect.zero)
         self.titleLabel?.font = CustomFonts.boldFont(ofSize: 15)
-        self.layer.cornerRadius = 10
+        self.titleLabel?.adjustsFontSizeToFitWidth = true
+        self.titleLabel?.minimumScaleFactor = 0.5
+        self.titleLabel?.textAlignment = .center
+        self.layer.cornerRadius = 13
         self.layer.cornerCurve = .continuous
         self.clipsToBounds = true
+        self.titleLabel?.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: 10).isActive = true
+        self.titleLabel?.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -10).isActive = true
+        switchFollowStatus(status: followStatus)
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
+    func switchFollowStatus(status: FollowStatus) {
+        switch status {
+        case .notFollowing:
+            changeAppearenceToFollow()
+        case .following:
+            changeAppearenceToUnfollow()
+        }
+    }
+
     func changeAppearenceToFollow() {
-        self.setTitle("Follow", for: .normal)
+        self.setTitle(String(localized: "Follow"), for: .normal)
         self.setTitleColor(.white, for: .normal)
-        self.backgroundColor = .systemBlue
-        self.layer.borderWidth = 0
-        self.layer.borderColor = .none
+        self.backgroundColor = Colors.coolBlue
     }
 
     func changeAppearenceToUnfollow() {
-        self.setTitle("Unfollow", for: .normal)
-        self.backgroundColor = .systemBackground
-        self.setTitleColor(.label, for: .normal)
-        self.layer.borderWidth = 0.5
-        self.layer.borderColor = UIColor.lightGray.cgColor
+        self.setTitle(String(localized: "Unfollow"), for: .normal)
+        self.backgroundColor = Colors.backgroundSecondary
+        self.setTitleColor(Colors.label, for: .normal)
     }
-
 }

@@ -7,48 +7,38 @@
 
 import Foundation
 
+@MainActor
 class FollowListViewModel {
 
-    var uid: String!
+    let service: FollowListServiceProtocol
 
-    var users = [ZoogramUser]()
+    let isUserProfile: Bool
 
-    func getFollowers(completion: @escaping () -> Void) {
-        FollowSystemService.shared.getFollowers(for: uid) { [weak self] followers in
-            self?.users = followers
-            completion()
-        }
+    var userList = [ZoogramUser]()
+
+    init(service: FollowListServiceProtocol, isUserProfile: Bool) {
+        self.service = service
+        self.isUserProfile = isUserProfile
     }
 
-    func getFollowing(completion: @escaping () -> Void) {
-        FollowSystemService.shared.getFollowing(for: uid) { followed in
-            self.users = followed
-            completion()
-        }
+    func getUserList() async throws -> [ZoogramUser] {
+        userList = try await service.getUserList()
+        return userList
     }
 
-    func followUser(uid: String, completion: @escaping (FollowStatus) -> Void) {
-        FollowSystemService.shared.followUser(uid: uid) { followStatus in
-            completion(followStatus)
-        }
+    func followUser(uid: String) async throws {
+        try await service.followUser(uid: uid)
     }
 
-    func unfollowUser(uid: String, completion: @escaping (FollowStatus) -> Void) {
-        FollowSystemService.shared.unfollowUser(uid: uid) { followStatus in
-            ActivitySystemService.shared.removeFollowEventForUser(userID: uid)
-            completion(followStatus)
-        }
+    func unfollowUser(uid: String) async throws {
+        try await service.unfollowUser(uid: uid)
     }
 
-    func removeUserFollowingMe(uid: String, completion: @escaping (Bool) -> Void) {
-        FollowSystemService.shared.forcefullyRemoveFollower(uid: uid) { result in
-            completion(result)
-        }
+    func removeUserFollowingMe(uid: String) async throws {
+        try await service.removeUserFollowingMe(uid: uid)
     }
 
-    func undoUserRemoval(uid: String, completion: @escaping (Bool) -> Void) {
-        FollowSystemService.shared.undoForcefullRemoval(ofUser: uid) { result in
-            completion(result)
-        }
+    func undoUserRemoval(uid: String) async throws {
+        try await service.undoUserRemoval(uid: uid)
     }
 }
