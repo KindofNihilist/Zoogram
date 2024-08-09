@@ -129,6 +129,11 @@ class CommentAccessoryView: UIView {
         userProfilePicture.layer.cornerRadius = elementsHeight / 2
         inputContainerView.layer.cornerRadius = elementsHeight / 2
     }
+
+    func resign() {
+        commentTextView.resignFirstResponder()
+    }
+    
    private func setupConstraints() {
        self.addSubviews(userProfilePicture, inputContainerView)
        inputContainerView.addSubviews(commentTextView, sendButton, placeholderLabel, charLimitLabel, loadingIndicator)
@@ -187,7 +192,6 @@ class CommentAccessoryView: UIView {
     }
 
     private func showLoadingIndicator() {
-        print("showLoadingIndicator")
         loadingIndicator.isHidden = false
         loadingIndicator.transform = CGAffineTransform(scaleX: 0.4, y: 0.4)
         loadingIndicator.startAnimating()
@@ -202,7 +206,6 @@ class CommentAccessoryView: UIView {
     }
 
     private func showSendButton() {
-        print("showSendButton")
         self.sendButton.isHidden = false
         UIView.animate(withDuration: 0.3) {
             self.sendButton.alpha = 1
@@ -223,17 +226,17 @@ class CommentAccessoryView: UIView {
     }
 
     private func handleCharacterLimit(for textView: UITextView) {
-        if charactersLeft == 50 {
+        if charactersLeft <= 30 {
             UIView.animate(withDuration: 0.3) {
                 self.charLimitLabel.alpha = 1
             }
-        } else if charactersLeft > 50 {
+        } else if charactersLeft > 30 {
             UIView.animate(withDuration: 0.3) {
                 self.charLimitLabel.alpha = 0
             }
         }
 
-        guard charactersLeft <= 50 else {
+        guard charactersLeft <= 30 else {
             return
         }
         charLimitLabel.text = "\(charactersLeft)"

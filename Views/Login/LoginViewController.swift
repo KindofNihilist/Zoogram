@@ -5,14 +5,12 @@
 //  Created by Artem Dolbiev on 17.01.2022.
 //
 import UIKit
-import SwiftUI
 
 class LoginViewController: UIViewController {
 
     private let viewModel: LoginViewModel
     private var task: Task<Void, Error>?
     var shouldShowOnAppearAnimation: Bool = false
-    var hasFinishedLogginIn = Observable(false)
 
     private var isKeyboardVisible: Bool = false
 
@@ -24,7 +22,7 @@ class LoginViewController: UIViewController {
         return imageView
     }()
 
-    private let usernameEmailField: CustomTextField = {
+    private let emailField: CustomTextField = {
         let field = CustomTextField()
         let placeholder = String(localized: "Email")
         field.translatesAutoresizingMaskIntoConstraints = false
@@ -33,7 +31,7 @@ class LoginViewController: UIViewController {
 //        I had to change autocorrectionType and textContentType, because of the bug in iOS 17 with isSecureTextEntry fields and autofill bar,
 //        which caused the keyboard flickering and views jumping.
         field.autocorrectionType = .no
-        field.textContentType = .oneTimeCode
+        field.textContentType = .emailAddress
         field.backgroundColor = Colors.backgroundSecondary
         field.returnKeyType = .next
         return field
@@ -46,7 +44,7 @@ class LoginViewController: UIViewController {
         field.isSecureTextEntry = true
         field.placeholder = placeholder
         field.returnKeyType = .continue
-        field.textContentType = .oneTimeCode
+        field.textContentType = .password
         field.autocorrectionType = .no
         field.backgroundColor = Colors.backgroundSecondary
         return field
@@ -94,14 +92,14 @@ class LoginViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        usernameEmailField.delegate = self
+        emailField.delegate = self
         passwordField.delegate = self
         view.backgroundColor = Colors.background
-        view.addSubviews(logoImage, usernameEmailField, passwordField, forgottenPasswordButton, loginButton, createAccountButton)
+        view.addSubviews(logoImage, emailField, passwordField, forgottenPasswordButton, loginButton, createAccountButton)
         self.navigationController?.isNavigationBarHidden = true
         setNavigationBarAppearence()
         setupConstraints()
-        setupEdditingInteruptionGestures()
+        setupEdditingInteruptionGestures(delegate: self)
         setupKeyboardEventsObservers()
     }
 
@@ -166,19 +164,19 @@ class LoginViewController: UIViewController {
             logoImage.widthAnchor.constraint(equalToConstant: 85),
             logoImage.heightAnchor.constraint(equalToConstant: 85),
 
-            usernameEmailField.topAnchor.constraint(equalTo: logoImage.bottomAnchor, constant: 70),
-            usernameEmailField.widthAnchor.constraint(equalTo: view.widthAnchor, constant: -40),
-            usernameEmailField.heightAnchor.constraint(equalToConstant: 50),
-            usernameEmailField.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            emailField.topAnchor.constraint(equalTo: logoImage.bottomAnchor, constant: 70),
+            emailField.widthAnchor.constraint(equalTo: view.widthAnchor, constant: -40),
+            emailField.heightAnchor.constraint(equalToConstant: 50),
+            emailField.centerXAnchor.constraint(equalTo: view.centerXAnchor),
 
-            passwordField.topAnchor.constraint(equalTo: usernameEmailField.bottomAnchor, constant: 15),
-            passwordField.widthAnchor.constraint(equalTo: usernameEmailField.widthAnchor),
-            passwordField.heightAnchor.constraint(equalTo: usernameEmailField.heightAnchor),
+            passwordField.topAnchor.constraint(equalTo: emailField.bottomAnchor, constant: 15),
+            passwordField.widthAnchor.constraint(equalTo: emailField.widthAnchor),
+            passwordField.heightAnchor.constraint(equalTo: emailField.heightAnchor),
             passwordField.centerXAnchor.constraint(equalTo: view.centerXAnchor),
 
             loginButton.topAnchor.constraint(equalTo: passwordField.bottomAnchor, constant: 20),
-            loginButton.widthAnchor.constraint(equalTo: usernameEmailField.widthAnchor),
-            loginButton.heightAnchor.constraint(equalTo: usernameEmailField.heightAnchor),
+            loginButton.widthAnchor.constraint(equalTo: emailField.widthAnchor),
+            loginButton.heightAnchor.constraint(equalTo: emailField.heightAnchor),
             loginButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
 
             forgottenPasswordButton.topAnchor.constraint(equalTo: loginButton.bottomAnchor, constant: 20),
@@ -217,13 +215,13 @@ class LoginViewController: UIViewController {
             self.forgottenPasswordButton.transform = CGAffineTransform(translationX: 0, y: 300)
             self.view.alpha = 0
         } completion: { _ in
-            self.hasFinishedLogginIn.value = true
+            NotificationCenter.default.post(name: .shouldListenToAuthenticationState, object: nil, userInfo: ["shouldListen": true])
             self.view.window?.rootViewController = TabBarController(for: user, showAppearAnimation: true)
         }
     }
 
     @objc func didTapLoginButton() {
-        guard let usernameEmail = usernameEmailField.text,
+        guard let usernameEmail = emailField.text,
               let password = passwordField.text
         else {
             return
@@ -249,7 +247,7 @@ class LoginViewController: UIViewController {
     }
 
     @objc func didTapForgotPassword() {
-        guard let email = usernameEmailField.text else {
+        guard let email = emailField.text else {
             return
         }
         task = Task {
@@ -267,11 +265,22 @@ class LoginViewController: UIViewController {
 extension LoginViewController: UITextFieldDelegate {
 
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
-        if textField == usernameEmailField {
+        if textField == emailField {
             passwordField.becomeFirstResponder()
         } else if textField == passwordField {
             didTapLoginButton()
         }
         return true
+    }
+}
+
+extension LoginViewController: UIGestureRecognizerDelegate {
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        guard let view = touch.view else { return false }
+        if view.isKind(of: UIButton.self) {
+            return false
+        } else {
+            return true
+        }
     }
 }

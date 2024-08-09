@@ -166,8 +166,6 @@ extension ProfileEdditingViewController: ProfileEdditingViewDelegate {
         if let originalImage = info[UIImagePickerController.InfoKey.originalImage] as? UIImage,
            let cropRect = info[UIImagePickerController.InfoKey.cropRect] as? CGRect {
             let croppedImage = originalImage.croppedInRect(rect: cropRect)
-            print("cropRect: ", cropRect)
-            print("edited image size: ", croppedImage.size)
             self.viewModel.newProfilePicture = croppedImage
             self.shouldUpdateProfilePicture = true
             self.viewModel.hasChangedProfilePic = true

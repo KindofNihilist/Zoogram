@@ -86,7 +86,6 @@ final class UserPostsService: UserPostsServiceProtocol {
             try await databaseRef.updateChildValues(deleteActions)
             try await StorageManager.shared.deletePostPhoto(photoURL: postImageURL)
         } catch {
-            print(error.localizedDescription)
             throw ServiceError.couldntDeletePost
         }
     }

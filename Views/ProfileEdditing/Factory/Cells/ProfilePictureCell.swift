@@ -44,7 +44,6 @@ class ProfilePictureCell: UITableViewCell {
     }
 
     func configure(with profileImage: UIImage) {
-        print("set profile image triggered")
         profilePictureView.configure(with: profileImage)
     }
 }

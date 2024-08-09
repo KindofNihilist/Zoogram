@@ -42,7 +42,6 @@ final class AuthenticationService: AuthenticationServiceProtocol {
                 changeRequest.displayName = currentUser.username
                 try await changeRequest.commitChanges()
             }
-            print("currentUser userID: \(currentUser.userID)")
             return currentUser
         } catch {
             throw handleError(error: error)
@@ -83,7 +82,6 @@ final class AuthenticationService: AuthenticationServiceProtocol {
     }
 
     func signOut() throws {
-        print("signing out")
         do {
             try Auth.auth().signOut()
         } catch {

@@ -88,7 +88,6 @@ class Filter: ImageFilter {
 
     func getOutput() -> CIImage? {
         guard let outputImage = self.filter.outputImage else {
-            print("Returning nil instead of CIImage")
             return nil }
         return outputImage
     }
@@ -98,7 +97,6 @@ class Filter: ImageFilter {
     }
 
     private func getFilterValue(for sliderValue: Float) -> Any {
-        print("sliderValue for \(self.filterSubtype): ", sliderValue)
         switch filterSubtype {
         case .warmth:
             return CIVector(x: CGFloat(sliderValue) + 6500, y: 0)
@@ -174,7 +172,6 @@ class PhotoFilter: ImageFilter {
 
     func getFilteredImage() -> UIImage? {
         guard let filteredImage = self.filteredImage else {
-            print("GUARD FILTERED IMAGE")
             return nil
         }
         return UIImage(ciImage: filteredImage)

@@ -80,7 +80,6 @@ class PhotoEffectButton: EdditingFilterButton {
         setupConstraints()
         onStatusChange = { isRelatedEffectApplied in
             self.isAppliedIndicator.isHidden = !isRelatedEffectApplied
-            print("Is Applied Indicator hidden: \(self.isAppliedIndicator.isHidden)")
         }
     }
 

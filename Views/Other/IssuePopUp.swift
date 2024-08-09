@@ -73,16 +73,27 @@ extension UIViewController {
         popupView.alpha = 0
         view.addSubview(popupView)
 
+        var bottomAnchor: NSLayoutYAxisAnchor
+        var constant: CGFloat = -20
+
+        if let navController = self as? UINavigationController,
+           let commentVC = navController.visibleViewController as? CommentsViewController {
+            bottomAnchor = commentVC.accessoryViewTopAnchor
+            constant = -10
+        } else {
+            bottomAnchor = self.view.keyboardLayoutGuide.topAnchor
+        }
+
         NSLayoutConstraint.activate([
             popupView.widthAnchor.constraint(equalTo: self.view.widthAnchor, constant: -20),
             popupView.heightAnchor.constraint(greaterThanOrEqualToConstant: 45),
             popupView.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
-            popupView.bottomAnchor.constraint(equalTo: self.view.keyboardLayoutGuide.topAnchor, constant: -20)
+            popupView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: constant)
         ])
 
         popupView.transform = CGAffineTransform(translationX: 0, y: 300)
 
-        UIView.animate(withDuration: 0.4) {
+        UIView.animate(withDuration: 0.4, delay: 0, usingSpringWithDamping: 0.8, initialSpringVelocity: 0.5) {
             popupView.alpha = 1
             popupView.transform = .identity
         } completion: { _ in

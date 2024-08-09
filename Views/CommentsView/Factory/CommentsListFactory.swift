@@ -59,7 +59,9 @@ import UIKit
     func insertComment(with comment: PostComment, at indexPath: IndexPath, completion: @escaping () -> Void) {
         let cellController = CommentCellController(comment: comment, delegate: self.delegate)
         commentsSection.insertCell(with: cellController, at: indexPath.row)
-        completion()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            completion()
+        }
     }
 
     func deleteComment(at indexPath: IndexPath) {

@@ -280,7 +280,6 @@ extension ActivityViewController: ActivityViewCellActionsDelegate {
     }
 
     func textView(_ textView: UITextView, shouldInteractWith URL: URL, in characterRange: NSRange, interaction: UITextItemInteraction) -> Bool {
-        print("should interact with URL")
         let userID = URL.absoluteString
         let user = ZoogramUser(userID)
         showProfile(of: user)
@@ -292,7 +291,7 @@ extension ActivityViewController: FollowEventTableViewCellDelegate {
     func followUserTapped(user: ZoogramUser) {
         Task {
             do {
-                let newFollowStatus = try await FollowSystemService.shared.followUser(uid: user.userID)
+                try await FollowSystemService.shared.followUser(uid: user.userID)
             } catch {
                 self.showPopUp(issueText: error.localizedDescription)
             }
@@ -302,7 +301,7 @@ extension ActivityViewController: FollowEventTableViewCellDelegate {
     func unfollowUserTapped(user: ZoogramUser) {
         Task {
             do {
-                let newFollowStatus = try await FollowSystemService.shared.unfollowUser(uid: user.userID)
+                try await FollowSystemService.shared.unfollowUser(uid: user.userID)
             } catch {
                 self.showPopUp(issueText: error.localizedDescription)
             }

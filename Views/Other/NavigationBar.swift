@@ -132,11 +132,9 @@ class NavigationBar: UIView {
 
     @objc private func didTapLeftButton() {
         leftButtonAction?()
-        print("didTapBackButton")
     }
 
     @objc private func didTapRightButton() {
-        print("didTapNextButton")
         rightButtonAction?()
     }
 }

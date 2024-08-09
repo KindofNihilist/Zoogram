@@ -59,8 +59,7 @@ class PaginationIndicatorCell: UICollectionViewCell {
         spinner.alpha = 1
     }
 
-    func displayLoadingError(_ error: Error, delegate: PaginationIndicatorCellDelegate?) {
-        print("Displaying loading error")
+    func displayLoadingError(_ error: Error) {
         spinner.stopAnimating()
         spinner.alpha = 0
         loadingErrorView.setDescriptionLabelText(error.localizedDescription)
@@ -71,13 +70,11 @@ class PaginationIndicatorCell: UICollectionViewCell {
             loadingErrorView.bottomAnchor.constraint(equalTo: self.bottomAnchor),
             loadingErrorView.trailingAnchor.constraint(equalTo: self.trailingAnchor)
         ])
-        self.delegate = delegate
     }
 }
 
 extension PaginationIndicatorCell: LoadingErrorViewDelegate {
     func didTapReloadButton() {
-        print("did tap reload button")
         delegate?.didTapRetryPaginationButton()
     }
 }

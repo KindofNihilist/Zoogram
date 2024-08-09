@@ -13,7 +13,13 @@ class DiscoverViewController: UIViewController {
     let viewModel: DiscoverViewModel
 
     private var dataSource: CollectionViewDataSource?
-    private var factory: DiscoverCollectionViewFactory!
+
+    private lazy var factory: DiscoverCollectionViewFactory = {
+        let factory = DiscoverCollectionViewFactory(for: self.collectionView)
+        factory.delegate = self
+        return factory
+    }()
+
     private var refreshControl: UIRefreshControl?
 
     private var tasks = [Task<Void, Never>?]()
@@ -95,7 +101,7 @@ class DiscoverViewController: UIViewController {
         setupRefreshControl()
         refreshControl?.beginRefreshingManually()
         viewModel.foundUsers.bind { _ in
-            self.tableView.reloadData()
+            self.tableView.reloadSections(IndexSet(integer: 0), with: .fade)
         }
     }
 
@@ -127,12 +133,29 @@ class DiscoverViewController: UIViewController {
         let task = Task {
             do {
                 let retrievedPosts = try await viewModel.getPostsToDiscover()
-                self.factory = DiscoverCollectionViewFactory(for: self.collectionView)
                 self.postsTableView.updatePostsArrayWith(posts: retrievedPosts)
                 self.refreshControl?.endRefreshing()
                 self.setupDataSource()
             } catch {
                 self.handleLoadingError(error: error)
+            }
+        }
+        tasks.append(task)
+    }
+
+    private func getMorePosts() {
+        let task = Task {
+            guard await viewModel.isPaginationAllowed() else { return }
+            factory.showLoadingIndicator()
+            do {
+                if let paginatedPosts = try await viewModel.getMorePostsToDiscover() {
+                    self.factory.updatePostsSection(with: paginatedPosts) {
+                        self.updateTableViewPosts()
+                    }
+                }
+                self.hideLoadingFooterIfNeeded()
+            } catch {
+                self.factory.showPaginationRetryButton(error: error)
             }
         }
         tasks.append(task)
@@ -249,24 +272,6 @@ class DiscoverViewController: UIViewController {
 
 extension DiscoverViewController {
 
-    private func getMorePosts() {
-        let task = Task {
-            guard await viewModel.isPaginationAllowed() else { return }
-            factory.showLoadingIndicator()
-            do {
-                if let paginatedPosts = try await viewModel.getMorePostsToDiscover() {
-                    self.factory.updatePostsSection(with: paginatedPosts) {
-                        self.updateTableViewPosts()
-                    }
-                }
-            } catch {
-                self.factory.showPaginationRetryButton(error: error, delegate: self)
-            }
-            hideLoadingFooterIfNeeded()
-        }
-        tasks.append(task)
-    }
-
     private func updateTableViewPosts() {
         let posts = viewModel.posts.value
         self.postsTableView.updatePostsArrayWith(posts: posts)
@@ -381,7 +386,6 @@ extension DiscoverViewController: UISearchBarDelegate {
                             let lowercasedSearchText = searchText.lowercased()
                             try await self?.viewModel.searchUser(for: lowercasedSearchText)
                         } catch {
-                            print("searchBar searchUser error: ", error)
                             self?.showPopUp(issueText: error.localizedDescription)
                         }
                         self?.spinnerView.stopAnimating()
@@ -393,7 +397,6 @@ extension DiscoverViewController: UISearchBarDelegate {
                 }
             })
         }
-//        tasks.append(task)
     }
 }
 

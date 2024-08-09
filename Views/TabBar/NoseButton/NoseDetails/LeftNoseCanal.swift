@@ -13,7 +13,6 @@ class LeftNoseCanal: CAShapeLayer {
         super.init()
         createNoseCanal(with: rect, scaleFactor: scaleFactor)
         fillColor = UIColor.systemPink.cgColor
-        print("LeftNoseFrame: ", rect)
     }
 
     override init(layer: Any) {
@@ -35,9 +34,7 @@ class LeftNoseCanal: CAShapeLayer {
 
         let scaledPath = leftCanal.scale(usingScaleFactor: factor)
         let alignmentPoint = CGPoint(x: frame.maxX * 0.222, y: frame.maxY * 0.512)
-        print("alignmentPoint: ", alignmentPoint)
         let alignedPath = align(path: scaledPath, to: alignmentPoint)
-        print("alignedPath: ", alignedPath.bounds)
         self.path = alignedPath.cgPath
     }
 

@@ -40,9 +40,6 @@ extension UIImage {
 
     func isWidthDominant() -> Bool {
         let ratio = ratio()
-        print("width: \(self.size.width)")
-        print("height: \(self.size.height)")
-        print("width/height = \(ratio)")
         return ratio > 1
     }
 }

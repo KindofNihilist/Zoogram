@@ -20,6 +20,12 @@ class RegistrationForm: UIView {
         }
     }
 
+    var contentType: UITextContentType? = nil {
+        didSet {
+            self.textField.textContentType = contentType
+        }
+    }
+
     weak var delegate: UITextFieldDelegate? {
         didSet {
             textField.delegate = self.delegate

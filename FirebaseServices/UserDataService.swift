@@ -93,7 +93,6 @@ final class UserDataService: UserDataServiceProtocol {
             decodedUser.followStatus = try await FollowSystemService.shared.checkFollowStatus(for: userID)
             return decodedUser
         } catch {
-            print("getUser error: ", error)
             throw ServiceError.couldntLoadUserData
         }
     }

@@ -70,7 +70,6 @@ final class FollowSystemService: FollowSystemProtocol {
             }
             return followers
         } catch {
-            print(error.localizedDescription)
             throw ServiceError.couldntLoadData
         }
     }

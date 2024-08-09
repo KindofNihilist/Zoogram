@@ -323,10 +323,11 @@ class PostTableViewCell: UITableViewCell {
 
     private func configureFooter(username: String, caption: AttributedString?, likesTitle: String, timeSincePostedTitle: String) {
         if let caption = caption {
+            captionLabel.isHidden = false
             captionLabel.attributedText = NSAttributedString(caption)
             captionLabel.sizeToFit()
         } else {
-            captionLabel.removeFromSuperview()
+            captionLabel.isHidden = true
         }
         timeSincePostedLabel.text = timeSincePostedTitle
         setLikesTitle(title: likesTitle)

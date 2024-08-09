@@ -37,7 +37,6 @@ class ImageMetalPreview: MTKView, MTKViewDelegate {
 
     func setupMetalPreview(for image: UIImage) {
         guard let imageData = image.jpegData(compressionQuality: 1) else {
-            print("Couldn't convert chosen image to Data")
             return
         }
         defaultDevice = MTLCreateSystemDefaultDevice()

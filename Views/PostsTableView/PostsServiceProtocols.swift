@@ -77,7 +77,6 @@ actor PaginationManager {
     }
 
     func finishPaginating() {
-        print("has finished pagination")
         self.isPaginationInProgress = false
     }
 
@@ -227,10 +226,10 @@ extension AdditionalPostDataSource {
 
     func getAdditionalPostDataFor(_ post: UserPost) async throws -> UserPost {
         var postWithData = post
-        let author = try await userDataService.getUser(for: post.userID)
+        var author = try await userDataService.getUser(for: post.userID)
         if let profilePhotoURL = author.profilePhotoURL {
             let profilePhoto = try await imageService.getImage(for: profilePhotoURL)
-            postWithData.author.setProfilePhoto(profilePhoto)
+            author.setProfilePhoto(profilePhoto)
         }
 
         let postID = postWithData.postID

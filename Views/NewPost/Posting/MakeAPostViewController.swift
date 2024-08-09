@@ -57,12 +57,8 @@ class MakeAPostViewController: UIViewController {
     }()
 
     init(photo: UIImage) {
-
         self.viewModel = NewPostViewModel(photo: photo)
         super.init(nibName: nil, bundle: nil)
-        if let data = photo.jpegData(compressionQuality: 1) {
-            print("Image data count on posting: ", data.count)
-        }
         self.postImagePreview.image = photo
         self.captionTextView.text = self.captionTextViewPlaceholder
     }
@@ -120,7 +116,6 @@ class MakeAPostViewController: UIViewController {
     }
 
    @objc func postAPhoto() {
-       print("Post button tapped")
        showLoadingIndicator()
        viewModel.prepareForPosting { newPost in
            DispatchQueue.main.async {

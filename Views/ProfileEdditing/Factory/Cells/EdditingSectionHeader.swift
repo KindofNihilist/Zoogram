@@ -14,7 +14,6 @@ class ProfileEdditingSectionHeader: UITableViewHeaderFooterView {
 
     override init(reuseIdentifier: String?) {
         super.init(reuseIdentifier: reuseIdentifier)
-        print("cREATED SECTION HEADER")
         backgroundColor = .blue
         configureContents()
     }

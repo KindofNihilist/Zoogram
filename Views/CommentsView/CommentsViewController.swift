@@ -48,6 +48,10 @@ class CommentsViewController: ViewControllerWithLoadingIndicator {
         return commentAccessoryView
     }()
 
+    var accessoryViewTopAnchor: NSLayoutYAxisAnchor {
+        return keyboardAccessoryView.topAnchor
+    }
+
     // MARK: Init
     init(post: UserPost, commentIDToFocusOn: String? = nil, shouldShowRelatedPost: Bool, service: CommentsServiceProtocol) {
         self.viewModel = CommentsViewModel(
@@ -89,6 +93,7 @@ class CommentsViewController: ViewControllerWithLoadingIndicator {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         self.navigationController?.setNavigationBarHidden(false, animated: true)
+        UserDefaults().setValue(true, forKey: UserDefaultsKeys.shouldShowPendingNotification.rawValue)
     }
 
     // MARK: Views setup
@@ -130,9 +135,8 @@ class CommentsViewController: ViewControllerWithLoadingIndicator {
 
     private func setupBackButtonAction() {
         navigationItem.backAction = UIAction(handler: { _ in
-            print("back action triggered")
+            self.keyboardAccessoryView.resign()
             if self.viewModel.hasPendingComments {
-                print("inside hasPendingComments")
                 let userDefaultsKey = UserDefaultsKeys.shouldShowPendingNotification.rawValue
                 let shouldShowNotification = UserDefaults().bool(forKey: userDefaultsKey)
 
@@ -150,7 +154,6 @@ class CommentsViewController: ViewControllerWithLoadingIndicator {
     // MARK: Main methods
 
     private func showPendingCommentsNotification() {
-        print("inside show pendingComments")
         let title = String(localized: "Pending comments")
         let message = String(localized: "You have pending comments, they'll be published once there's an active connection.")
         let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)

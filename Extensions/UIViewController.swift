@@ -128,15 +128,24 @@ extension UIViewController {
         self.present(alert, animated: true)
     }
 
-    func setupEdditingInteruptionGestures() {
+    func setupEdditingInteruptionGestures(delegate: UIGestureRecognizerDelegate? = nil) {
         let tapGestureRecognizer = UITapGestureRecognizer(target: self.view, action: #selector(UIView.endEditing))
         tapGestureRecognizer.cancelsTouchesInView = false
+        tapGestureRecognizer.name = Gestures.touchEndEdditing.rawValue
+        tapGestureRecognizer.delegate = delegate
         view.addGestureRecognizer(tapGestureRecognizer)
         let swipeGestureRecognizer = UISwipeGestureRecognizer(target: self.view, action: #selector(UIView.endEditing))
         swipeGestureRecognizer.cancelsTouchesInView = false
         swipeGestureRecognizer.direction = .down
+        swipeGestureRecognizer.name = Gestures.swipeEndEdditing.rawValue
+        swipeGestureRecognizer.delegate = delegate
         view.addGestureRecognizer(swipeGestureRecognizer)
     }
+}
+
+enum Gestures: String {
+    case touchEndEdditing = "touchToEndEdditing"
+    case swipeEndEdditing = "swipeToEndEdditing"
 }
 
 extension UIAlertController {

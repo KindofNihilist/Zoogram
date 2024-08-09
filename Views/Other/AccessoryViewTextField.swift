@@ -36,7 +36,6 @@ class AccessoryViewTextView: UITextView {
         guard let rightView = rightView else {
             return
         }
-        print("setting Up Right View")
         rightView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(rightView)
         NSLayoutConstraint.activate([

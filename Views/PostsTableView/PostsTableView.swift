@@ -58,21 +58,17 @@ class PostsTableView: UITableView {
     }
 
     @objc func getPosts() {
-        print("getPostsTriggered")
         let task = Task {
             do {
                 try await viewModel.getPosts()
-                print("past viewModel.getPosts()")
                 if viewModel.posts.isEmpty {
                     self.showNoPostsNotificationIfNeeded()
                 } else {
                     self.reloadData()
                     self.removeNoPostsNotificationIfDisplayed()
                     if await self.viewModel.hasHitTheEndOfPosts() {
-                        print("removing pagination footer")
-                        self.removePaginationFooter()
+                        self.removeFooter()
                     } else {
-                        print("showing pagination footer")
                         self.showPaginationFooter()
                     }
                 }
@@ -164,7 +160,7 @@ class PostsTableView: UITableView {
             if await viewModel.hasHitTheEndOfPosts() == false {
                 self.showPaginationFooter()
             } else {
-                self.removePaginationFooter()
+                self.removeFooter()
             }
         }
         tasks.append(task)
@@ -181,7 +177,7 @@ class PostsTableView: UITableView {
         viewModel.isDisplayingFooter = true
     }
 
-    private func removePaginationFooter() {
+    private func removeFooter() {
         guard viewModel.isDisplayingFooter == true else { return }
         self.tableFooterView = nil
         viewModel.isDisplayingFooter = false
@@ -329,6 +325,7 @@ extension PostsTableView: PostTableViewCellProtocol {
 
 extension PostsTableView: LoadingErrorViewDelegate {
     func didTapReloadButton() {
+        removeFooter()
         showPaginationFooter()
         getMorePosts()
     }

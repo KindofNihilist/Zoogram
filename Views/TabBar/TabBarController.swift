@@ -210,28 +210,27 @@ class TabBarController: UITabBarController {
     }
 
     private func setupConnectionMonitor() {
-        let task = Task {
+        Task {
             self.connectionMonitor = NetworkStatusMonitor()
             await self.connectionMonitor?.setHandler({ connectionState in
                 Task { @MainActor in
                     if connectionState == .disconnected {
-                        guard let currentVC = self.selectedViewController else { return }
-                        await self.connectionMonitor?.setConnectionHandlerState(isBeingHandled: true)
-                        currentVC.showPopUp(issueText: String(localized: "No Internet Connection")) {
-                            Task {
-                                await self.connectionMonitor?.setConnectionHandlerState(isBeingHandled: false)
-                            }
+                        if let currentVC = self.selectedViewController {
+                            currentVC.showPopUp(issueText: String(localized: "No Internet Connection"))
                         }
                     } else if connectionState == .connected {
                         self.activityVC.observeActivityEvents()
                         self.userProfileVC.getUserProfileDataAndPostsIfNeeded()
                         self.homeVC.shouldRefreshFeedIfNeeded()
                         self.discoverVC.getDataIfNeeded()
+                        if let currentVC = self.selectedViewController {
+                            currentVC.showPopUp(issueText: String(localized: "Connected"))
+                        }
                     }
                 }
             })
+            await self.connectionMonitor?.setupMonitor()
         }
-        tasks.append(task)
     }
 }
 

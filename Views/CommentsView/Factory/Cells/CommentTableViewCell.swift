@@ -76,6 +76,7 @@ class CommentTableViewCell: UITableViewCell {
     override func prepareForReuse() {
         super.prepareForReuse()
         self.layer.removeAllAnimations()
+        self.backgroundColor = Colors.background
     }
 
     override func layoutSubviews() {

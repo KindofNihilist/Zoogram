@@ -7,27 +7,27 @@
 
 import UIKit.UICollectionView
 
+protocol UserProfileCollectionViewDelegate: ProfileHeaderDelegate, PaginationIndicatorCellDelegate {}
+
 @MainActor class UserProfileFactory {
 
+    weak var delegate: UserProfileCollectionViewDelegate?
     private let collectionView: UICollectionView
-
-    let headerDelegate: ProfileHeaderDelegate
-    var postCellAction: ((IndexPath) -> Void)?
     private var sections = [CollectionSectionController]()
     private var headerSection: ProfileHeaderSection?
     private var postsSection: PostsSection?
     private var paginationIndicatorSection: PaginationIndicatorSection?
     private var paginationIndicatorController: PaginationIndicatorController?
+    var postCellAction: ((IndexPath) -> Void)?
 
-    init(for collectionView: UICollectionView, headerDelegate: ProfileHeaderDelegate) {
+    init(for collectionView: UICollectionView) {
         self.collectionView = collectionView
-        self.headerDelegate = headerDelegate
     }
 
     func buildSections(profileViewModel: UserProfileViewModel) {
         self.sections.removeAll()
         let headerController = ProfileHeaderController(for: profileViewModel)
-        headerController.delegate = headerDelegate
+        headerController.delegate = delegate
         let headerSection = ProfileHeaderSection(bio: profileViewModel.bio, sectionHolder: collectionView, cellControllers: [headerController], sectionIndex: 0)
         self.headerSection = headerSection
         sections.append(headerSection)
@@ -49,7 +49,7 @@ import UIKit.UICollectionView
     func refreshProfileHeader(with viewModel: UserProfileViewModel) {
         guard let headerSectionIndex = headerSection?.sectionIndex else { return }
         let headerController = ProfileHeaderController(for: viewModel)
-        headerController.delegate = headerDelegate
+        headerController.delegate = delegate
         self.headerSection?.cellControllers = [headerController]
         self.collectionView.reloadSections(IndexSet(integer: headerSectionIndex))
     }
@@ -107,11 +107,12 @@ import UIKit.UICollectionView
         collectionView.reloadSections(IndexSet(integer: sectionIndex))
     }
 
-    func showPaginationRetryButton(error: Error, delegate: PaginationIndicatorCellDelegate?) {
+    func showPaginationRetryButton(error: Error) {
         guard let sectionIndex = paginationIndicatorSection?.sectionIndex else { return }
         guard let paginationCell = collectionView.cellForItem(at: IndexPath(row: 0, section: sectionIndex)) as? PaginationIndicatorCell
         else { return }
-        paginationCell.displayLoadingError(error, delegate: delegate)
+        paginationCell.delegate = self.delegate
+        paginationCell.displayLoadingError(error)
     }
 
     private func createPostsSection(with posts: [PostViewModel]) -> PostsSection {

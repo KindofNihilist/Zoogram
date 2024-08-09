@@ -40,7 +40,6 @@ class GenderPicker: UILabel {
     }
 
     @objc private func didTapToSelectGender() {
-        print("Did tap to select gender")
         dummyGenderPickerTextField.becomeFirstResponder()
     }
 }

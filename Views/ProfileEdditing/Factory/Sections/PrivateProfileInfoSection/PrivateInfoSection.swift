@@ -11,7 +11,6 @@ class PrivateInfoSection: TableSectionController {
 
     override func header() -> UIView? {
         guard let view = sectionHolder.dequeueReusableHeaderFooterView(withIdentifier: ProfileEdditingSectionHeader.identifier) as? ProfileEdditingSectionHeader else {
-            print("Couldn't cast created header")
             return nil
         }
         view.title.text = String(localized: "Private Info")

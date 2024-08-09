@@ -88,16 +88,16 @@ class PhotoPreviewCropView: UIView {
         return imageView
     }()
 
-    private var cropView: UIView {
-        return overlayView.cropView
-    }
-
     private let overlayView: OverlayView = {
         let overlayView = OverlayView()
         overlayView.translatesAutoresizingMaskIntoConstraints = false
         overlayView.isUserInteractionEnabled = false
         return overlayView
     }()
+    
+    private var cropView: UIView {
+        return overlayView.cropView
+    }
 
     private lazy var previewImageAspectButton: UIButton = {
         let button = UIButton(type: .custom)

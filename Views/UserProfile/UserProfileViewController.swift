@@ -12,7 +12,9 @@ final class UserProfileViewController: ViewControllerWithLoadingIndicator {
     private(set) var dataSource: CollectionViewDataSource?
 
     private lazy var factory: UserProfileFactory = {
-        UserProfileFactory(for: self.collectionView, headerDelegate: self)
+        let factory = UserProfileFactory(for: self.collectionView)
+        factory.delegate = self
+        return factory
     }()
 
     private var tasks = [Task<Void, Never>?]()
@@ -156,7 +158,6 @@ final class UserProfileViewController: ViewControllerWithLoadingIndicator {
     }
 
     @objc func getUserProfileDataAndPosts() {
-        print("getUserProfileDataAndPosts triggered")
         let task = Task {
             do {
                 try await viewModel.getUserProfileData()
@@ -186,10 +187,10 @@ final class UserProfileViewController: ViewControllerWithLoadingIndicator {
                         self.updateTableViewPosts()
                     }
                 }
+                self.hideLoadingFooterIfNeeded()
             } catch {
-                self.factory.showPaginationRetryButton(error: error, delegate: self)
+                self.factory.showPaginationRetryButton(error: error)
             }
-            hideLoadingFooterIfNeeded()
         }
         tasks.append(task)
     }
@@ -256,7 +257,7 @@ extension UserProfileViewController: CollectionViewDataSourceDelegate {
 }
 
 // MARK: ProfileHeaderDelegate
-extension UserProfileViewController: ProfileHeaderDelegate {
+extension UserProfileViewController: UserProfileCollectionViewDelegate {
 
     func postsButtonTapped() {
         guard viewModel.posts.isEmpty != true else {
@@ -313,6 +314,10 @@ extension UserProfileViewController: ProfileHeaderDelegate {
         }
         tasks.append(task)
     }
+
+    func didTapRetryPaginationButton() {
+        getMorePosts()
+    }
 }
 
 extension UserProfileViewController: PostsTableViewDelegate {
@@ -328,8 +333,3 @@ extension UserProfileViewController: PostsTableViewDelegate {
     }
 }
 
-extension UserProfileViewController: PaginationIndicatorCellDelegate {
-    func didTapRetryPaginationButton() {
-        getMorePosts()
-    }
-}

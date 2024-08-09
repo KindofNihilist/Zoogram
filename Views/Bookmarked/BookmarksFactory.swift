@@ -7,19 +7,10 @@
 
 import UIKit.UICollectionView
 
-@MainActor class BookmarksFactory {
-
-    private let collectionView: UICollectionView
+@MainActor class BookmarksFactory: CollectionFactoryWithPaginationIndicator {
 
     var postCellAction: ((IndexPath) -> Void)?
-    var sections = [CollectionSectionController]()
     private var postsSection: PostsSection!
-    private var paginationIndicatorSection: PaginationIndicatorSection!
-    private var paginationIndicatorController: PaginationIndicatorController?
-
-    init(for collectionView: UICollectionView) {
-        self.collectionView = collectionView
-    }
 
     func buildSections(for bookmarks: [Bookmark]) {
         self.sections.removeAll()
@@ -36,10 +27,6 @@ import UIKit.UICollectionView
 
         paginationIndicatorSection = PaginationIndicatorSection(sectionHolder: collectionView, cellControllers: [], sectionIndex: 1)
         sections.append(paginationIndicatorSection)
-    }
-
-    func getSections() -> [CollectionSectionController] {
-        return self.sections
     }
 
     func refreshPostsSection(with bookmarks: [Bookmark]) {
@@ -71,34 +58,5 @@ import UIKit.UICollectionView
             }
         }
         return cellControllers
-    }
-
-    func hideLoadingFooter() {
-        guard paginationIndicatorController != nil else { return }
-        let sectionIndex = paginationIndicatorSection.sectionIndex
-        paginationIndicatorSection.cellControllers.removeAll()
-        paginationIndicatorController = nil
-        collectionView.reloadSections(IndexSet(integer: sectionIndex))
-    }
-
-    func showLoadingIndicator() {
-        guard paginationIndicatorController == nil else {
-            if let paginationCell = paginationIndicatorController?.cell as? PaginationIndicatorCell {
-                paginationCell.showLoadingIndicator()
-            }
-            return
-        }
-        paginationIndicatorSection.cellControllers.removeAll()
-        let sectionIndex = paginationIndicatorSection.sectionIndex
-        self.paginationIndicatorController = PaginationIndicatorController()
-        paginationIndicatorSection.cellControllers.append(self.paginationIndicatorController!)
-        collectionView.reloadSections(IndexSet(integer: sectionIndex))
-    }
-
-    func showPaginationRetryButton(error: Error, delegate: PaginationIndicatorCellDelegate?) {
-        let sectionIndex = paginationIndicatorSection.sectionIndex
-        guard let paginationCell = collectionView.cellForItem(at: IndexPath(row: 0, section: sectionIndex)) as? PaginationIndicatorCell
-        else { return }
-        paginationCell.displayLoadingError(error, delegate: delegate)
     }
 }

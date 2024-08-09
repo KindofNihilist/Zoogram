@@ -53,7 +53,6 @@ class ProfilePictureView: UIView {
     }
 
     @objc func changeProfilePic() {
-        print("Did tap change profile pic")
         delegate?.didTapChangeProfilePic()
     }
 
@@ -69,12 +68,12 @@ class ProfilePictureView: UIView {
         NSLayoutConstraint.activate([
             imageView.topAnchor.constraint(equalTo: self.topAnchor, constant: 10),
             imageView.centerXAnchor.constraint(equalTo: self.centerXAnchor),
-            imageView.heightAnchor.constraint(equalTo: heightAnchor, multiplier: 0.75),
-            imageView.widthAnchor.constraint(equalTo: heightAnchor, multiplier: 0.75),
+            imageView.heightAnchor.constraint(equalTo: heightAnchor, multiplier: 0.68),
+            imageView.widthAnchor.constraint(equalTo: heightAnchor, multiplier: 0.68),
 
-            changeProfilePicButton.topAnchor.constraint(greaterThanOrEqualTo: imageView.bottomAnchor, constant: 20),
+            changeProfilePicButton.topAnchor.constraint(greaterThanOrEqualTo: imageView.bottomAnchor, constant: 15),
             changeProfilePicButton.centerXAnchor.constraint(equalTo: self.centerXAnchor),
-            changeProfilePicButton.widthAnchor.constraint(equalTo: self.widthAnchor, constant: -20),
+            changeProfilePicButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 15),
             changeProfilePicButton.bottomAnchor.constraint(equalTo: self.bottomAnchor)
         ])
     }
@@ -88,6 +87,7 @@ extension ProfilePictureViewDelegate where Self: UIViewController {
         imagePicker.cameraCaptureMode = .photo
         imagePicker.allowsEditing = true
         imagePicker.modalPresentationStyle = .fullScreen
+        imagePicker.overrideUserInterfaceStyle = .dark
         self.present(imagePicker, animated: true)
     }
     func presentPhotoLibraryView() {
@@ -96,6 +96,7 @@ extension ProfilePictureViewDelegate where Self: UIViewController {
         imagePicker.mediaTypes = ["public.image"]
         imagePicker.allowsEditing = true
         imagePicker.modalPresentationStyle = .fullScreen
+        imagePicker.overrideUserInterfaceStyle = .dark
         self.present(imagePicker, animated: true)
     }
 

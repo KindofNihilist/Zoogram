@@ -30,6 +30,7 @@ class ProfilePictureNameBioView: UIView {
         textField.translatesAutoresizingMaskIntoConstraints = false
         textField.placeholder = placeholder
         textField.returnKeyType = .next
+        textField.textContentType = .name
         return textField
     }()
 
@@ -66,9 +67,9 @@ class ProfilePictureNameBioView: UIView {
             profilePictureHeaderView.topAnchor.constraint(equalTo: self.topAnchor, constant: 10),
             profilePictureHeaderView.leadingAnchor.constraint(equalTo: self.leadingAnchor),
             profilePictureHeaderView.trailingAnchor.constraint(equalTo: self.trailingAnchor),
-            profilePictureHeaderView.heightAnchor.constraint(lessThanOrEqualToConstant: 160),
+            profilePictureHeaderView.heightAnchor.constraint(lessThanOrEqualToConstant: 175),
 
-            nameTextField.topAnchor.constraint(equalTo: profilePictureHeaderView.bottomAnchor, constant: 30),
+            nameTextField.topAnchor.constraint(equalTo: profilePictureHeaderView.bottomAnchor, constant: 25),
             nameTextField.widthAnchor.constraint(equalTo: self.widthAnchor, constant: -30),
             nameTextField.heightAnchor.constraint(equalToConstant: 45),
             nameTextField.centerXAnchor.constraint(equalTo: self.centerXAnchor),

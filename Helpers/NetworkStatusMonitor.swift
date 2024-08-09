@@ -16,15 +16,14 @@ actor NetworkStatusMonitor {
     private let monitor = NWPathMonitor()
     private var handlerActionBlock: ((ConnectionState) -> Void)?
     private var latestState: ConnectionState = .connected
-    var isBeingHandled: Bool = false
+    private var hasBeenShown: Bool = true
 
     func setupMonitor() {
         monitor.pathUpdateHandler = { path in
             Task {
                 let latestConnectionState = await self.getLatestConnectionState()
-                if path.status == .unsatisfied {
+                if path.status == .unsatisfied && latestConnectionState == .connected {
                     await self.setLatestState(to: .disconnected)
-                    guard await self.isBeingHandled == false else { return }
                     await self.callHandler(with: .disconnected)
                 } else if path.status == .satisfied && latestConnectionState == .disconnected {
                     await self.setLatestState(to: .connected)
@@ -49,9 +48,5 @@ actor NetworkStatusMonitor {
 
     func setHandler(_ handler: @Sendable @escaping (ConnectionState) -> Void) {
         self.handlerActionBlock = handler
-    }
-
-    func setConnectionHandlerState(isBeingHandled: Bool) {
-        self.isBeingHandled = isBeingHandled
     }
 }

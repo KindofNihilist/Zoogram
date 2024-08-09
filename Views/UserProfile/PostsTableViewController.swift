@@ -74,7 +74,6 @@ class PostsTableViewController: UIViewController {
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         updateParentPosts()
-        print("viewWillDisappear triggered")
         delegate?.lastVisibleItem(at: tableView.lastVisibleCellIndexPath)
     }
 
@@ -113,7 +112,6 @@ class PostsTableViewController: UIViewController {
     }
 
     func updatePostsArrayWith(posts: [PostViewModel]) {
-        print("updating tableView posts with \(posts.count) posts")
         self.tableView.setPostsViewModels(postsViewModels: posts)
         self.tableView.reloadData()
     }

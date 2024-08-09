@@ -10,7 +10,13 @@ import UIKit
 class BookmarksViewController: UIViewController {
 
     private var viewModel: BookmarksViewModel
-    private var factory: BookmarksFactory!
+
+    private lazy var factory: BookmarksFactory = {
+        let factory = BookmarksFactory(for: self.collectionView)
+        factory.delegate = self
+        return factory
+    }()
+
     private var dataSource: DefaultCollectionViewDataSource!
 
     private var task: Task<Void, Error>?
@@ -45,7 +51,6 @@ class BookmarksViewController: UIViewController {
         self.viewModel = BookmarksViewModel(service: service)
         super.init(nibName: nil, bundle: nil)
         postsTableViewController = PostsTableViewController(posts: [], service: service)
-        factory = BookmarksFactory(for: collectionView)
     }
 
     required init?(coder: NSCoder) {
@@ -135,10 +140,10 @@ class BookmarksViewController: UIViewController {
                         self.updateBookmarksTableView(with: self.viewModel.bookmarks)
                     }
                 }
+                self.hideLoadingFooterIfNeeded()
             } catch {
-                self.factory.showPaginationRetryButton(error: error, delegate: self)
+                self.factory.showPaginationRetryButton(error: error)
             }
-            hideLoadingFooterIfNeeded()
         }
     }
 

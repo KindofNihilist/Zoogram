@@ -281,7 +281,6 @@ class PhotoEditingViewController: UIViewController {
     }
 
     func applyFilters(shouldApplyImageFilter: Bool = true) -> CIImage? {
-        print("applying filters")
         guard var inputImage = self.autoEnhancedImage ?? CIImage(image: originalImage) else { return nil }
 
         for filterType in edditingFiltersApplied {
@@ -342,7 +341,6 @@ extension PhotoEditingViewController: PhotoEffectSliderDelegate {
             photoFilterApplied.value = value
         }
         metalView.setNeedsDisplay()
-        print("Slider value: \(value) for \(currentFilter.displayName)")
     }
 
     func cancelFilterApplication() {

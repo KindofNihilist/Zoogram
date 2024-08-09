@@ -28,6 +28,7 @@ class RegistrationViewController: UIViewController {
     private var continueButtonYAnchorConstraint: NSLayoutConstraint!
     var shouldKeepKeyboardFromPreviousVC: Bool = false
 
+    private var shouldEndEdditing: Bool = true
     private lazy var cardWidth: CGFloat = {
         return view.frame.width - 50
     }()
@@ -75,6 +76,7 @@ class RegistrationViewController: UIViewController {
         view.layer.masksToBounds = true
         view.layer.cornerRadius = 20
         view.textFieldKeyboardType = .emailAddress
+        view.contentType = .emailAddress
         view.delegate = self
         return view
     }()
@@ -89,6 +91,7 @@ class RegistrationViewController: UIViewController {
         view.layer.masksToBounds = true
         view.layer.cornerRadius = 20
         view.textFieldKeyboardType = .asciiCapable
+        view.contentType = .username
         view.delegate = self
         return view
     }()
@@ -104,6 +107,7 @@ class RegistrationViewController: UIViewController {
         view.layer.masksToBounds = true
         view.layer.cornerRadius = 20
         view.textFieldKeyboardType = .asciiCapable
+        view.contentType = .password
         view.delegate = self
         return view
     }()
@@ -124,6 +128,14 @@ class RegistrationViewController: UIViewController {
         return button
     }()
 
+    private lazy var loadingIndicator: UIActivityIndicatorView = {
+        let indicator = UIActivityIndicatorView(style: .large)
+        indicator.translatesAutoresizingMaskIntoConstraints = false
+        indicator.alpha = 0
+        indicator.isHidden = true
+        return indicator
+    }()
+
     init(service: RegistrationServiceProtocol) {
         self.viewModel = RegistrationViewModel(service: service)
         super.init(nibName: nil, bundle: nil)
@@ -136,23 +148,23 @@ class RegistrationViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = Colors.naturalSecondaryBackground
-        view.addSubviews(backButton, scrollView, continueButton)
+        view.addSubviews(backButton, scrollView, continueButton, loadingIndicator)
         scrollView.addSubviews(stackView)
         stackView.addArrangedSubviews(emailView, usernameView, passwordView, generalProfileInfoCardView)
         setupConstraints()
-        setupEdditingInteruptionGestures()
+        setupEdditingInteruptionGestures(delegate: self)
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        if shouldKeepKeyboardFromPreviousVC {
+        if isMovingToParent && shouldKeepKeyboardFromPreviousVC {
             self.emailView.becomeResponder()
         }
     }
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        if shouldKeepKeyboardFromPreviousVC == false {
+        if isMovingToParent && shouldKeepKeyboardFromPreviousVC == false {
             self.emailView.becomeResponder()
         }
     }
@@ -195,7 +207,12 @@ class RegistrationViewController: UIViewController {
             continueButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 25),
             continueButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -25),
             continueButton.heightAnchor.constraint(equalToConstant: 50),
-            continueButton.bottomAnchor.constraint(lessThanOrEqualTo: view.keyboardLayoutGuide.topAnchor, constant: -15)
+            continueButton.bottomAnchor.constraint(lessThanOrEqualTo: view.keyboardLayoutGuide.topAnchor, constant: -15),
+
+            loadingIndicator.heightAnchor.constraint(equalTo: continueButton.heightAnchor),
+            loadingIndicator.widthAnchor.constraint(equalTo: continueButton.heightAnchor),
+            loadingIndicator.centerYAnchor.constraint(equalTo: continueButton.centerYAnchor),
+            loadingIndicator.centerXAnchor.constraint(equalTo: continueButton.centerXAnchor)
         ])
     }
 
@@ -302,9 +319,15 @@ class RegistrationViewController: UIViewController {
     private func finishRegistration(completion: @escaping (ZoogramUser) -> Void) {
         task = Task {
             do {
+                self.showRegistrationIndicator()
+                self.continueButton.isUserInteractionEnabled = false
+                self.backButton.isUserInteractionEnabled = false
                 let registeredUser = try await viewModel.registerNewUser()
                 completion(registeredUser)
             } catch {
+                self.continueButton.isUserInteractionEnabled = true
+                self.backButton.isUserInteractionEnabled = true
+                self.showContinueButton()
                 let errorText = String(localized: "\(error.localizedDescription). \nPlease try again later.")
                 self.showPopUp(issueText: errorText)
             }
@@ -325,14 +348,63 @@ class RegistrationViewController: UIViewController {
     }
 
     private func showMainScreen(for user: ZoogramUser) {
-        UIView.animate(withDuration: 1.3) {
-            self.generalProfileInfoCardView.transform = CGAffineTransform(translationX: 0, y: -(self.view.frame.height - self.generalProfileInfoCardView.bounds.height))
-            self.continueButton.transform = CGAffineTransform(translationX: 0, y: (self.view.frame.height - self.continueButton.bounds.minY))
-            self.view.alpha = 0
-            self.view.layoutIfNeeded()
+        UIView.animateKeyframes(withDuration: 1.6, delay: 0) {
+            UIView.addKeyframe(withRelativeStartTime: 0.0, relativeDuration: 0.2) {
+                self.loadingIndicator.alpha = 0
+            }
+            UIView.addKeyframe(withRelativeStartTime: 0.2, relativeDuration: 0.8) {
+                self.generalProfileInfoCardView.transform = CGAffineTransform(translationX: 0, y: -(self.view.frame.height - self.generalProfileInfoCardView.bounds.height))
+                self.continueButton.transform = CGAffineTransform(translationX: 0, y: (self.view.frame.height - self.continueButton.bounds.minY))
+                self.view.alpha = 0
+                self.view.layoutIfNeeded()
+            }
         } completion: { _ in
+            NotificationCenter.default.post(name: .shouldListenToAuthenticationState, object: nil, userInfo: ["shouldListen": true])
             self.view.window?.rootViewController = TabBarController(for: user, showAppearAnimation: true)
             self.view.window?.makeKeyAndVisible()
+        }
+    }
+
+    private func showRegistrationIndicator() {
+        continueButton.shouldIgnoreOwnAnimations = true
+        loadingIndicator.isHidden = false
+        loadingIndicator.startAnimating()
+        loadingIndicator.transform = CGAffineTransform(scaleX: 0.5, y: 0.5)
+        continueButton.transform = .identity
+
+        UIView.animateKeyframes(withDuration: 0.4, delay: 0) {
+            UIView.addKeyframe(withRelativeStartTime: 0.0, relativeDuration: 0.6) {
+                self.continueButton.transform = CGAffineTransform(scaleX: 0.1, y: 1.0)
+                self.continueButton.layer.cornerRadius = self.continueButton.frame.height / 2
+            }
+            UIView.addKeyframe(withRelativeStartTime: 0.4, relativeDuration: 0.3) {
+                self.continueButton.alpha = 0
+            }
+            UIView.addKeyframe(withRelativeStartTime: 0.7, relativeDuration: 0.3) {
+                self.loadingIndicator.alpha = 1
+                self.loadingIndicator.transform = .identity
+            }
+        }
+    }
+
+    private func showContinueButton() {
+        self.continueButton.isHidden = false
+        self.continueButton.transform = CGAffineTransform(scaleX: 0.1, y: 1.0)
+        UIView.animateKeyframes(withDuration: 0.4, delay: 0) {
+            UIView.addKeyframe(withRelativeStartTime: 0.0, relativeDuration: 0.3) {
+                self.loadingIndicator.alpha = 0
+                self.loadingIndicator.transform = CGAffineTransform(scaleX: 0.5, y: 0.5)
+            }
+            UIView.addKeyframe(withRelativeStartTime: 0.3, relativeDuration: 0.4) {
+                self.continueButton.alpha = 1
+            }
+            UIView.addKeyframe(withRelativeStartTime: 0.4, relativeDuration: 0.6) {
+                self.continueButton.transform = .identity
+                self.continueButton.layer.cornerRadius = 13
+            }
+        } completion: { _ in
+            self.loadingIndicator.stopAnimating()
+            self.loadingIndicator.isHidden = true
         }
     }
 
@@ -348,6 +420,7 @@ class RegistrationViewController: UIViewController {
             showCardView(passwordView, shouldBecomeFirstResponder: false)
         case .ageAndGenderView:
             self.generalProfileInfoCardView.flipToGeneralProfileInfoView()
+            self.continueButton.shouldIgnoreOwnAnimations = false
             self.continueButton.setTitle(String(localized: "Continue"), for: .normal)
         }
         self.activeViewType = activeViewType.previous()
@@ -355,7 +428,6 @@ class RegistrationViewController: UIViewController {
 
     @objc func didTapContinueButton() {
         switch activeViewType {
-
         case .emailView:
             saveEmail {
                 self.showCardView(self.usernameView)
@@ -369,7 +441,7 @@ class RegistrationViewController: UIViewController {
         case .passwordView:
             savePassword {
                 self.passwordView.resignResponder()
-                self.showCardView(self.generalProfileInfoCardView)
+                self.showCardView(self.generalProfileInfoCardView, shouldBecomeFirstResponder: false)
                 self.activeViewType = .profileGeneralInfoView
             }
         case .profileGeneralInfoView:
@@ -409,5 +481,16 @@ extension RegistrationViewController: UITextFieldDelegate {
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
         didTapContinueButton()
         return true
+    }
+}
+
+extension RegistrationViewController: UIGestureRecognizerDelegate {
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        if gestureRecognizer.name == Gestures.touchEndEdditing.rawValue && touch.view == continueButton {
+            return false
+        } else {
+            return true
+        }
     }
 }

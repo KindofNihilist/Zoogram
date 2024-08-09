@@ -27,9 +27,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard let windowScene = (scene as? UIWindowScene) else { return }
         window = UIWindow(frame: UIScreen.main.bounds)
         window?.backgroundColor = Colors.background
+//        window?.layer.speed = 0.6
 
 //        logOut()
-
+        setupShouldListenToAuthenticationStateObserver()
         AuthenticationService.shared.listenToAuthenticationState { userID in
             guard self.shouldListenToAuthenticationStateChanges else { return }
             guard let unwrappedID = userID else {
@@ -49,6 +50,19 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         }
     }
 
+    private func setupShouldListenToAuthenticationStateObserver() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(changeShouldListenToAuthenticationState),
+            name: .shouldListenToAuthenticationState,
+            object: nil)
+    }
+
+    @objc private func changeShouldListenToAuthenticationState(_ notification: Notification) {
+        guard let shouldListen = notification.userInfo?["shouldListen"] as? Bool else { return }
+        self.shouldListenToAuthenticationStateChanges = shouldListen
+    }
+
     private func hideCurrentRootViewControllerIfNeeded(completion: @escaping () -> Void) {
         if let rootViewController = window?.rootViewController {
             rootViewController.hideUIElements(animate: true) {
@@ -64,9 +78,6 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         let loginViewController = LoginViewController(service: service)
         loginViewController.shouldShowOnAppearAnimation = true
         self.shouldListenToAuthenticationStateChanges = false
-        loginViewController.hasFinishedLogginIn.bind { hasFinishedLogginIn in
-            self.shouldListenToAuthenticationStateChanges = hasFinishedLogginIn
-        }
         let navigationController = UINavigationController(rootViewController: loginViewController)
         navigationController.navigationBar.backgroundColor = Colors.background
         navigationController.navigationBar.isTranslucent = false

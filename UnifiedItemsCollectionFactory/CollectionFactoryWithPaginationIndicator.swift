@@ -11,8 +11,9 @@ import UIKit.UICollectionView
 
 @MainActor class CollectionFactoryWithPaginationIndicator {
 
-    let collectionView: UICollectionView
+    weak var delegate: PaginationIndicatorCellDelegate?
 
+    let collectionView: UICollectionView
     var sections = [CollectionSectionController]()
     var mainContentSection: CollectionSectionController!
     var cellAction: ((IndexPath) -> Void)?
@@ -72,12 +73,13 @@ import UIKit.UICollectionView
         collectionView.reloadSections(IndexSet(integer: sectionIndex))
     }
 
-    func showPaginationRetryButton(error: Error, delegate: PaginationIndicatorCellDelegate?) {
+    func showPaginationRetryButton(error: Error) {
         let sectionIndex = paginationIndicatorSection.sectionIndex
         let indexPath = IndexPath(row: 0, section: sectionIndex)
         guard let paginationCell = collectionView.cellForItem(at: indexPath) as? PaginationIndicatorCell
         else { return }
-        paginationCell.displayLoadingError(error, delegate: delegate)
+        paginationCell.delegate = self.delegate
+        paginationCell.displayLoadingError(error)
     }
 
     private func createPostsSection(with posts: [PostViewModel]) -> PostsSection {

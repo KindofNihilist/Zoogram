@@ -82,7 +82,6 @@ final class ProfileHeaderCell: UICollectionViewCell {
     override func layoutSubviews() {
         super.layoutSubviews()
         profilePhotoImageView.layer.cornerRadius = profilePhotoSize.height / 2
-        print("bio frame size: \(bioLabel.frame.height)")
     }
 
     required init?(coder: NSCoder) {

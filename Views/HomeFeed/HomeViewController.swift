@@ -116,22 +116,23 @@ class HomeViewController: UIViewController {
 
     func makeNewPost(with postModel: UserPost, for user: ZoogramUser, completion: @escaping () -> Void) {
         var postModelToPost = postModel
-        self.showMakingNewPostNotificationViewFor(username: user.username, with: postModel.image)
-        task = Task {
-            do {
-                try await service.makeANewPost(post: &postModelToPost) { progress in
-                    Task { @MainActor in
-                        self.updateProgressBar(progress: progress)
+        self.showMakingNewPostNotificationViewFor(username: user.username, with: postModel.image) {
+            self.task = Task {
+                do {
+                    try await self.service.makeANewPost(post: &postModelToPost) { progress in
+                        Task { @MainActor in
+                            self.updateProgressBar(progress: progress)
+                        }
                     }
+                    postModelToPost.author = user
+                    self.animateInsertionOfCreatedPost(post: postModelToPost)
+                    completion()
+                } catch {
+                    self.notificationView?.removeFromSuperview()
+                    self.tableView.isUserInteractionEnabled = true
+                    self.tableView.removePlaceholderCell()
+                    self.show(error: error, title: "")
                 }
-                postModelToPost.author = user
-                self.animateInsertionOfCreatedPost(post: postModelToPost)
-                completion()
-            } catch {
-                self.notificationView?.removeFromSuperview()
-                self.tableView.isUserInteractionEnabled = true
-                self.tableView.removePlaceholderCell()
-                self.show(error: error, title: "")
             }
         }
     }
@@ -140,19 +141,27 @@ class HomeViewController: UIViewController {
         self.tableView.removeNoPostsNotificationIfDisplayed()
     }
 
-    private func showMakingNewPostNotificationViewFor(username: String, with postImage: UIImage?) {
+    private func showMakingNewPostNotificationViewFor(username: String, with postImage: UIImage?, completion: @escaping () -> Void) {
         notificationView = PostPublicationProgressView(photo: postImage, username: username)
         notificationView?.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(notificationView!)
-        notificationViewTopAnchor = notificationView!.topAnchor.constraint(equalTo: tableView.topAnchor)
         tableView.insertPlaceholderCell()
         tableView.isUserInteractionEnabled = false
-        NSLayoutConstraint.activate([
-            notificationViewTopAnchor,
-            notificationView!.leadingAnchor.constraint(equalTo: tableView.leadingAnchor),
-            notificationView!.widthAnchor.constraint(equalTo: view.widthAnchor),
-            notificationView!.heightAnchor.constraint(equalToConstant: PostTableViewCell.headerHeight)
-        ])
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            self.notificationView?.alpha = 0
+            self.view.addSubview(self.notificationView!)
+            self.notificationViewTopAnchor = self.notificationView!.topAnchor.constraint(equalTo: self.tableView.topAnchor)
+            NSLayoutConstraint.activate([
+                self.notificationViewTopAnchor,
+                self.notificationView!.leadingAnchor.constraint(equalTo: self.tableView.leadingAnchor),
+                self.notificationView!.widthAnchor.constraint(equalTo: self.view.widthAnchor),
+                self.notificationView!.heightAnchor.constraint(equalToConstant: PostTableViewCell.headerHeight)
+            ])
+            UIView.animate(withDuration: 0.3) {
+                self.notificationView?.alpha = 1
+            } completion: { _ in
+                completion()
+            }
+        }
     }
 
     private func updateProgressBar(progress: Progress?) {

@@ -31,14 +31,11 @@ final class CommentSystemService: CommentSystemServiceProtocol {
     }
 
     func postComment(for postID: String, comment: PostComment) async throws {
-        print("postComment triggered")
         let databaseKey = "PostComments/\(postID)/\(comment.commentID)"
         let commentDictionary = comment.dictionary
         do {
             let task = try await databaseRef.child(databaseKey).setValue(commentDictionary)
-            print("did post comment")
         } catch {
-            print("postComment error: ", error.localizedDescription)
             throw ServiceError.couldntPostAComment
         }
     }

@@ -143,11 +143,6 @@ class AgeGenderCardView: UIView {
         dummyDatePickerTextField.becomeFirstResponder()
     }
 
-    @objc private func didTapGenderLabel() {
-        print("Did tap gender option")
-//        genderField.text = sender.text
-    }
-
     func showGenderNotSelectedError() {
         UIView.animate(withDuration: 0.3) {
             self.genderLabel.textColor = .systemRed
@@ -199,10 +194,6 @@ extension AgeGenderCardView: UIPickerViewDelegate, UIPickerViewDataSource {
         label.textAlignment = .center
         label.text = genders[row]
         label.font = CustomFonts.regularFont(ofSize: 20)
-        label.isUserInteractionEnabled = true
-
-        let tapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(didTapGenderLabel))
-        label.addGestureRecognizer(tapGestureRecognizer)
         return label
     }
 
