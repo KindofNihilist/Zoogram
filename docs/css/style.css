@@ -1359,6 +1359,11 @@ font-family: 'Red Hat Display', sans-serif;
   pointer-events: none;
 }
 
+.btn-github {
+  touch-action: initial !important;
+  pointer-events: initial !important;
+}
+
 
 #fh5co-hero .flexslider .slides {
   position: relative;
