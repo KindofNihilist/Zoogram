@@ -703,12 +703,12 @@ ol ol {
 }
 
 .customBullet li::before{
-  content: "\2022";  /* Add content: \2022 is the CSS Code/unicode for a bullet */
-  color: black; /* Change the color */
-  font-weight: bold; /* If you want it to be bold */
-  display: inline-block; /* Needed to add space between the bullet and the text */
-  width: 1em; /* Also needed for space (tweak if needed) */
-  margin-left: 0.2em; 
+  content: "\2022";
+  font-weight: bold;
+  color: black;
+  width: 1em;
+  margin-left: 0.2em;
+  margin-right: 7px;
 }
 
 dl {
@@ -967,14 +967,20 @@ pre code {
 .footer-container ul {
   color: black;
   text-align: center;
+  margin-top: 50px;
+  margin-bottom: 50px;
+}
+
+.footer-container li {
+    margin-top: 5px;
 }
 
 
 .footer-container a {
+  font-family: 'Red Hat Display', sans-serif;
   color: gray;
-  font-family: "Inconsolata", Arial, sans-serif;
   font-weight: 500;
-  font-size: 19px;
+  font-size: 20px;
 }
 
 .footer-container a:hover, .footer-container a:active, .footer-container a:focus{
@@ -1034,7 +1040,7 @@ pre code {
   }
 
   .headerContainer {
-    width: 80%;
+    width: 90%;
   }
 }
 
@@ -1048,14 +1054,14 @@ pre code {
   }
 
   .expandedContainer {
-    width: 80%;
+    width: 85%;
   }
   .fullWidthContainer {
     width: 100%;
   }
 
   .headerContainer {
-    width: 80%;
+    width: 90%;
   }
 }
 @media (min-width: 992px) {
@@ -1068,7 +1074,11 @@ pre code {
   }
 
   .expandedContainer {
-    width: 80%;
+    width: 100%;
+  }
+
+  #three-in-a-row {
+    width: 95%;
   }
 
   .fullWidthContainer {
@@ -1077,7 +1087,7 @@ pre code {
   }
 
   .headerContainer {
-    width: 80%;
+    width: 90%;
   }
 }
 @media (min-width: 1200px) {
@@ -1094,7 +1104,7 @@ pre code {
   }
 
   .headerContainer {
-    width: 75%;
+    width: 90%;
   }
 }
 
@@ -1105,6 +1115,7 @@ pre code {
 
   .expandedContainer {
     width: 80%;
+    max-width: 2000px;
   }
 
   .fullWidthContainer {
@@ -1112,7 +1123,7 @@ pre code {
   }
 
   .headerContainer {
-    width: 75%;
+    max-width: 1600px;
   }
 }
 

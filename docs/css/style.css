@@ -27,22 +27,88 @@ body {
 span {
   letter-spacing: 0px;
   word-spacing: 0px;
+  font-weight: 700;
 /*  line-height: 28px;*/
 }
 
-/*.boldWord {
-  font-size: 21px;
-  font-weight: 900;
-  letter-spacing: 0px;
-  word-spacing: 0px;
-  line-height: 28px;
-}*/
+
+.header {
+  margin: initial;
+  height: 100px;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-evenly;
+  align-content: center;
+  align-items: center;
+}
+
+.header a:hover {
+  transform: scale(1.1);
+}
+
+.left-header {
+  display: flex;
+  justify-content: flex-start;
+  width: 33vw;
+}
+
+.left-header a {
+  margin-left: 1.5vw;
+  display: flex;
+  color: black;
+}
+
+.left-header a:hover {
+  color: silver;
+}
+
+.left-header a > img {
+  height: auto;
+  width: 40px;
+  color: silver;
+}
+
+.center-header {
+  display: flex;
+  justify-content: center;
+  width: 33vw;
+}
+
+.right-header {
+  width: 33vw;
+}
+
+.header a {
+  font-family: 'Red Hat Display', sans-serif;
+  font-size: 28px;
+  font-weight: 800;
+  justify-content: center;
+  align-content: center;
+  align-items: center;
+}
+
+.intext-icon {
+  display: inline-block;
+  width: 40px;
+  height: auto;
+  padding-right: 8px;
+  vertical-align: middle;
+}
 
 .swift {
   font-size: 21px;
   font-weight: 700;
   font-family: "Inconsolata", Arial, sans-serif;
   color: #E2659B;
+}
+
+.mainContentText {
+  font-size: 23px;
+  font-weight: 400;
+  letter-spacing: 0px;
+  word-spacing: 0px;
+  line-height: 32px;
+  margin: initial;
 }
 
 #page {
@@ -79,7 +145,7 @@ a {
   transition: 0.5s;
 }
 a:hover, a:active, a:focus {
-  color: #DD356E;
+/*  color: #DD356E;*/
   outline: none;
   text-decoration: none;
 }
@@ -92,6 +158,8 @@ video {
 height: auto;
 width: 100%;
 clip-path: inset(0px);
+position: relative;
+z-index: 0;
 }
 
 .twoInARow {
@@ -111,15 +179,13 @@ font-family: 'Red Hat Display', sans-serif;
 .boldTitle {
   font-size: 45px;
   font-weight: 900;
-  margin-bottom: 10px;
 }
 
 .headerTitle {
-  font-size: 45px;
+  font-size: 60px;
   font-weight: 900;
-  margin-bottom: 0px;
-  font-family: LogoFont;
-  font-weight: lighter;
+  margin: initial;
+  color: black;
 }
 .boldSecondaryTitle {
   font-size: 35px;
@@ -167,6 +233,8 @@ font-family: 'Red Hat Display', sans-serif;
   text-align: left;
   margin-left: auto;
   margin-right: auto;
+  z-index: 1;
+  position: relative;
 }
 
 .descriptionText {
@@ -178,6 +246,8 @@ font-family: 'Red Hat Display', sans-serif;
   text-align: left;
   margin-left: auto;
   margin-right: auto;
+  z-index: 1;
+  position: relative;
 }
 
 .descriptionText span {
@@ -189,29 +259,117 @@ font-family: 'Red Hat Display', sans-serif;
 }
 
 .skillsBulletList {
-  font-size: 25px;
+  display: inline;
+  font-size: 22px;
   font-weight: 400;
-/*  font-family: 'Red Hat Display', sans-serif;*/
   font-family: "Inconsolata", Arial, sans-serif;
   color: #E2659B;
   line-height: 48px;
 }
 
-@media (max-width: 460px) {
+.skillsBulletList li {
+  display: inline;
+}
+
+.features-list {
+  padding-left: 0px;
+  display: inline-block;
+  font-family: 'Red Hat Display', sans-serif;
+  font-size: 21px;
+  font-weight: 400;
+  line-height: 32px;
+}
+
+.features-list li {
+  display: inline;
+  padding-left: 2px;
+  padding-right: 2px;
+}
+
+.line-1 {
+  height: 1px;
+  width: 75%;
+  margin: auto auto;
+  background: lightgray;
+}
+
+.footer-container a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.feature-container {
+  margin-top: 60px;
+}
+
+
+#parted {
+    margin-top: 10px;
+}
+
+#frameworks-list {
+  margin-top: 25px;
+  font-size: 30px;
+}
+
+@media (max-width: 767px) {
+
+  video {
+    max-height: 800px;
+  }
+
+  #feature-video {
+    display: block;
+    margin: auto;
+    margin-top: 10px;
+    max-width: 500px;
+  }
+
+  #key-features-container {
+    margin-top: 70px;
+  }
+
+  #frameworks-list {
+    margin-bottom: 10px;
+  }
+
+  #ignore-margin {
+    margin-top: 0px !important;
+    margin-bottom: 10px;
+  }
+
+  .header {
+    height: 80px;
+  }
+
+  .headerTitle {
+    font-size: 40px;
+  }
+
+  .features-list {
+    line-height: 28px;
+  }
+
+  .features-list li {
+    font-size: 18px;
+  }
+
   .tertiaryTitle {
     font-size: 28px !important;
-    margin-top: 60px;
   }
 
   .fullsize-phone-title {
     font-size: 28px !important;
-    margin-top: 60px;
   }
 
   .boldTitle {
-    font-size: 34px !important;
-    margin-top: 50px;
-    margin-bottom: 10px;
+    font-size: 38px !important;
+    margin-bottom: initial;
+  }
+
+  .boldTitle {
+    font-size: 38px;
   }
 
   .mainContentText {
@@ -220,21 +378,22 @@ font-family: 'Red Hat Display', sans-serif;
   }
 
   .descriptionText, .descriptionText span {
-    font-size: 17px;
-    line-height: 26px;
+    font-size: 19px;
+    line-height: 28px;
+    width: 90% !important;
   }
 
-  .photoEditorDescription {
-    font-size: 17px;
-    line-height: 26px;
-/*    width: 100%;*/
+  .descriptionText {
+    margin-top: -25px;
   }
 
   .btn-github {
+    width: 260px
     margin-top: -8vw;
+/*    padding: 10px 15px 10px 15px;*/
     padding: 10px 15px 10px 15px;
-    font-weight: 500 !important; 
-    font-size: 18px !important;
+    font-weight: 500;
+    font-size: 17px;
   }
 
   .btn-icon {
@@ -243,92 +402,126 @@ font-family: 'Red Hat Display', sans-serif;
   }
 
   .skillsBulletList {
-    font-size: 21px;
-    line-height: 35px;
+    font-size: 22px;
+    line-height: 38px;
   }
 
-}
-
-@media (min-width: 461px) {
   .tertiaryTitle {
     font-size: 28px;
-    margin-top: 80px;
   }
 
   .fullsize-phone-title {
     font-size: 28px;
-    margin-top: 80px;
-  }
-
-  .boldTitle {
-    font-size: 38px;
-    margin-top: 70px;
-  }
-
-  .skillsBulletList {
-    font-size: 23px;
-    line-height: 38px;
-  }
-
-  .descriptionText, .descriptionText span {
-    font-size: 19px;
-    line-height: 27px;
   }
 
   .photoEditorDescription {
+    margin-top: -25px;
     font-size: 19px;
     line-height: 27px;
-/*    width: 100%;*/
-  }
-
-  .btn-github {
-    margin-top: -8vw;
-    padding: 15px 20px 15px 20px;
-    font-weight: 500; 
-    font-size: 18px;
+    width: 90%;
   }
 
   .btn-icon {
     font-size: 26px;
     vertical-align: text-top;
   }
+
+  .left-header a {
+    font-size: 0px;
+  }
+
+  .left-header a > img {
+    width: 40px;
+  }
+
+  .footer-container {
+    margin-top: 30px;
+  }
+
+  .footer-container ul {
+    margin-top: 25px;
+    margin-bottom: 30px;
+  }
+
+  .footer-container a {
+    font-size: 18px;
+  }
 }
 
 @media (min-width: 768px) {
- .descriptionText, .descriptionText span {
-  font-size: 21px;
-  line-height: 28px;
- }
 
- .photoEditorDescription {
-  font-size: 21px;
-  line-height: 28px;
- }
-
- .tertiaryTitle {
-  font-size: 30px;
- }
-
- .fullsize-phone-title {
-  font-size: 30px;
- }
-
- .headerTitle {
-  margin-top: 30px !important;
- }
-
- .btn-github {
-  margin-top: -4vw;
- }
- 
-}
-
-@media (max-width: 991px) {
-  .descriptionText {
-    width: 80%;
+  video {
+    max-height: 850px;
   }
-  .photoEditorDescription {
-    width: 80%;
+
+  .feature-container {
+    margin-top: 90px ;
+  }
+
+  .features-list {
+    font-size: 23px;
+    line-height: 35px;
+  }
+
+  #feature-video {
+    display: block;
+    margin: auto;
+    margin-top: 10px;
+    max-width: 600px;
+  }
+
+  #key-features-container {
+    margin-top: 70px;
+  }
+
+  #frameworks-list {
+    margin-bottom: 10px;
+  }
+
+  #ignore-margin {
+    margin-top: 0px !important;
+    margin-bottom: 10px;
+  }
+
+  .descriptionText, .descriptionText span {
+    font-size: 21px;
+    line-height: 28px;
+   }
+
+   .photoEditorDescription {
+    font-size: 21px;
+    line-height: 28px;
+   }
+
+   .tertiaryTitle {
+    font-size: 30px;
+   }
+
+   .fullsize-phone-title {
+    font-size: 30px;
+   }
+
+   .btn-github {
+    width: 230px;
+/*    padding: 10px 15px 10px 15px;*/
+    padding: 10px 15px 10px 15px;
+    font-weight: 500;
+    font-size: 17px;
+  }
+
+   #ignore-margin {
+    margin-top: 0px !important;
+    margin-bottom: 0px;
+  }
+
+  .descriptionText {
+    margin-top: -25px;
+    position: relative;
+    z-index: 1;
+    margin-bottom: initial;
+    width: 100%;
+    line-height: 35px;
+    font-size: 23px;
   }
 
   .tertiaryTitle {
@@ -339,68 +532,177 @@ font-family: 'Red Hat Display', sans-serif;
   .fullsize-phone-title {
     font-size: 35px;
     width: 95%;
+  }
+
+  .header {
+    height: 80px;
+  }
+
+  .headerTitle {
+    font-size: 50px;
+  }
+
+  .photoEditorDescription {
+    margin-top: -25px;
+    font-size: 23px;
+    line-height: 35px;
+    z-index: 1;
+    position: relative;
+    margin-bottom: initial;
+    width: 100%;
+  }
+
+  .footer-container {
+    margin-top: 30px;
+  }
+
+  .footer-container ul {
+    margin-top: 30px;
+    margin-bottom: 35px;
+  }
+
+  .footer-container a {
+    font-size: 20px;
+  }
+
+  #app-description {
+    margin-top: 25px;
+  }
+
+  .left-header a {
+    font-size: 25px;
+  }
+
+  .left-header a > img {
+    width: 40px;
   }
 }
 
 @media (min-width: 992px) {
+
+  .header {
+    margin-top: 20px;
+  }
+
+  .headerTitle {
+    font-size: 55px;
+  }
   .descriptionText, .descriptionText span {
-    width: 75%;
-    font-size: 20px;
+    margin-top: 0px;
+    width: 85%;
+    font-size: 21px;
+    line-height: 33px;
   }
 
   .photoEditorDescription {
-    width: 95%;
-    font-size: 20px;
+    width: 90%;
+    font-size: 21px;
+    line-height: 35px;
   }
 
   .tertiaryTitle {
-    font-size: 26px;
+    font-size: 30px;
   }
 
   .fullsize-phone-title {
-    font-size: 26px;
+    font-size: 33px;
   }
 
   .btn-github {
     margin-top: -10vw;
   }
-}
 
-@media (max-width: 1105px) {
-  .boldSecondaryTitle {
-    margin-bottom: 10px;
-    font-size: 32px;
+  .col-md-5 {
+    float: initial;
+    width: initial;
   }
-}
 
+  .col-md-6 {
+    float: initial;
+    width: 90%;
+    margin: auto;
+  }
+
+  #offline-capabilities {
+    margin-top: 0px;
+  }
+
+  #three-in-a-row .tertiaryTitle {
+    font-size: 26px;
+  }
+
+  #three-in-a-row .descriptionText {
+    line-height: 30px;
+    font-size: 19px;
+  }
+
+  #three-in-a-row .descriptionText span {
+    line-height: 30px;
+    font-size: 19px;
+  }
+
+  #three-in-a-row .fullsize-phone-title {
+    font-size: 30px;
+  }
+  
+}
 
 @media (min-width: 1200px) {
+
+  #description-box {
+    margin-left: -30px;
+  }
+
+  #key-features-container {
+    margin-top: 100px;
+  }
+
+
+  #three-in-a-row .tertiaryTitle {
+    font-size: 35px;
+  }
+
+  #three-in-a-row .descriptionText {
+    line-height: 33px;
+    font-size: 22px;
+  }
+
+  #three-in-a-row .descriptionText span {
+    line-height: 30px;
+    font-size: 19px;
+  }
+
+  #three-in-a-row .fullsize-phone-title {
+    font-size: 35px;
+  }
+
   .descriptionText, .descriptionText span {
-    width: 75%;
-    font-size: 21px;
+    width: 80%;
+    font-size: 22px;
   }
 
-  .photoEditorDescription {
-    width: 95%;
-    font-size: 21px;
-  }
-
-  .tertiaryTitle {
-    font-size: 30px;
-    margin-top: 90px;
+  .feature-container {
+    margin-top: 120px;
   }
 
   .fullsize-phone-title {
-    font-size: 30px;
-    margin-top: 90px;
+    font-size: 35px;
+  }
+
+  .photoEditorDescription {
+    width: 75%;
+    font-size: 22px;
+  }
+
+  .tertiaryTitle {
+    font-size: 35px;
   }
 
   .boldTitle {
-    margin-top: 90px;
+    font-size: 50px;
   }
 
   .headerTitle {
-  margin-top: 60px;
  }
 
  .skillsBulletList {
@@ -411,21 +713,63 @@ font-family: 'Red Hat Display', sans-serif;
   .btn-github {
     margin-top: 0px;
   }
-}
 
-@media (max-width: 1334px) {
-  .mainContentText {
-    font-size: 21px;
-/*    line-height: 27px;*/
+  .col-md-5 {
+    float: left;
+    width: 50%
+  }
+
+  .col-md-6 {
+    float: left;
+    width: 50%;
+    margin: auto;
+  }
+
+  .footer-container {
+    margin-top: 100px;
+  }
+
+  .btn-github {
+    font-size: 25px !important;
+    width: initial;
+  }
+
+  .btn-icon {
+    font-size: 40px !important;
   }
 }
 
-@media (min-width: 1335px) {
+@media (min-width: 1500px) {
+  .photo-editor-container {
+    margin-inline: auto;
+    max-width: 1400px;
+  }
+
+  .btn-github {
+    margin-top: -70px !important;
+  }
+}
+
+/*@media (max-width: 1105px) {
+  .boldSecondaryTitle {
+    margin-bottom: 10px;
+    font-size: 32px;
+  }
+}*/
+
+
+/*@media (max-width: 1334px) {
+  .mainContentText {
+    font-size: 21px;
+  }
+}*/
+
+/*@media (min-width: 1335px) {
   .skillsBulletList {
     font-size: 25px;
     line-height: 45px;
   }
-}
+}*/
 
 .decreasedTopMargin {
   margin-top: -1vw;
@@ -953,9 +1297,9 @@ font-family: 'Red Hat Display', sans-serif;
   }
 
   #fh5co-hero .flexslider .slides li{
-    height: 120vw !important;
-    max-height: 600px;
-    width: 20vw;
+    height: 159vw !important;
+    max-height: 700px;
+    width: auto;
   }
 }
 
@@ -967,21 +1311,8 @@ font-family: 'Red Hat Display', sans-serif;
 
   #fh5co-hero .flexslider .slides li{
     height: 110vw !important;
-    max-height: 600px;
+    max-height: 900px;
     width: 20vw;
-  }
-}
-
-@media screen and (max-width: 992px) {
-  #fh5co-hero .flexslider {
-/*    margin-bottom: -10vw;*/
-    margin-left: auto;
-    margin-right: 0px;
-  }
-
-  #fh5co-hero .flexslider .slides li{
-    height: 140vw !important;
-    max-height: 800px;
   }
 }
 
@@ -990,14 +1321,14 @@ font-family: 'Red Hat Display', sans-serif;
 /*    margin-bottom: -8vw;*/
     margin-left: auto;
     width: auto;
-    max-width: 600px;
+/*    max-width: 600px;*/
 /*    max-height: 900px;*/
   }
 
   #fh5co-hero .flexslider .slides li{
     height: 100vw !important;
     width: auto;
-    max-width: 600px;
+/*    max-width: 600px;*/
     max-height: 900px;
   }
 }
@@ -1021,6 +1352,11 @@ font-family: 'Red Hat Display', sans-serif;
     max-height: 900px;
     display: inline-block;
   }
+}
+
+.flexslider {
+  touch-action: none;
+  pointer-events: none;
 }
 
 
@@ -1837,7 +2173,6 @@ input[type="text"] {
 .btn-github:hover,.btn-github:active,.btn-github:focus {
   color: black;
   background-color: #EBEBE8;
-  box-shadow: 0px 0px 10px #bdefbd;
   transform: scale(1.05);
 }
 
@@ -2034,7 +2369,7 @@ input[type="text"] {
 
 .key-features-row {
   display: flex;
-  justify-content: center;
+  justify-content: space-evenly;
   gap: 150px;
 }
 
@@ -2053,14 +2388,25 @@ input[type="text"] {
   }
 }
 
+@media (min-width: 992px) {
+  .key-features-row {
+    display: flex;
+    gap: 50px;
+  }
+  .key-features-row > div {
+    min-width: 45%;
+  }
+}
+
 .fullsize-phone-row {
   display: flex;
-  justify-content: center;
-  gap: 150px;
+  justify-content: space-evenly;
+/*  align-items: flex-end;*/
+  gap: 10px;
 }
 
 .fullsize-phone-row > div {
-  width: 100%;
+  width: 50%;
   min-width: 50%;
 }
 

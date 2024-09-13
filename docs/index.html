@@ -35,13 +35,21 @@
 
    <body>
       <header id="fh5co-heading">
-         <div class="">
-          <h1 class="headerTitle text-center animate-box">Zoogram</h1>
-            <div class="text-center topMargin60"></div>
+
+         <div class="header">
+            <div class="left-header">
+               <a href="https://tmmyxo.github.io/Portfolio/"><img src="resources/back-arrow.svg" class="btn-icon"></img> Portfolio</a>
+            </div>
+            <div class="center-header">
+               <h1 class="headerTitle animate-box">Zoogram</h1>
+            </div>
+            <div class="right-header"></div>
          </div>
-       <div class="fullWidthContainer">
+
+
+       <div class="fullWidthContainer" id="app-description">
          <!-- <div class="headerContainer"> -->
-            <div class="col-md-6 animate-box">
+            <div class="col-md-5 animate-box">
                <aside id="fh5co-hero">
                   <div class="flexslider">
                      <ul class="slides">
@@ -59,17 +67,36 @@
             </div>
            <!-- </div> -->
             <div class="headerContainer">
-               <div class="col-md-6 animate-box">
+               <div class="col-md-6 animate-box" id="description-box">
                   <h2 class="boldSecondaryTitle">About the app</h2>
-                  <h3 class="mainContentText">
-                  This app offers a seamless platform for sharing photos of animals, enabling users to like, bookmark, comment on posts, and follow other users. When creating a new post, users can crop images, apply various filters and editing effects, or simply use the auto-enhance feature for quick adjustments. The app features an Activity system that notifies users of recent interactions with their posts and profile. Built with MVVM architecture in mind, it leverages protocols extensively to ensure testability and maintainability. 
-                  </h3>
-                  <h2 class="boldSecondaryTitle">Frameworks used</h2>
+                  <h3 class="mainContentText">Social media app with "like", "bookmark", "follow", "activity" systems, comments and an image editor.</h3>
+
+                  <ul class="features-list customBullet" style="margin-top: 15px">
+                     <li><span>Fully programmatic</span> UI without Storyboards.</li>
+                     <li>Implemented <span>pagination</span> manager.</li>
+                     <li>Features <span>image editor</span> to allow users to crop images, apply various filters and editing effects, or simply use the auto-enhance feature for quick adjustments.</li>
+                     <li><span>Localized</span> to Ukrainian with the use of <span>String Catalogues</span>.</li>
+                     <li>Uses animated <span class="swift">UIBezierPath</span> to create a <span class="swift">UIButton</span> that resembles cat's sniffing nose.</li>
+                     <li>Supports <span>Dark Mode</span>.</li>
+                     <li>Built with <span>MVVM</span> architecture in mind to ensure testability and maintainability. </li>
+                  </ul>
+
+                  <h3 class="mainContentText" id="parted">Additional features:</h3>
+
+                  <ul class="customBullet features-list">
+                     <li>Offline comments</li>
+                     <li>Sticky Slider</li>
+                     <li>Interactive Nav-Bar</li>
+                     <li>Connection Monitor</li>
+                     <li>Zoom Transition</li>
+                  </ul>
+
+                  <h2 class="boldSecondaryTitle" id="frameworks-list">Frameworks used</h2>
                   <ul class="list-unstyled customBullet skillsBulletList">
                      <li>Swift</li>
                      <li>UIKit</li>
                      <li>MetalKit</li>
-                     <li>Photos</li>
+                     <li>PhotoKit</li>
                      <li>FirebaseAuth</li>
                      <li>FirebaseStorage</li>
                      <li>FirebaseDatabase</li>
@@ -80,113 +107,112 @@
          </div>
       </header>
 
-<div class="expandedContainer">
+<div class="expandedContainer" id="key-features-container">
          <h2 class="boldTitle centerAligned animate-box">Key Features</h2>
 
          <div class="key-features-row">
-            <div class="animate-box">
-               <h2 class="tertiaryTitle centerAligned" style="margin-bottom: -5px;">Crop View</h2>
-               <video autoplay loop playsinline muted class="topMargin10">
+            <div class="animate-box feature-container">
+               <h2 class="tertiaryTitle centerAligned" id="ignore-margin">Crop View</h2>
+               <video autoplay loop playsinline muted id="feature-video">
                   <source src="appscreens/videos/CropView.mp4" type="video/mp4">
                </video>
-               <h3 class="descriptionText">Allows user to crop an image with the use of a responsive, self-aligning view that enables simultaneous panning and pinching. Implemented by using pan and pinch <span class="swift">UIGestureRecognizers</span>, with calculations based on the current scale and the deltas of the frames.
-               </h3>
+               <h3 class="descriptionText" id="ignore-margin">Allows user to crop an image with the use of a responsive, self-aligning view that enables simultaneous panning and pinching. Implemented by using pan and pinch <span class="swift">UIGestureRecognizers</span>, with calculations based on the current scale and the deltas of the frames.
+             </h3>
             </div>
 
 
-            <div class="animate-box">
-               <h2 class="tertiaryTitle centerAligned" style="margin-bottom: -5px;">Animated Post Insertion</h2>
-               <video autoplay loop playsinline muted class="topMargin10">
+            <div class="animate-box feature-container">
+               <h2 class="tertiaryTitle centerAligned" id="ignore-margin">Animated Post Insertion</h2>
+               <video autoplay loop playsinline muted id="feature-video">
                   <source src="appscreens/videos/NewPostAnimation.mp4" type="video/mp4">
                </video>
-               <h3 class="descriptionText">When creating a new post, the user will see a progress bar displaying the picture being uploaded, which will seamlessly transform into the post <span class="swift">UITableViewCell</span> once the upload is complete.</h3>
+               <h3 class="descriptionText" id="ignore-margin">When creating a new post, the user will see a progress bar displaying the picture being uploaded, which will seamlessly transform into the post <span class="swift">UITableViewCell</span> once the upload is complete.</h3>
             </div>
          </div>
 
          <div class="key-features-row">
-            <div class="animate-box">
+            <div class="animate-box feature-container">
                <h2 class="tertiaryTitle centerAligned">Input View with Character Limit</h2>
-               <video autoplay loop playsinline muted class="topMargin10">
+               <video autoplay loop playsinline muted id="feature-video">
                   <source src="appscreens/videos/AccessoryView.mp4" type="video/mp4">
                </video>
-               <h3 class="descriptionText">In order to stop users misusing comment section the custom input accessory view was designed to feature a character limit with visual feedback, that allows user to see if the limit is being aproached or has been exceeded.</h3>
+               <h3 class="descriptionText" id="ignore-margin">In order to stop users misusing comment section the custom input accessory view was designed to feature a character limit with visual feedback, that allows user to see if the limit is being aproached or has been exceeded.</h3>
             </div>
 
-            <div class="animate-box">
+            <div class="animate-box feature-container">
                <h2 class="tertiaryTitle centerAligned">Animated "Nose" Button</h2>
-               <video autoplay loop playsinline muted class="topMargin10">
+               <video autoplay loop playsinline muted id="feature-video">
                   <source src="appscreens/videos/NoseAnimation.mp4" type="video/mp4">
                </video>
-               <h3 class="descriptionText">Button resembles a cat's sniffing nose and is made by creating multiple shapes and gradients for different states with the use of <span class="swift">UIBezierPath</span> and control points. To enhance the experience, a custom designed<span>haptic</span> pattern plays on each tap, reminding user of a purring cat.</h3>
+               <h3 class="descriptionText">Button resembles a cat's sniffing nose and is made by creating multiple shapes and gradients for different states with the use of <span class="swift">UIBezierPath</span> and control points. To enhance the experience, a custom designed <span>haptic</span> pattern plays on each tap, reminding user of a purring cat.</h3>
             </div>
          </div>
 
-         <div class="container60 animate-box">
-          <h2 class="boldTitle centerAligned">Photo Edditor</h2>
+         <div class="animate-box feature-container photo-editor-container">
+          <h2 class="boldTitle centerAligned" id="ignore-margin">Photo Edditor</h2>
          
          <div class="fullsize-phone-row">
             <div>
-            <video autoplay loop playsinline muted style="max-height: 800px;">
-               <source src="appscreens/videos/Filters.mp4" type="video/mp4">
-            </video>
+               <video autoplay loop playsinline muted style="max-height: 800px;">
+                  <source src="appscreens/videos/Filters.mp4" type="video/mp4">
+               </video>
+            </div>
+
+            <div>
+               <video autoplay loop playsinline muted style="max-height: 800px;">
+                  <source src="appscreens/videos/PhotoEdditing.mp4" type="video/mp4">
+               </video>
+            </div>
          </div>
 
-         <div>
-            <video autoplay loop playsinline muted style="max-height: 800px;">
-               <source src="appscreens/videos/PhotoEdditing.mp4" type="video/mp4">
-            </video>
-         </div>
-         </div>
-
-         <h3 class="photoEditorDescription">Before making a post, the user can edit a picture in the Photo Editor, which features an auto-enhance option, a set of commonly used parameters, and custom pre-made filters. The user can mix and match all three options and blend the applied filter to the desired value. This functionality is implemented using <span class="swift">CIFilters</span> for image manipulations and <span class="swift">MetalKit</span> for a fast, responsive preview of the results. Since the order in which parameters and filters are applied can drastically affect the final outcome, a queue was created to hold the order in which filters were applied.
+         <h3 class="photoEditorDescription">Photo Editor features a set of commonly used parameters, custom pre-made filters and an auto-enhance option. The user can mix and match all three options and blend the applied filter to the desired value. This functionality is implemented using <span class="swift">CIFilters</span> for image manipulations and <span class="swift">MetalKit</span> for a fast, responsive preview of the results. Since the order in which parameters and filters are applied can drastically affect the final outcome, a queue was created to hold the order in which filters were applied.
           </h3>
         </div>
 
-        <div class="container60 animate-box">
+        <div class="animate-box feature-container">
          <div class="fullsize-phone-row">
-            <div class="">
+            <div>
                <h2 class="fullsize-phone-title centerAligned">Activity System</h2>
-            <video autoplay loop playsinline muted>
-               <source src="appscreens/videos/ActivityCommentFocus.mp4" type="video/mp4">
-            </video>
-            <h3 class="descriptionText">Observes activity events at the endpoint and delivers them to the <span>Activity tab</span>, which displays them neatly in a table view with separate cells for each kind of activity event. Initially, every event has a <span>‘seen’</span> status set to false, highlighting unseen events with a blue tint. If the event kind is <span>‘post liked’</span> or <span>‘commented on post’</span> the cell displays the associated post, allowing quick navigation to it. Additionally, tapping on a <span>‘commented on post’</span> kind of event will open the post, scroll to the comment, and highlight it.</h3>
-         </div>
+               <video autoplay loop playsinline muted>
+                  <source src="appscreens/videos/ActivityCommentFocus.mp4" type="video/mp4">
+               </video>
+               <h3 class="descriptionText">Observes and delivers activity events to the <span>Activity tab</span>, which displays them neatly in a table view with separate cells for each kind of activity event. Each event has a <span>‘seen’</span> status, highlighting unseen events with a blue tint. If the event kind is <span>‘post liked’</span> or <span>‘commented on post’</span> the cell displays the associated post. Additionally, tapping on a <span>‘commented on post’</span> kind of event will open the post, scroll to the comment, and highlight it.</h3>
+            </div>
 
-         <div class="">
-            <h2 class="fullsize-phone-title centerAligned">Offline capabilites</h2>
-            <video autoplay loop playsinline muted>
-               <source src="appscreens/videos/OfflineComments.mp4" type="video/mp4">
-            </video>
-            <h3 class="descriptionText">When making a comment, the user can see an indicator showing if it has been posted. If there is no connection and the user attempts to leave the comment section while there is a pending comment, they will be alerted that the comment will be posted once the connection is reestablished. The alert provides <span>two options</span>: one to close the alert and exit the comment section, and the other to ensure that this alert won't be displayed again in the future. If the user deletes a pending comment, it will not be posted.</h3>
-         </div>
+            <div class="feature-container" id="offline-capabilities">
+               <h2 class="fullsize-phone-title centerAligned">Offline capabilities</h2>
+               <video autoplay loop playsinline muted>
+                  <source src="appscreens/videos/OfflineComments.mp4" type="video/mp4">
+               </video>
+               <h3 class="descriptionText">If there is no connection and the user attempts to leave the comment section while there is a pending comment, they will be alerted that the comment will be posted once the connection is reestablished. The alert provides <span>two options</span>: one to close the alert and exit the comment section, and the other to ensure that this alert won't be displayed in the future. If the user deletes a pending comment, it will not be posted.</h3>
+            </div>
          </div>
       </div>
 
       </div>
 
 
+<div class="expandedContainer" id="three-in-a-row">
 
-<div class="expandedContainer">
-
-   <div class="col-md-4 animate-box">
-            <h2 class="tertiaryTitle centerAligned">Interactive Navigation Bar</h2>
-            <video autoplay loop playsinline muted class="topMargin10">
+   <div class="col-md-4 animate-box feature-container">
+            <h2 class="tertiaryTitle centerAligned" id="ignore-margin">Interactive Navigation Bar</h2>
+            <video autoplay loop playsinline muted id="feature-video">
                <source src="appscreens/videos/InteractiveNavigationBar.mp4" type="video/mp4">
             </video>
-            <h3 class="descriptionText">To fit more content on the screen, an interactive navigation bar was designed. It monitors the scroll direction and hides or shows accordingly with the movement of a finger. If the user interrupts the scroll before the navigation bar fully enters one of its states, it will automatically animate to the state corresponding to the latest scroll direction.</h3>
+            <h3 class="descriptionText" id="ignore-margin">Designed to fit more content on the screen. It monitors the scroll direction and hides or shows accordingly with the movement of a finger. If interrupted, it will automatically animate to the state corresponding to the latest scroll direction.</h3>
          </div>
 
-         <div class="col-md-4 animate-box">
+         <div class="col-md-4 animate-box feature-container">
             <h2 class="tertiaryTitle centerAligned">Sticky Slider</h2>
-            <video autoplay loop playsinline muted class="topMargin10">
+            <video autoplay loop playsinline muted id="feature-video">
                <source src="appscreens/videos/StickySlider.mp4" type="video/mp4">
             </video>
-            <h3 class="descriptionText">If the user lifts their finger above the predetermined <span>‘dead zone’</span> the slider will snap to the default value. Since different <span class="swift">CIFilters</span> use varying value ranges, the <span>‘dead zone’</span> is calculated separately for each parameter and matches 4% of the slider’s total width. To make it more intuitive, reaching a minimum, maximum, or default value triggers a <span>haptic</span> response.</h3>
+            <h3 class="descriptionText" id="ignore-margin">If the user lifts their finger above the predetermined <span>‘dead zone’</span> the slider will snap to the default value. To make it more intuitive, reaching a minimum, maximum, or default value triggers a <span>haptic</span> response.</h3>
          </div>
 
-         <div class="col-md-4 animate-box">
+         <div class="col-md-4 animate-box feature-container">
             <h2 class="tertiaryTitle centerAligned">Connection Monitor</h2>
-            <video autoplay loop playsinline muted class="topMargin10">
+            <video autoplay loop playsinline muted id="feature-video">
                <source src="appscreens/videos/PaginationError.mp4" type="video/mp4">
             </video>
             <h3 class="descriptionText">The app monitors internet connection and notifies user of the changes. For every action requiring a network request, an error handler is implemented to display a notification, alert, or retry button, depending on the context.</h3>
@@ -194,16 +220,16 @@
       </div>
         </div>
 
-      <div class="expandedContainer">
-        <div class="col-md-4 animate-box">
+      <div class="expandedContainer" id="three-in-a-row">
+        <div class="col-md-4 animate-box feature-container">
             <h2 class="fullsize-phone-title centerAligned">Registration</h2>
             <video autoplay loop playsinline muted>
                <source src="appscreens/videos/Registration.mp4" type="video/mp4">
             </video>
-            <h3 class="descriptionText">The registration process is handled in a card-like manner, checking and verifying entered data at each step. Each step has a corresponding <span>error handler</span> with <span>localized error</span> descriptions, so if the username is already taken, the email format is incorrect, the password is too short, etc., the user will be notified. Once registration is complete, the screen will seamlessly transition to the app’s main view.</h3>
+            <h3 class="descriptionText">The registration process is handled in a card-like manner, checking and verifying entered data at each step. Each step has a corresponding <span>error handler</span> with <span>localized error</span> descriptions. Once registration is complete, the screen will seamlessly transition to the app’s main view.</h3>
          </div>
 
-         <div class="col-md-4 animate-box">
+         <div class="col-md-4 animate-box feature-container">
             <h2 class="fullsize-phone-title centerAligned">Discover Tab</h2>
             <video autoplay loop playsinline muted>
                <source src="appscreens/videos/DiscoverTab.mp4" type="video/mp4">
@@ -211,7 +237,7 @@
             <h3 class="descriptionText">This tab allows user to search for other users and browse recent posts from users they’re not following. Like every other <span class="swift">UITableView</span> and <span class="swift">UICollectionView</span> in this app, it features a pagination system, which is crucial for this type of app.</h3>
          </div>
 
-         <div class="col-md-4 animate-box">
+         <div class="col-md-4 animate-box feature-container">
             <h2 class="fullsize-phone-title centerAligned">Zoom Transition</h2>
             <video autoplay loop playsinline muted>
                <source src="appscreens/videos/CollectionToPostAnimation.mp4" type="video/mp4">
@@ -221,16 +247,17 @@
       </div>
 
 
-         <div class="footer-container animate-box">
-          <div class="line-1"></div>
-               <div class="fullWidthContainer" style="margin-top: 30px; margin-bottom: 30px;">
-                    <ul class="fh5co-footer-links list-unstyled contact-list">
-                      <li><a href="https://t.me/tmmy_xo"><i class="icon-telegram contact-icon"></i>tmmy_xo</a></li>
-                     <li><a href="mailto: artemdolbiev@icloud.com"><i class="icon-email contact-icon"></i>artemdolbiev@icloud.com</a></li>
-                     <li><a href="tmmyxo.github.io"><i class="icon-earth contact-icon"></i>tmmyxo.github.io</a></li>
-                  </ul>
-               </div>
-         </div>
+<div class="footer-container">
+     <div class="line-1"></div>
+     <div>
+       <ul class="fh5co-footer-links list-unstyled contact-list">
+         <li><a href="https://tmmyxo.github.io/Portfolio/"><i class="icon-earth contact-icon"></i>Portfolio</a></li>
+         <li><a href="mailto:artem.dolbiiev@gmail.com"><i class="icon-email contact-icon"></i>artem.dolbiiev@gmail.com</a></li>
+        <li><a href="https://wa.me/380950934171"><i class="icon-whatsapp contact-icon"></i>Chat on WhatsApp</a></li>
+        <li><a href="https://t.me/tmmy_xo"><i class="icon-telegram contact-icon"></i>tmmy_xo</a></li>
+     </ul>
+  </div>
+</div>
 
       <div class="gototop js-top">
          <a href="#" class="js-gotop"><i class="icon-arrow-up22"></i></a>
